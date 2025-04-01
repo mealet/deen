@@ -1,0 +1,9 @@
+[package]
+name = "deen-lexer"
+description = "Lexical Analyzer for Deen Programming Language"
+
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
