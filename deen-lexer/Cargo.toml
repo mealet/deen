@@ -7,3 +7,5 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
+miette = { version = "7.5.0", features = ["fancy"] }
+thiserror = "2.0.12"
