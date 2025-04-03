@@ -1,16 +1,15 @@
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
 
-// Structs
-
 #[derive(Error, Diagnostic, Debug)]
-#[error("Undefined character found")]
+#[error("Extra zeroes at constant number")]
 #[diagnostic(
-        code(lexer::undefined_char),
-        help("try to replace this char with another"),
+        code(lexer::extra_zeroes),
+        help("remove unused zeroes from number"),
+        severity(Warning)
     )
 ]
-pub struct UndefinedChar {
+pub struct ExtraZeroes {
     #[source_code]
     pub src: NamedSource<String>,
 

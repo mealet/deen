@@ -16,6 +16,14 @@ pub enum TokenType {
     Multiply, // *
     Divide, // /
 
+    Lt, // <
+    Bt, // >
+    Eq, // ==
+    Ne, // !=
+    Or, // ||
+    And, // &&
+    Not, // !
+
     Semicolon, // ;
     Ampersand, // &
     Ref, // &abc
@@ -24,6 +32,10 @@ pub enum TokenType {
     Comma, // ,
     DoubleQuote, // "
     SingleQuote, // '
+    
+    LShift, // <<
+    RShift, // >>
+    Xor, // ^
 
     LParen, // (
     RParen, // )
