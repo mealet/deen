@@ -3,13 +3,13 @@
 use miette::{NamedSource, Diagnostic};
 use std::collections::HashMap;
 use crate::{
+    error::{LexerError, LexerWarning},
     token::Token,
     token_type::TokenType,
     macros::{std_keyword, std_type, std_symbol, std_token}
 };
 
-mod errors;
-mod warnings;
+mod error;
 mod macros;
 mod token;
 mod token_type;
@@ -20,8 +20,8 @@ pub struct Lexer {
     std_symbols: HashMap<char, Token>,
     std_words: HashMap<String, Token>,
 
-    errors: Vec<Box<dyn Diagnostic>>,
-    warnings: Vec<Box<dyn Diagnostic>>,
+    errors: Vec<error::LexerError>,
+    warnings: Vec<error::LexerWarning>,
 
     input: Vec<char>,
     position: usize,
@@ -55,12 +55,24 @@ impl Lexer {
 
     // fundamental
     
-    fn error<T: 'static + Diagnostic>(&mut self, error: T) {
-        self.errors.push(Box::new(error));
+    fn error(&mut self, message: String, span: (usize, usize)) {
+        self.errors.push(
+            error::LexerError {
+                message,
+                span: span.into(),
+                src: self.source.clone()
+            }
+        );
     }
 
-    fn warning<T: 'static + Diagnostic>(&mut self, warn: T) {
-        self.errors.push(Box::new(warn));
+    fn warning(&mut self, message: String, span: (usize, usize)) {
+        self.warnings.push(
+            error::LexerWarning {
+                message,
+                span: span.into(),
+                src: self.source.clone()
+            }
+        )
     }
 
     fn getc(&mut self) {
@@ -103,7 +115,7 @@ impl Lexer {
                     'b' => {
                         if mode != ParseMode::Decimal || !value.is_empty() {
                             self.error(
-                                errors::WrongConst { src: self.source.clone(), at: (span_start, self.position).into() }
+                                String::from("Wrong number constant found"), (span_start, self.position - span_start)
                             );
                             return 0;
                         }
@@ -115,7 +127,7 @@ impl Lexer {
                     'x' => {
                         if mode != ParseMode::Decimal || !value.is_empty() {
                             self.error(
-                                errors::WrongConst { src: self.source.clone(), at: (span_start, self.position).into() }
+                                String::from("Wrong number constant found"), (span_start, self.position - span_start)
                             );
                             return 0;
                         }
@@ -129,7 +141,7 @@ impl Lexer {
                             }
 
                             self.warning(
-                                warnings::ExtraZeroes { src: self.source.clone(), at: (extra_start, self.position).into() }
+                                String::from("Extra zeroes in constant"), (extra_start, self.position - extra_start)
                             );
                             continue;
                         }
@@ -155,7 +167,7 @@ impl Lexer {
             ParseMode::Decimal => {
                 return value.parse().unwrap_or_else(|_| {
                     self.error(
-                        errors::ParseError { src: self.source.clone(), at: (span_start, self.position).into() }
+                        String::from("IO Module returned an error while parsing number"), (span_start, self.position - span_start)
                     );
                     0
                 })
@@ -163,7 +175,7 @@ impl Lexer {
             ParseMode::Binary => {
                 return i64::from_str_radix(value.trim(), 2).unwrap_or_else(|_| {
                     self.error(
-                        errors::ParseError { src: self.source.clone(), at: (span_start, self.position).into() }
+                        String::from("IO Module returned an error while parsing number"), (span_start, self.position - span_start)
                     );
                     0
                 })
@@ -171,8 +183,9 @@ impl Lexer {
             ParseMode::Hexadecimal => {
                 return i64::from_str_radix(value.trim(), 16).unwrap_or_else(|_| {
                     self.error(
-                        errors::ParseError { src: self.source.clone(), at: (span_start, self.position).into() }
+                        String::from("IO Module returned an error while parsing number"), (span_start, self.position - span_start)
                     );
+
                     0
                 })
             }
@@ -181,7 +194,7 @@ impl Lexer {
 
     // main
     
-    pub fn tokenize(&mut self) -> Result<(Vec<Token>, Vec<Box<dyn Diagnostic>>), (Vec<Box<dyn Diagnostic>>, Vec<Box<dyn Diagnostic>>)> {
+    pub fn tokenize(&mut self) -> Result<(Vec<Token>, Vec<LexerWarning>), (Vec<LexerError>, Vec<LexerWarning>)> {
         let mut output = Vec::new();
 
         while !self.is_eof() {
@@ -201,7 +214,7 @@ impl Lexer {
                             Token::new(
                                 value.to_string(),
                                 TokenType::Number,
-                                (span_start, self.position).into()
+                                (span_start, self.position - span_start).into()
                             )
                         );
 
@@ -211,7 +224,7 @@ impl Lexer {
                             Token::new(
                                 String::from("-"),
                                 TokenType::Minus,
-                                (span_start, self.position).into()
+                                (span_start, self.position - span_start).into()
                             )
                         );
                         self.getc();
@@ -235,7 +248,7 @@ impl Lexer {
                                 Token::new(
                                     captured_string,
                                     TokenType::String,
-                                    (span_start, self.position)
+                                    (span_start, self.position - span_start)
                                 )
                             );
                             self.getc();
@@ -250,7 +263,7 @@ impl Lexer {
                             self.getc();
                             if self.char != '\'' {
                                 self.error(
-                                    errors::CharEscape { src: self.source.clone(), at: (span_start, self.position).into() }
+                                    String::from("Unexpected character escape found"), (span_start, self.position - span_start)
                                 );
                                 self.getc();
                             }
@@ -259,7 +272,7 @@ impl Lexer {
                                 Token::new(
                                     chr.to_string(),
                                     TokenType::Char,
-                                    (span_start, self.position)
+                                    (span_start, self.position - span_start)
                                 )
                             );
                             self.getc();
@@ -273,13 +286,13 @@ impl Lexer {
                                     Token::new(
                                         String::from("=="),
                                         TokenType::Eq,
-                                        (span_start, self.position).into()
+                                        (span_start, self.position - span_start).into()
                                     )
                                 );
                                 self.getc();
                             } else {
                                 let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start, self.position).into();
+                                formatted_token.span = (span_start, self.position - span_start).into();
 
                                 output.push(formatted_token);
                             }
@@ -293,14 +306,14 @@ impl Lexer {
                                         Token::new(
                                             String::from("<<"),
                                             TokenType::LShift,
-                                            (span_start, self.position)
+                                            (span_start, self.position - span_start)
                                         )
                                     );
                                     self.getc();
                                 }
                                 _ => {
                                     let mut formatted_token = matched_token;
-                                    formatted_token.span = (span_start, self.position).into();
+                                    formatted_token.span = (span_start, self.position - span_start).into();
 
                                     output.push(formatted_token);
                                 }
@@ -315,14 +328,14 @@ impl Lexer {
                                         Token::new(
                                             String::from(">>"),
                                             TokenType::RShift,
-                                            (span_start, self.position)
+                                            (span_start, self.position - span_start)
                                         )
                                     );
                                     self.getc();
                                 }
                                 _ => {
                                     let mut formatted_token = matched_token;
-                                    formatted_token.span = (span_start, self.position).into();
+                                    formatted_token.span = (span_start, self.position - span_start).into();
 
                                     output.push(formatted_token);
                                 }
@@ -336,13 +349,13 @@ impl Lexer {
                                     Token::new(
                                         String::from("!="),
                                         TokenType::Ne,
-                                        (span_start, self.position)
+                                        (span_start, self.position - span_start)
                                     )
                                 );
                                 self.getc();
                             } else {
                                 let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start, self.position).into();
+                                formatted_token.span = (span_start, self.position - span_start).into();
 
                                 output.push(formatted_token);
                             }
@@ -355,13 +368,13 @@ impl Lexer {
                                     Token::new(
                                         String::from("||"),
                                         TokenType::Or,
-                                        (span_start, self.position)
+                                        (span_start, self.position - span_start)
                                     )
                                 );
                                 self.getc();
                             } else {
                                 let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start, self.position).into();
+                                formatted_token.span = (span_start, self.position - span_start).into();
 
                                 output.push(formatted_token);
                             }
@@ -375,14 +388,14 @@ impl Lexer {
                                         Token::new(
                                             String::from("&&"),
                                             TokenType::And,
-                                            (span_start, self.position)
+                                            (span_start, self.position - span_start)
                                         )
                                     );
                                     self.getc();
                                 }
                                 ' ' => {
                                     let mut formatted_token = matched_token;
-                                    formatted_token.span = (span_start, self.position).into();
+                                    formatted_token.span = (span_start, self.position - span_start).into();
 
                                     output.push(formatted_token);                                   
                                 }
@@ -391,7 +404,7 @@ impl Lexer {
                                         Token::new(
                                             String::from("&"),
                                             TokenType::Ref,
-                                            (span_start, self.position).into()
+                                            (span_start, self.position - span_start).into()
                                         )
                                     );
                                 }
@@ -399,7 +412,7 @@ impl Lexer {
                         }
                         _ => {
                             let mut formatted_token = matched_token;
-                            formatted_token.span = (span_start, self.position).into();
+                            formatted_token.span = (span_start, self.position - span_start).into();
 
                             output.push(formatted_token);
                             self.getc();
@@ -412,7 +425,7 @@ impl Lexer {
 
                     output.push(
                         Token::new(
-                            value.to_string(), TokenType::Number, (span_start, self.position)
+                            value.to_string(), TokenType::Number, (span_start, self.position - span_start)
                         )
                     );
                 }
@@ -430,21 +443,21 @@ impl Lexer {
 
                     if self.std_words.contains_key(&id) {
                         let mut matched_token = self.std_words.get(&id).unwrap().clone();
-                        matched_token.span = (start_span, self.position).into();
+                        matched_token.span = (start_span, self.position - start_span).into();
                         output.push(matched_token);
                     } else {
                         output.push(
                             Token::new(
                                 id,
                                 TokenType::Identifier,
-                                (start_span, self.position)
+                                (start_span, self.position - start_span)
                             )
                         );
                     }
                 }
                 _ => {
                     self.error(
-                        errors::UndefinedChar { src: self.source.clone(), at: (self.position, self.position + 1).into() }
+                        String::from("Undefined char found"), (self.position - 1, 1).into()
                     );
                     self.getc();
                 }
@@ -456,9 +469,9 @@ impl Lexer {
         }
 
         if !self.errors.is_empty() {
-            return Err((std::mem::take(&mut self.errors), std::mem::take(&mut self.warnings)))
+            return Err((self.errors.clone(), self.warnings.clone()))
         }
 
-        Ok((output, std::mem::take(&mut self.warnings)))
+        Ok((output, self.warnings.clone()))
     }
 }
