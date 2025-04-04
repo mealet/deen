@@ -1,13 +1,12 @@
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
 
-#[derive(Debug, Error, Diagnostic, Clone)]
+#[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 #[error("Error: {message}")]
 #[diagnostic(
-    severity(Error),
-    code(deen::lexer)
+    severity(Error)
 )]
-pub struct LexerError {
+pub struct ParserError {
     pub message: String,
     #[source_code]
     pub src: NamedSource<String>,
@@ -15,13 +14,10 @@ pub struct LexerError {
     pub span: SourceSpan
 }
 
-#[derive(Debug, Error, Diagnostic, Clone)]
+#[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 #[error("Warning: {message}")]
-#[diagnostic(
-    severity(Warning),
-    code(deen::lexer)
-)]
-pub struct LexerWarning {
+#[diagnostic(severity(Warning))]
+pub struct ParserWarning {
     pub message: String,
     #[source_code]
     pub src: NamedSource<String>,

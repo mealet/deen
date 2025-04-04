@@ -11,8 +11,8 @@ use crate::{
 
 mod error;
 mod macros;
-mod token;
-mod token_type;
+pub mod token;
+pub mod token_type;
 
 pub struct Lexer {
     source: NamedSource<String>,
