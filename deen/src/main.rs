@@ -2,7 +2,7 @@ use miette::Result;
 
 fn main() -> Result<()> {
     let mut lexer = deen_lexer::Lexer::new(
-        String::from("1 + 1 * 2"),
+        String::from("01 + 1 * 2"),
         String::from("test.dn")
     );
 

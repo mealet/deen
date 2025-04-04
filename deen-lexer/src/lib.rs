@@ -193,15 +193,13 @@ impl Lexer {
                         }
                     }
                     '0' => {
-                        if !value.is_empty() {
-                            let extra_start = self.position;
-
+                        if value.is_empty() {
                             while self.char == '0' {
                                 self.getc();
                             }
 
                             self.warning(
-                                String::from("Extra zeroes in constant"), (extra_start, self.position - extra_start)
+                                String::from("Extra zeroes in constant"), (span_start - 1, self.position - span_start)
                             );
                             continue;
                         }
@@ -210,6 +208,12 @@ impl Lexer {
                         continue;
                     }
                     _ => {
+                        if value.is_empty() {
+                            self.warning(
+                                String::from("Extra zero at the constant start"), (span_start - 1, self.position - span_start)
+                            );
+                        }
+
                         value.push('0');
                         continue;
                     }
@@ -222,6 +226,8 @@ impl Lexer {
 
             self.getc();
         }
+
+        if value.is_empty() { return 0 };
 
         match mode {
             ParseMode::Decimal => {
