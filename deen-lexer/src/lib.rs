@@ -35,10 +35,70 @@ impl Lexer {
             source: NamedSource::new(filename, source.clone()),
 
             std_symbols: HashMap::from([
+                std_symbol!('+', TokenType::Plus),
+                std_symbol!('-', TokenType::Minus),
+                std_symbol!('*', TokenType::Multiply),
+                std_symbol!('/', TokenType::Divide),
+                std_symbol!('=', TokenType::Equal),
 
+                std_symbol!('!', TokenType::Not),
+                std_symbol!('^', TokenType::Xor),
+                std_symbol!('>', TokenType::Bt),
+                std_symbol!('<', TokenType::Lt),
+
+                std_symbol!('.', TokenType::Dot),
+                std_symbol!(',', TokenType::Comma),
+                std_symbol!('"', TokenType::DoubleQuote),
+                std_symbol!('\'', TokenType::SingleQuote),
+                std_symbol!(';', TokenType::Semicolon),
+                std_symbol!('&', TokenType::Ampersand),
+                std_symbol!('|', TokenType::Verbar),
+
+                std_symbol!('(', TokenType::LParen),
+                std_symbol!(')', TokenType::RParen),
+
+                std_symbol!('[', TokenType::LBrack),
+                std_symbol!(']', TokenType::RBrack),
+
+                std_symbol!('{', TokenType::LBrace),
+                std_symbol!('}', TokenType::RBrace),
             ]),
             std_words: HashMap::from([
+                // Constructions
 
+                std_keyword!("if"),
+                std_keyword!("else"),
+                std_keyword!("while"),
+                std_keyword!("for"),
+                std_keyword!("break"),
+
+                // Tech
+
+                std_keyword!("import"),
+                std_keyword!("return"),
+
+                // Types
+
+                std_type!("i8"),
+                std_type!("i16"),
+                std_type!("i32"),
+                std_type!("i64"),
+
+                std_type!("u8"),
+                std_type!("u16"),
+                std_type!("u32"),
+                std_type!("u64"),
+
+                std_type!("string"),
+                std_type!("char"),
+
+                std_type!("bool"),
+                std_type!("void"),
+
+                // Values
+
+                std_token!("true", TokenType::Boolean),
+                std_token!("false", TokenType::Boolean),
             ]),
 
             errors: Vec::new(),
