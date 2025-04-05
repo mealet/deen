@@ -153,4 +153,164 @@ impl Parser {
             }
         }
     }
+    
+    pub fn import_statement(&mut self) -> Statements {
+        if self.current().token_type == TokenType::Keyword {
+            let _ = self.next();
+        }
+
+        let span_start = self.current().span.0;
+        let path = self.expression();
+
+        let span_end = self.current().span.1;
+        let _ = self.skip_eos();
+
+        if let Expressions::Value(Value::String(_), _) = path {
+            Statements::ImportStatement { path, span: (span_start, span_end) }
+        } else {
+            self.error(
+                String::from("Unexpected import syntax found"),
+                (span_start, span_end)
+            );
+            Statements::None
+        }
+    }
+
+    pub fn if_statement(&mut self) -> Statements {
+        let span_start = self.current().span.0;       
+        if self.current().token_type == TokenType::Keyword {
+            let _ = self.next();
+        }
+
+        let condition = self.expression();
+
+        if self.current().token_type != TokenType::LBrace {
+            self.error(
+                String::from("Expected new block after condition"),
+                (span_start, self.current().span.1)
+            );
+            return Statements::None;
+        }
+
+        let _ = self.next();
+        let span_block_start = self.current().span.0;
+        let mut then_block = Vec::new();
+
+        while self.current().token_type != TokenType::RBrace {
+            if self.current().token_type == TokenType::EOF {
+                self.error(
+                    String::from("Expected block end, but found EOF"),
+                    (span_block_start, self.current().span.1)
+                );
+                return Statements::None;
+            }
+
+            then_block.push(self.statement())
+        }
+
+        if self.expect(TokenType::RBrace) {
+            let _ = self.next();
+        }
+
+        match self.current().token_type {
+            TokenType::Keyword => {
+                if self.current().value != "else" {
+                    let span_end = self.current().span.1;
+                    self.skip_eos();
+                    return Statements::IfStatement {
+                        condition,
+                        then_block,
+                        else_block: None,
+                        span: (span_start, span_end)
+                    };
+                }
+
+                let else_span_start = self.current().span.0;
+                let _ = self.next();
+
+                if !self.expect(TokenType::LBrace) {
+                    self.error(
+                        String::from("New block expected after `else` keyword"),
+                        (else_span_start, self.current().span.1)
+                    );
+                    return Statements::None
+                }
+                
+                let _ = self.next();
+
+                let mut else_block = Vec::new();
+
+                while self.current().token_type != TokenType::RBrace {
+                    if self.current().token_type == TokenType::EOF {
+                        self.error(
+                            String::from("Expected block end, but found EOF"),
+                            (else_span_start, self.current().span.1)
+                        );
+                        return Statements::None;
+                    }
+
+                    else_block.push(self.statement());
+                }
+
+                if self.expect(TokenType::RBrace) {
+                    let _ = self.next();
+                }
+
+                let span_end = self.current().span.1;
+                let _ = self.skip_eos();
+                Statements::IfStatement {
+                    condition,
+                    then_block,
+                    else_block: Some(else_block),
+                    span: (span_start, span_end)
+                }
+            },
+            _ => {
+                let span_end = self.current().span.1;
+                self.skip_eos();
+                Statements::IfStatement {
+                    condition,
+                    then_block,
+                    else_block: None,
+                    span: (span_start, span_end)
+                }
+            }
+        }
+    }
+
+    pub fn while_statement(&mut self) -> Statements {
+        todo!()
+    }
+
+    pub fn for_statement(&mut self) -> Statements {
+        todo!()
+    }
+
+    pub fn fn_statement(&mut self) -> Statements {
+        todo!()
+    }
+
+    pub fn return_statement(&mut self) -> Statements {
+        todo!()
+    }
+
+    pub fn break_statement(&mut self) -> Statements {
+        todo!()
+    }
+
+    pub fn assign_statement(&mut self, id: String) -> Statements {
+        todo!()
+    }
+
+    pub fn binary_assign_statement(&mut self, id: String, op: String) -> Statements {
+        todo!()
+    }
+
+    pub fn slice_assign_statement(&mut self, id: String) -> Statements {
+        todo!()
+    }
+
+    pub fn call_statement(&mut self, id: String) -> Statements {
+        todo!()
+    }
 }

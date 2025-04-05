@@ -1,4 +1,14 @@
-use crate::{statements::Statements, value::Value, types::Type};
+use crate::{
+    error::{ParserError, ParserWarning},
+    statements::Statements,
+    value::Value,
+    types::Type,
+    Parser
+};
+use deen_lexer::{
+    token::Token,
+    token_type::TokenType
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expressions {
@@ -59,4 +69,10 @@ pub enum Expressions {
 
     Value(Value, (usize, usize)),
     None,
+}
+
+impl Parser {
+    pub fn subelement_expression(&mut self, parent: Expressions, separator: TokenType) -> Expressions {
+        todo!()
+    }
 }
