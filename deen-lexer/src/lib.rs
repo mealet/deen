@@ -50,6 +50,7 @@ impl Lexer {
                 std_symbol!(',', TokenType::Comma),
                 std_symbol!('"', TokenType::DoubleQuote),
                 std_symbol!('\'', TokenType::SingleQuote),
+                std_symbol!(':', TokenType::DoubleDots),
                 std_symbol!(';', TokenType::Semicolon),
                 std_symbol!('&', TokenType::Ampersand),
                 std_symbol!('|', TokenType::Verbar),
@@ -74,6 +75,7 @@ impl Lexer {
 
                 // Tech
 
+                std_keyword!("let"),
                 std_keyword!("import"),
                 std_keyword!("return"),
 
@@ -175,7 +177,7 @@ impl Lexer {
                     'b' => {
                         if mode != ParseMode::Decimal || !value.is_empty() {
                             self.error(
-                                String::from("Wrong number constant found"), (span_start, self.position - span_start)
+                                String::from("Wrong number constant found"), (span_start, self.position)
                             );
                             return 0;
                         }
@@ -187,7 +189,7 @@ impl Lexer {
                     'x' => {
                         if mode != ParseMode::Decimal || !value.is_empty() {
                             self.error(
-                                String::from("Wrong number constant found"), (span_start, self.position - span_start)
+                                String::from("Wrong number constant found"), (span_start, self.position)
                             );
                             return 0;
                         }
@@ -199,7 +201,7 @@ impl Lexer {
                             }
 
                             self.warning(
-                                String::from("Extra zeroes in constant"), (span_start - 1, self.position - span_start)
+                                String::from("Extra zeroes in constant"), (span_start - 1, self.position)
                             );
                             continue;
                         }
@@ -210,7 +212,7 @@ impl Lexer {
                     _ => {
                         if value.is_empty() {
                             self.warning(
-                                String::from("Extra zero at the constant start"), (span_start - 1, self.position - span_start)
+                                String::from("Extra zero at the constant start"), (span_start - 1, self.position)
                             );
                         }
 
@@ -233,7 +235,7 @@ impl Lexer {
             ParseMode::Decimal => {
                 return value.parse().unwrap_or_else(|_| {
                     self.error(
-                        String::from("IO Module returned an error while parsing number"), (span_start, self.position - span_start)
+                        String::from("IO Module returned an error while parsing number"), (span_start, self.position)
                     );
                     0
                 })
@@ -241,7 +243,7 @@ impl Lexer {
             ParseMode::Binary => {
                 return i64::from_str_radix(value.trim(), 2).unwrap_or_else(|_| {
                     self.error(
-                        String::from("IO Module returned an error while parsing number"), (span_start, self.position - span_start)
+                        String::from("IO Module returned an error while parsing number"), (span_start, self.position)
                     );
                     0
                 })
@@ -249,7 +251,7 @@ impl Lexer {
             ParseMode::Hexadecimal => {
                 return i64::from_str_radix(value.trim(), 16).unwrap_or_else(|_| {
                     self.error(
-                        String::from("IO Module returned an error while parsing number"), (span_start, self.position - span_start)
+                        String::from("IO Module returned an error while parsing number"), (span_start, self.position)
                     );
 
                     0
@@ -280,7 +282,7 @@ impl Lexer {
                             Token::new(
                                 value.to_string(),
                                 TokenType::Number,
-                                (span_start, self.position - span_start).into()
+                                (span_start, self.position).into()
                             )
                         );
 
@@ -290,7 +292,7 @@ impl Lexer {
                             Token::new(
                                 String::from("-"),
                                 TokenType::Minus,
-                                (span_start, self.position - span_start).into()
+                                (span_start, self.position).into()
                             )
                         );
                         self.getc();
@@ -314,7 +316,7 @@ impl Lexer {
                                 Token::new(
                                     captured_string,
                                     TokenType::String,
-                                    (span_start, self.position - span_start)
+                                    (span_start, self.position)
                                 )
                             );
                             self.getc();
@@ -329,7 +331,7 @@ impl Lexer {
                             self.getc();
                             if self.char != '\'' {
                                 self.error(
-                                    String::from("Unexpected character escape found"), (span_start, self.position - span_start)
+                                    String::from("Unexpected character escape found"), (span_start, self.position)
                                 );
                                 self.getc();
                             }
@@ -338,7 +340,7 @@ impl Lexer {
                                 Token::new(
                                     chr.to_string(),
                                     TokenType::Char,
-                                    (span_start, self.position - span_start)
+                                    (span_start, self.position)
                                 )
                             );
                             self.getc();
@@ -352,13 +354,13 @@ impl Lexer {
                                     Token::new(
                                         String::from("=="),
                                         TokenType::Eq,
-                                        (span_start, self.position - span_start).into()
+                                        (span_start, self.position).into()
                                     )
                                 );
                                 self.getc();
                             } else {
                                 let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start, self.position - span_start).into();
+                                formatted_token.span = (span_start, self.position).into();
 
                                 output.push(formatted_token);
                             }
@@ -372,14 +374,14 @@ impl Lexer {
                                         Token::new(
                                             String::from("<<"),
                                             TokenType::LShift,
-                                            (span_start, self.position - span_start)
+                                            (span_start, self.position)
                                         )
                                     );
                                     self.getc();
                                 }
                                 _ => {
                                     let mut formatted_token = matched_token;
-                                    formatted_token.span = (span_start, self.position - span_start).into();
+                                    formatted_token.span = (span_start, self.position).into();
 
                                     output.push(formatted_token);
                                 }
@@ -394,14 +396,14 @@ impl Lexer {
                                         Token::new(
                                             String::from(">>"),
                                             TokenType::RShift,
-                                            (span_start, self.position - span_start)
+                                            (span_start, self.position)
                                         )
                                     );
                                     self.getc();
                                 }
                                 _ => {
                                     let mut formatted_token = matched_token;
-                                    formatted_token.span = (span_start, self.position - span_start).into();
+                                    formatted_token.span = (span_start, self.position).into();
 
                                     output.push(formatted_token);
                                 }
@@ -415,13 +417,13 @@ impl Lexer {
                                     Token::new(
                                         String::from("!="),
                                         TokenType::Ne,
-                                        (span_start, self.position - span_start)
+                                        (span_start, self.position)
                                     )
                                 );
                                 self.getc();
                             } else {
                                 let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start, self.position - span_start).into();
+                                formatted_token.span = (span_start, self.position).into();
 
                                 output.push(formatted_token);
                             }
@@ -434,13 +436,13 @@ impl Lexer {
                                     Token::new(
                                         String::from("||"),
                                         TokenType::Or,
-                                        (span_start, self.position - span_start)
+                                        (span_start, self.position)
                                     )
                                 );
                                 self.getc();
                             } else {
                                 let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start, self.position - span_start).into();
+                                formatted_token.span = (span_start, self.position).into();
 
                                 output.push(formatted_token);
                             }
@@ -454,14 +456,14 @@ impl Lexer {
                                         Token::new(
                                             String::from("&&"),
                                             TokenType::And,
-                                            (span_start, self.position - span_start)
+                                            (span_start, self.position)
                                         )
                                     );
                                     self.getc();
                                 }
                                 ' ' => {
                                     let mut formatted_token = matched_token;
-                                    formatted_token.span = (span_start, self.position - span_start).into();
+                                    formatted_token.span = (span_start, self.position).into();
 
                                     output.push(formatted_token);                                   
                                 }
@@ -470,7 +472,7 @@ impl Lexer {
                                         Token::new(
                                             String::from("&"),
                                             TokenType::Ref,
-                                            (span_start, self.position - span_start).into()
+                                            (span_start, self.position).into()
                                         )
                                     );
                                 }
@@ -478,7 +480,7 @@ impl Lexer {
                         }
                         _ => {
                             let mut formatted_token = matched_token;
-                            formatted_token.span = (span_start, self.position - span_start).into();
+                            formatted_token.span = (span_start, self.position).into();
 
                             output.push(formatted_token);
                             self.getc();
@@ -491,7 +493,7 @@ impl Lexer {
 
                     output.push(
                         Token::new(
-                            value.to_string(), TokenType::Number, (span_start, self.position - span_start)
+                            value.to_string(), TokenType::Number, (span_start, self.position)
                         )
                     );
                 }
@@ -509,14 +511,14 @@ impl Lexer {
 
                     if self.std_words.contains_key(&id) {
                         let mut matched_token = self.std_words.get(&id).unwrap().clone();
-                        matched_token.span = (start_span, self.position - start_span).into();
+                        matched_token.span = (start_span, self.position).into();
                         output.push(matched_token);
                     } else {
                         output.push(
                             Token::new(
                                 id,
                                 TokenType::Identifier,
-                                (start_span, self.position - start_span)
+                                (start_span, self.position)
                             )
                         );
                     }

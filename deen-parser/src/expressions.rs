@@ -57,6 +57,6 @@ pub enum Expressions {
         span: (usize, usize)
     },
 
-    Value(Value),
+    Value(Value, (usize, usize)),
     None,
 }

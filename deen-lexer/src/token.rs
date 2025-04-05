@@ -6,7 +6,7 @@ use crate::token_type::TokenType;
 pub struct Token {
     pub value: String,
     pub token_type: TokenType,
-    pub span: SourceSpan
+    pub span: (usize, usize)
 }
 
 impl Token {
@@ -14,7 +14,7 @@ impl Token {
         Self {
             value,
             token_type,
-            span: span.into()
+            span: span
         }
     }
 }

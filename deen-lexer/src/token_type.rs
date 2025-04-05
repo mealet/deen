@@ -24,6 +24,7 @@ pub enum TokenType {
     And, // &&
     Not, // !
 
+    DoubleDots, // :
     Semicolon, // ;
     Ampersand, // &
     Ref, // &abc
