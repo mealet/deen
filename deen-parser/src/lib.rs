@@ -64,9 +64,9 @@ pub struct Parser {
 impl Parser {
     // main
 
-    pub fn new(tokens: Vec<Token>, source: String, filename: String) -> Self {
+    pub fn new(tokens: Vec<Token>, source: &String, filename: &String) -> Self {
         Self {
-            source: NamedSource::new(filename, source),
+            source: NamedSource::new(filename.clone(), source.clone()),
 
             tokens,
             position: 0,
@@ -234,13 +234,13 @@ impl Parser {
 
         match current.token_type {
             tty if BINARY_OPERATORS.contains(&tty) => {
-                todo!()
+                self.binary_expression(node)
             }
             tty if BOOLEAN_OPERATORS.contains(&tty) => {
-                todo!()
+                self.boolean_expression(node)
             }
             tty if BITWISE_OPERATORS.contains(&tty) => {
-                todo!()
+                self.bitwise_expression(node)
             }
 
             TokenType::LBrack => {

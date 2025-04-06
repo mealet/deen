@@ -30,7 +30,7 @@ pub struct Lexer {
 
 impl Lexer {
     // basic
-    pub fn new(source: String, filename: String) -> Self {
+    pub fn new(source: &String, filename: &String) -> Self {
         let mut lexer = Lexer {
             source: NamedSource::new(filename, source.clone()),
 
@@ -210,7 +210,7 @@ impl Lexer {
                         continue;
                     }
                     _ => {
-                        if value.is_empty() {
+                        if value.is_empty() && self.char.is_ascii_digit() {
                             self.warning(
                                 String::from("Extra zero at the constant start"), (span_start - 1, self.position)
                             );
@@ -436,7 +436,7 @@ impl Lexer {
                                     Token::new(
                                         String::from("||"),
                                         TokenType::Or,
-                                        (span_start, self.position)
+                                        (span_start - 1, self.position)
                                     )
                                 );
                                 self.getc();
@@ -456,7 +456,7 @@ impl Lexer {
                                         Token::new(
                                             String::from("&&"),
                                             TokenType::And,
-                                            (span_start, self.position)
+                                            (span_start - 1, self.position)
                                         )
                                     );
                                     self.getc();

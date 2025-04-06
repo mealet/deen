@@ -3,7 +3,13 @@ use crate::{
     statements::Statements,
     value::Value,
     types::Type,
-    Parser
+    Parser,
+
+    BINARY_OPERATORS,
+    BOOLEAN_OPERATORS,
+    BITWISE_OPERATORS,
+    PRIORITY_BINARY_OPERATORS,
+    PRIORITY_BOOLEAN_OPERATORS
 };
 use deen_lexer::{
     token::Token,
@@ -73,6 +79,94 @@ pub enum Expressions {
 
 impl Parser {
     pub fn subelement_expression(&mut self, parent: Expressions, separator: TokenType) -> Expressions {
+        todo!()
+    }
+
+    pub fn binary_expression(&mut self, node: Expressions) -> Expressions {
+        let current = self.current();
+        
+        match current.token_type {
+            tty if BINARY_OPERATORS.contains(&tty) => {
+                let _ = self.next();
+
+                let lhs = node;
+                let rhs = self.expression();
+
+                if PRIORITY_BINARY_OPERATORS.contains(&tty) {
+                    let mut new_node = rhs.clone();
+                    let old_lhs = lhs.clone();
+
+                    if let Expressions::Binary { operand, lhs, rhs, span } = new_node {
+                        let lhs_new = Box::new(old_lhs);
+                        let rhs_new = lhs;
+
+                        let priority_node = Expressions::Binary {
+                            operand: current.value,
+                            lhs: lhs_new,
+                            rhs: rhs_new,
+                            span
+                        };
+
+                        return Expressions::Binary {
+                            operand,
+                            lhs: Box::new(priority_node),
+                            rhs,
+                            span
+                        }
+                    }
+                }
+
+                return Expressions::Binary {
+                    operand: current.value,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    span: (current.span.0, self.current().span.1)
+                }
+            },
+            _ => unreachable!()
+        }
+    }
+
+    pub fn boolean_expression(&mut self, node: Expressions) -> Expressions {
+        // FIXME: Expressions like `true || false` returns error "Undefined term found"
+
+        let current = self.current();
+
+        match current.token_type {
+            op if PRIORITY_BOOLEAN_OPERATORS.contains(&op) => node,
+            op if BOOLEAN_OPERATORS.contains(&op) => {
+                let _ = self.next();
+
+                let lhs = node.clone();
+                let rhs = self.expression();
+
+                if PRIORITY_BOOLEAN_OPERATORS.contains(&self.current().token_type) {
+                    let operand = self.current().value;
+                    let lhs_node = Expressions::Boolean {
+                        operand: current.value,
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
+                        span: (current.span.0, self.current().span.1)
+                    };
+
+                    let _ = self.next();
+                    let rhs_node = self.expression();
+
+                    return Expressions::Boolean { operand, lhs: Box::new(lhs_node), rhs: Box::new(rhs_node), span: (current.span.0, self.current().span.1) }
+                }
+
+                Expressions::Boolean {
+                    operand: current.value,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    span: (current.span.0, self.current().span.1)
+                }
+            }
+            _ => unreachable!()
+        }
+    }
+
+    pub fn bitwise_expression(&mut self, node: Expressions) -> Expressions {
         todo!()
     }
 }

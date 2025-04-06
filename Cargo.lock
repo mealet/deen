@@ -58,6 +58,7 @@ name = "deen"
 version = "0.0.1"
 dependencies = [
  "deen-lexer",
+ "deen-parser",
  "miette",
  "thiserror 2.0.12",
 ]
