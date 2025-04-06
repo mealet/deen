@@ -22,7 +22,7 @@ pub enum Type {
 
     Struct(String),
     Tuple(Vec<Type>),
-    Alias(String, Box<Type>),
+    Alias(String),
 
     Function {
         args: Vec<Type>,

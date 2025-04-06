@@ -114,18 +114,8 @@ impl Parser {
         let mut datatype = None;
 
         if self.next().token_type == TokenType::DoubleDots {
-            let str_type = self.next();
-
-            if str_type.token_type != TokenType::Type {
-                self.error(
-                    String::from("Undefined type in annotation found"),
-                    str_type.span
-                );
-                return Statements::None;
-            }
-
-            datatype = Some(self.get_basic_type(str_type.value, str_type.span));
             let _ = self.next();
+            datatype = Some(self.parse_type());
         }
 
         match self.current().token_type {

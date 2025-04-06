@@ -186,4 +186,16 @@ impl Parser {
             _ => unreachable!()
         }
     }
+
+    pub fn call_expression(&mut self, fname: String) -> Expressions {
+        todo!()
+    }
+
+    pub fn slice_expression(&mut self, expr: Expressions) -> Expressions {
+        todo!()
+    }
+
+    pub fn expressions_enum(&mut self, start: TokenType, end: TokenType, separator: TokenType) -> Vec<Expressions> {
+        todo!()
+    }
 }

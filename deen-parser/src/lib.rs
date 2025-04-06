@@ -143,6 +143,77 @@ impl Parser {
             }
         }
     }
+
+    fn parse_type(&mut self) -> Type {
+        let current = self.current();
+
+        match current.token_type {
+            TokenType::Type => {
+                let _ = self.next();
+                return self.get_basic_type(current.value, current.span);
+            },
+            TokenType::LBrack => {
+                let _ = self.next();
+                let array_type = self.parse_type();
+
+                let _ = self.skip_eos();
+                if !self.expect(TokenType::Number) {
+                    self.error(
+                        String::from("Array size must be integer constant"),
+                        self.current().span
+                    );
+                    return Type::Void;
+                }
+
+                let array_size = self.current().value.parse::<usize>().unwrap();
+
+                let _ = self.next();
+                if !self.expect(TokenType::RBrack) {
+                    self.error(
+                        String::from("Unclosed brackets at array type"),
+                        self.current().span
+                    );
+                    return Type::Void;
+                }
+
+                let _ = self.next();
+                return Type::Array(Box::new(array_type), array_size);
+            }
+            TokenType::Multiply => {
+                let _ = self.next();
+                let ptr_type = self.parse_type();
+
+                return Type::Pointer(Box::new(ptr_type));
+            }
+            TokenType::LParen => {
+                let _ = self.next();
+                let mut types = Vec::new();
+
+                while !self.expect(TokenType::RParen) {
+                    if self.expect(TokenType::Comma) {
+                        let _ = self.next();
+                        continue;
+                    };
+                    types.push(self.parse_type());
+                }
+
+                let _ = self.next();
+                return Type::Tuple(types);
+            }
+            TokenType::Identifier => {
+                let _ = self.next();
+                return Type::Alias(current.value);
+            }
+            _ => {
+                let _ = self.next();
+                self.error(
+                    String::from("Undefined type found"),
+                    (current.span.0 - 1, current.span.1 - 1)
+                );
+                return Type::Void;
+            }
+        }
+    }
     
     // fundamental
     
@@ -184,38 +255,62 @@ impl Parser {
             TokenType::Keyword => Expressions::Value(Value::Keyword(current.value), current.span),
 
             TokenType::Identifier => {
-                let output = Expressions::Value(Value::Identifier(current.value), current.span);
+                let output = Expressions::Value(Value::Identifier(current.value.clone()), current.span);
 
                 match self.next().token_type {
                     TokenType::LParen => {
-                        todo!()
+                        return self.call_expression(current.value)
                     },
                     TokenType::LBrack => {
-                        todo!()
+                        return self.slice_expression(output)
+                    }
+                    TokenType::DoubleDots => {
+                        let _ = self.next();
+                        
+                        if !self.expect(TokenType::Type) {
+                            self.error(
+                                String::from("Unexpected variant of argument declaration"),
+                                (current.span.0, self.current().span.1)
+                            );
+                            return Expressions::None;
+                        }
+
+                        let datatype = self.parse_type();
+                        return Expressions::Argument { name: current.value, r#type: datatype, span: (current.span.0, self.current().span.1) }
                     }
                     _ => {}
                 }
 
                 output
             }
-            TokenType::Type => {
-                let datatype = self.get_basic_type(current.value, current.span);
-                let identifier = self.current();
 
-                if !self.expect(TokenType::Identifier) {
-                    return Expressions::Value(Value::Type(datatype), current.span);
-                }
+            // This case looks is for C-like syntax: `type name`,
+            // but syntax must be like: `name: type`
+            // *-----------------------*
+            // TokenType::Type => {
+            //     let datatype = self.get_basic_type(current.value, current.span);
+            //     let identifier = self.current();
+            //
+            //     if !self.expect(TokenType::Identifier) {
+            //         return Expressions::Value(Value::Type(datatype), current.span);
+            //     }
+            //
+            //     let _ = self.next();
+            //
+            //     Expressions::Argument {
+            //         name: identifier.value,
+            //         r#type: datatype,
+            //         span: current.span
+            //     }
+            // }
+            // *-----------------------*
 
-                let _ = self.next();
-
-                Expressions::Argument {
-                    name: identifier.value,
-                    r#type: datatype,
-                    span: current.span
-                }
-            }
             TokenType::LBrack => {
-                todo!()
+                let span_start = self.current().span.0;
+                let values = self.expressions_enum(TokenType::LBrack, TokenType::RBrack, TokenType::Comma);
+                let len = values.len();
+
+                return Expressions::Array { values, len, span: (span_start, self.current().span.1) }
             }
 
             _ => {
