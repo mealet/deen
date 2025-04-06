@@ -94,8 +94,6 @@ pub enum Statements {
 
 impl Parser {
     pub fn annotation_statement(&mut self) -> Statements {
-        // TODO: Add structures/arrays/tuples types parsing
-
         let span_start = self.current().span.0;
         
         if self.current().value == String::from("let") {
