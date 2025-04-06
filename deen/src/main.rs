@@ -1,5 +1,5 @@
 fn main() {
-    let src = String::from("5 > 2 && 3 < 4");
+    let src = String::from("0b111 << 2");
     let fname = String::from("test.dn");
 
     let mut lexer = deen_lexer::Lexer::new(

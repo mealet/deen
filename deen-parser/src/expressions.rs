@@ -167,6 +167,23 @@ impl Parser {
     }
 
     pub fn bitwise_expression(&mut self, node: Expressions) -> Expressions {
-        todo!()
+        let current = self.current();
+
+        match current.token_type {
+            tty if BITWISE_OPERATORS.contains(&tty) => {
+                let _ = self.next();
+
+                let lhs = Box::new(node);
+                let rhs = Box::new(self.expression());
+
+                Expressions::Bitwise {
+                    operand: current.value,
+                    lhs,
+                    rhs,
+                    span: (current.span.0, self.current().span.1)
+                }
+            }
+            _ => unreachable!()
+        }
     }
 }
