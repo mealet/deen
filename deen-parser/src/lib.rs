@@ -77,6 +77,21 @@ impl Parser {
         }
     }
 
+    pub fn parse(&mut self) -> Result<(Vec<Statements>, Vec<ParserWarning>), (Vec<ParserError>, Vec<ParserWarning>)> {
+        let mut output = Vec::new();
+
+        while self.position < self.tokens.len() - 1 {
+            output.push(self.statement());
+
+            if self.eof { break };
+        }
+
+        if !self.errors.is_empty() {
+            return Err((self.errors.clone(), self.warnings.clone()));
+        }
+        return Ok((output, self.warnings.clone()))
+    }
+
     fn error(&mut self, message: String, span: (usize, usize)) {
         let span = (span.0, span.1 - span.0);
 
