@@ -90,6 +90,7 @@ impl Lexer {
                 std_type!("u16"),
                 std_type!("u32"),
                 std_type!("u64"),
+                std_type!("usize"),
 
                 std_type!("string"),
                 std_type!("char"),

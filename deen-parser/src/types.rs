@@ -9,6 +9,7 @@ pub enum Type {
     U16,
     U32,
     U64,
+    USIZE,
 
     String,
     Char,

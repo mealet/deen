@@ -127,6 +127,7 @@ impl Parser {
             "u16" => Type::U16,
             "u32" => Type::U32,
             "u64" => Type::U64,
+            "usize" => Type::USIZE,
 
             "string" => Type::String,
             "char" => Type::Char,
@@ -154,6 +155,17 @@ impl Parser {
             },
             TokenType::LBrack => {
                 let _ = self.next();
+                
+                if self.current().token_type == TokenType::RBrack {
+                    // dynamic array
+                    let _ = self.next();
+                    let array_type = self.parse_type();
+
+                    return Type::DynamicArray(Box::new(array_type));
+                }
+
+                // default array
+
                 let array_type = self.parse_type();
 
                 let _ = self.skip_eos();
