@@ -335,7 +335,7 @@ impl Lexer {
                             Token::new(
                                 format!("-{value}"),
                                 tty,
-                                (span_start, self.position + 1).into()
+                                (span_start, self.position).into()
                             )
                         );
 
@@ -546,7 +546,7 @@ impl Lexer {
 
                     output.push(
                         Token::new(
-                            value, tty, (span_start, self.position + 1)
+                            value, tty, (span_start, self.position)
                         )
                     );
                 }

@@ -68,9 +68,8 @@ pub enum Statements {
         span: (usize, usize)
     },
     ForStatement {
-        initializer: Box<Statements>,
-        condition: Expressions,
-        iterator: Box<Statements>,
+        binding: Expressions,
+        iterator: Expressions,
         block: Vec<Statements>,
         span: (usize, usize)
     },
@@ -181,7 +180,7 @@ impl Parser {
         }
 
         let _ = self.next();
-        let span_block_start = self.current().span.0;
+        let mut span_block_start = self.current().span.0;
         let mut then_block = Vec::new();
 
         while self.current().token_type != TokenType::RBrace {
@@ -193,7 +192,8 @@ impl Parser {
                 return Statements::None;
             }
 
-            then_block.push(self.statement())
+            then_block.push(self.statement());
+            span_block_start = self.current().span.0;
         }
 
         if self.expect(TokenType::RBrace) {
@@ -213,7 +213,7 @@ impl Parser {
                     };
                 }
 
-                let else_span_start = self.current().span.0;
+                let mut else_span_start = self.current().span.0;
                 let _ = self.next();
 
                 if !self.expect(TokenType::LBrace) {
@@ -227,6 +227,7 @@ impl Parser {
                 let _ = self.next();
 
                 let mut else_block = Vec::new();
+                else_span_start = self.current().span.0;
 
                 while self.current().token_type != TokenType::RBrace {
                     if self.current().token_type == TokenType::EOF {
@@ -238,6 +239,7 @@ impl Parser {
                     }
 
                     else_block.push(self.statement());
+                    else_span_start = self.current().span.0;
                 }
 
                 if self.expect(TokenType::RBrace) {
@@ -267,11 +269,96 @@ impl Parser {
     }
 
     pub fn while_statement(&mut self) -> Statements {
-        todo!()
+        let span_start = self.current().span.0;
+        if let TokenType::Keyword = self.current().token_type {
+            let _ = self.next();
+        }
+
+        let condition = self.expression();
+
+        if self.current().token_type != TokenType::LBrace {
+            self.error(
+                String::from("Expected new block after condition"),
+                (span_start, self.current().span.1)
+            );
+            return Statements::None;
+        }
+    
+        let _ = self.next();
+        let mut span_block_start = self.current().span.0;
+        let mut block = Vec::new();
+
+        while !self.expect(TokenType::RBrace) {
+            if self.current().token_type == TokenType::EOF {
+                self.error(
+                    String::from("Expected block end, but found EOF"),
+                    (span_block_start, self.current().span.1)
+                );
+                return Statements::None;
+            }
+
+            block.push(self.statement());
+            span_block_start = self.current().span.0;
+        }
+
+        if self.expect(TokenType::RBrace) {
+            let _ = self.next();
+        }
+
+        let _ = self.skip_eos();
+        Statements::WhileStatement { condition, block, span: (span_start, self.current().span.1) }
     }
 
     pub fn for_statement(&mut self) -> Statements {
-        todo!()
+        let span_start = self.current().span.0;
+        if let TokenType::Keyword = self.current().token_type {
+            let _ = self.next();
+        }
+        let binding = self.term();
+
+        if !self.expect(TokenType::Equal) {
+            self.error(
+                String::from("Expected binding for iterator in loop: \"for binding : iterator {}\""),
+                (span_start, self.current().span.1)
+            );
+            return Statements::None;
+        }
+
+        let _ = self.next();
+        let iterator = self.expression();
+
+        if self.current().token_type != TokenType::LBrace {
+            self.error(
+                String::from("Expected new block after condition"),
+                (span_start, self.current().span.1)
+            );
+            return Statements::None;
+        }
+    
+        let _ = self.next();
+        let mut span_block_start = self.current().span.0;
+        let mut block = Vec::new();
+
+        while !self.expect(TokenType::RBrace) {
+            if self.current().token_type == TokenType::EOF {
+                self.error(
+                    String::from("Expected block end, but found EOF"),
+                    (span_block_start, self.current().span.1)
+                );
+                return Statements::None;
+            }
+
+            block.push(self.statement());
+            span_block_start = self.current().span.0;
+        }
+
+        let span_end = self.current().span.1;
+        if self.expect(TokenType::RBrace) {
+            let _ = self.next();
+        }
+
+        let _ = self.skip_eos();
+        Statements::ForStatement { binding, iterator, block, span: (span_start, span_end) }
     }
 
     pub fn fn_statement(&mut self) -> Statements {

@@ -196,6 +196,37 @@ impl Parser {
     }
 
     pub fn expressions_enum(&mut self, start: TokenType, end: TokenType, separator: TokenType) -> Vec<Expressions> {
-        todo!()
+        let mut current = self.current();
+
+        match current.token_type {
+            start => current = self.next(),
+            end => {
+                self.error(
+                    String::from("Unexpected enumeration end found"),
+                    current.span
+                );
+                return Vec::new();
+            }
+        }
+
+        let mut output = Vec::new();
+
+        while current.token_type != end {
+            current = self.current();
+
+            if current.token_type == separator {
+                let _ = self.next();
+            } else if current.token_type == end {
+                break
+            } else {
+                output.push(self.expression());
+            }
+        }
+
+        if self.expect(end) {
+            let _ = self.next();
+        }
+
+        output
     }
 }

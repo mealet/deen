@@ -1,5 +1,5 @@
 fn main() {
-    let src = String::from("let a: []*(*i32, u32);");
+    let src = String::from("for i = [1, 2, 3] {}");
     let fname = String::from("test.dn");
 
     let mut lexer = deen_lexer::Lexer::new(

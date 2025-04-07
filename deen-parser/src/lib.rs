@@ -270,7 +270,7 @@ impl Parser {
             TokenType::Identifier => {
                 let output = Expressions::Value(Value::Identifier(current.value.clone()), current.span);
 
-                match self.next().token_type {
+                match self.current().token_type {
                     TokenType::LParen => {
                         return self.call_expression(current.value)
                     },
