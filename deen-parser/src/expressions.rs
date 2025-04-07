@@ -16,7 +16,7 @@ use deen_lexer::{
     token_type::TokenType
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expressions {
     Binary {
         operand: String,

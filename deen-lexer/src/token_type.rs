@@ -6,6 +6,7 @@ pub enum TokenType {
     Type, // i32
 
     Number, // 123
+    FloatNumber, // 1.23
     String, // "hello"
     Char, // 'c'
     Boolean, // true/false

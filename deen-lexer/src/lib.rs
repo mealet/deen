@@ -158,16 +158,16 @@ impl Lexer {
 
     // helpful
     
-    fn get_integer(&mut self) -> i64 {
+    fn get_number(&mut self) -> (String, TokenType) {
         #[derive(PartialEq)]
-        enum ParseMode { Decimal, Hexadecimal, Binary };
+        enum ParseMode { Decimal, Hexadecimal, Binary, Float };
 
         let mut value = String::new();
         let mut mode = ParseMode::Decimal;
         let span_start = self.position;
 
         while self.char.is_ascii_digit()
-            || ['_', 'x', 'b'].contains(&self.char)
+            || ['_', '.', 'x', 'b'].contains(&self.char)
             || self.is_hexadecimal_literal(&self.char)
         {
             if self.char == '0' {
@@ -179,7 +179,7 @@ impl Lexer {
                             self.error(
                                 String::from("Wrong number constant found"), (span_start, self.position)
                             );
-                            return 0;
+                            return (0.to_string(), TokenType::Number);
                         }
 
                         mode = ParseMode::Binary;
@@ -191,7 +191,7 @@ impl Lexer {
                             self.error(
                                 String::from("Wrong number constant found"), (span_start, self.position)
                             );
-                            return 0;
+                            return (0.to_string(), TokenType::Number);
                         }
                     }
                     '0' => {
@@ -204,6 +204,24 @@ impl Lexer {
                                 String::from("Extra zeroes in constant"), (span_start - 1, self.position)
                             );
                             continue;
+                        }
+
+                        if mode == ParseMode::Float {
+                            let mut temp = Vec::new();
+                            while self.char == '0' {
+                                temp.push(self.char);
+                                self.getc();
+                            }
+                            
+                            if !self.char.is_ascii_digit() {
+                                self.warning(
+                                    String::from("Extra zeroes at float constant end"),
+                                    (span_start - 1, self.position - span_start + 1)
+                                );
+                                continue;
+                            }
+
+                            temp.iter().for_each(|ch| value.push(*ch));
                         }
 
                         value.push('0');
@@ -222,40 +240,74 @@ impl Lexer {
                 }
             }
 
-            if self.char != '_' {
-                value.push(self.char);
+            match self.char {
+                '_' => {},
+                '.' => {
+                    if mode != ParseMode::Decimal {
+                        self.error(
+                            String::from("Unexpected variation of float constant found"),
+                            (span_start - 1, self.position + 1)
+                        );
+                        return (String::from("0"), TokenType::FloatNumber);
+                    }
+
+                    mode = ParseMode::Float;
+                    value.push('.');
+                },
+                _ => value.push(self.char)
             }
 
             self.getc();
         }
 
-        if value.is_empty() { return 0 };
+        if value.is_empty() { return (0.to_string(), TokenType::Number) };
 
         match mode {
             ParseMode::Decimal => {
-                return value.parse().unwrap_or_else(|_| {
-                    self.error(
-                        String::from("IO Module returned an error while parsing number"), (span_start, self.position)
-                    );
-                    0
-                })
+                return (
+                    value.parse::<i64>().unwrap_or_else(|_| {
+                        self.error(
+                            String::from("IO Module returned an error while parsing Decimal number"), (span_start, self.position)
+                        );
+                        0
+                    }).to_string(),
+                    TokenType::Number
+                )
             },
             ParseMode::Binary => {
-                return i64::from_str_radix(value.trim(), 2).unwrap_or_else(|_| {
-                    self.error(
-                        String::from("IO Module returned an error while parsing number"), (span_start, self.position)
-                    );
-                    0
-                })
+                return (
+                    i64::from_str_radix(value.trim(), 2).unwrap_or_else(|_| {
+                        self.error(
+                            String::from("IO Module returned an error while parsing Binary number"), (span_start, self.position)
+                        );
+                        0
+                    }).to_string(),
+                    TokenType::Number
+                )
             },
             ParseMode::Hexadecimal => {
-                return i64::from_str_radix(value.trim(), 16).unwrap_or_else(|_| {
-                    self.error(
-                        String::from("IO Module returned an error while parsing number"), (span_start, self.position)
-                    );
+                return (
+                    i64::from_str_radix(value.trim(), 16).unwrap_or_else(|_| {
+                        self.error(
+                            String::from("IO Module returned an error while parsing Hexadecimal number"), (span_start, self.position)
+                        );
 
-                    0
-                })
+                        0
+                    }).to_string(),
+                    TokenType::Number
+                )
+            }
+            ParseMode::Float => {
+                return (
+                    value.parse::<f64>().unwrap_or_else(|_| {
+                        self.error(
+                            String::from("IO Module returned an error while parsing Float number"),
+                            (span_start, self.position + 1)
+                        );
+                        0.0
+                    }).to_string(),
+                    TokenType::FloatNumber
+                )
             }
         }
     }
@@ -276,13 +328,13 @@ impl Lexer {
 
                     self.getc();
                     if self.char.is_ascii_digit() {
-                        let value = -self.get_integer();
+                        let (value, tty) = self.get_number();
 
                         output.push(
                             Token::new(
-                                value.to_string(),
-                                TokenType::Number,
-                                (span_start, self.position).into()
+                                format!("-{value}"),
+                                tty,
+                                (span_start, self.position + 1).into()
                             )
                         );
 
@@ -489,11 +541,11 @@ impl Lexer {
                 }
                 _ if self.char.is_ascii_digit() => {
                     let span_start = self.position;
-                    let value = self.get_integer();
+                    let (value, tty) = self.get_number();
 
                     output.push(
                         Token::new(
-                            value.to_string(), TokenType::Number, (span_start, self.position)
+                            value, tty, (span_start, self.position + 1)
                         )
                     );
                 }

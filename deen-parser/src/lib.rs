@@ -249,6 +249,7 @@ impl Parser {
 
         match current.token_type {
             TokenType::Number => Expressions::Value(Value::Integer(current.value.trim().parse().unwrap()), current.span),
+            TokenType::FloatNumber => Expressions::Value(Value::Float(current.value.trim().parse().unwrap()), current.span),
             TokenType::String => Expressions::Value(Value::String(current.value), current.span),
             TokenType::Char => Expressions::Value(Value::Char(current.value.chars().nth(0).unwrap()), current.span),
             TokenType::Boolean => Expressions::Value(Value::Boolean(current.value == "true"), current.span),
@@ -316,7 +317,7 @@ impl Parser {
             _ => {
                 self.error(
                     String::from("Undefined term found"),
-                    current.span
+                    (current.span.0 - 1, current.span.1 - 1)
                 );
                 Expressions::None
             }

@@ -1,5 +1,5 @@
 fn main() {
-    let src = String::from("let a: (i32, i32, i32) = 5;");
+    let src = String::from("let a = -1.00");
     let fname = String::from("test.dn");
 
     let mut lexer = deen_lexer::Lexer::new(

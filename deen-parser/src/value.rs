@@ -1,8 +1,9 @@
 use crate::types::Type;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Integer(i64),
+    Float(f64),
     String(String),
     Char(char),
     Boolean(bool),
