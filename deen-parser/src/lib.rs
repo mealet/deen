@@ -267,6 +267,12 @@ impl Parser {
             TokenType::Boolean => Expressions::Value(Value::Boolean(current.value == "true"), current.span),
             TokenType::Keyword => Expressions::Value(Value::Keyword(current.value), current.span),
 
+            TokenType::Minus | TokenType::Not => {
+                let object = self.term();
+
+                Expressions::Unary { operand: current.value, object: Box::new(object.clone()), span: (current.span.0, self.span_expression(object).1) }
+            }
+
             TokenType::Identifier => {
                 let output = Expressions::Value(Value::Identifier(current.value.clone()), current.span);
 

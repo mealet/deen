@@ -24,6 +24,11 @@ pub enum Expressions {
         rhs: Box<Expressions>,
         span: (usize, usize)
     },
+    Unary {
+        operand: String,
+        object: Box<Expressions>,
+        span: (usize, usize)
+    },
     Boolean {
         operand: String,
         lhs: Box<Expressions>,
@@ -92,6 +97,7 @@ impl Parser {
             Expressions::Array { values, len, span } => span,
             Expressions::Slice { object, index, span } => span,
             Expressions::Value(_, span) => span,
+            Expressions::Unary { operand, object, span } => span,
 
             Expressions::None => (0, 0)
         }

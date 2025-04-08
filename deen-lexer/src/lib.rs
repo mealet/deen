@@ -323,35 +323,6 @@ impl Lexer {
             match self.char {
                 '\0' => self.getc(),
                 '\n' | ' ' => self.getc(),
-                '-' => {
-                    // checking possible negative constant
-
-                    let span_start = self.position;
-
-                    self.getc();
-                    if self.char.is_ascii_digit() {
-                        let (value, tty) = self.get_number();
-
-                        output.push(
-                            Token::new(
-                                format!("-{value}"),
-                                tty,
-                                (span_start, self.position).into()
-                            )
-                        );
-
-                        self.getc();
-                    } else {
-                        output.push(
-                            Token::new(
-                                String::from("-"),
-                                TokenType::Minus,
-                                (span_start, self.position).into()
-                            )
-                        );
-                        self.getc();
-                    }
-                },
                 chr if self.std_symbols.contains_key(&chr) => {
                     let matched_token = self.std_symbols.get(&chr).unwrap().clone();
                     let span_start = self.position;
