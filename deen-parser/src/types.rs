@@ -21,12 +21,10 @@ pub enum Type {
     Array(Box<Type>, usize),
     DynamicArray(Box<Type>),
 
-    Struct(String),
     Tuple(Vec<Type>),
     Alias(String),
-
-    Function {
-        args: Vec<Type>,
-        r#type: Box<Type>
-    }
+    
+    // will be used for semantical analyzer
+    Function(Vec<Type>, Box<Type>), // fn foo(a: i32, b: u32) string  --->  Function([I32, U32], String)
+    Struct(Vec<Type>), // struct Abc { a: i32, b: bool, c: *u64 }  ---> Struct([I32, Bool, Pointer(U64)])
 }
