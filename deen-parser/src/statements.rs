@@ -362,7 +362,57 @@ impl Parser {
     }
 
     pub fn fn_statement(&mut self) -> Statements {
-        todo!()
+        let span_start = self.current().span.0;
+        if let TokenType::Keyword = self.current().token_type {
+            let _ = self.next();
+        }
+
+        let identifier = self.current().value;
+        
+        let _ = self.next();
+        let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+
+        let arguments_tuples = arguments.iter().map(|arg| {
+            if let Expressions::Argument { name, r#type, span } = arg {
+                (name.clone(), r#type.clone())
+            } else {
+                self.error(
+                    String::from("Unexpected argument declaration found"),
+                    self.span_expression(arg.clone())
+                );
+                (String::new(), Type::Void)
+            }
+        }).collect();
+        
+        let mut datatype = Type::Void;
+        if !self.expect(TokenType::LBrace) {
+            datatype = self.parse_type();
+        }
+
+        let _ = self.next();
+        let mut span_block_start = self.current().span.0;
+        let mut block = Vec::new();
+
+        while !self.expect(TokenType::RBrace) {
+            if self.current().token_type == TokenType::EOF {
+                self.error(
+                    String::from("Expected block end, but found EOF"),
+                    (span_block_start, self.current().span.1)
+                );
+                return Statements::None;
+            }
+
+            block.push(self.statement());
+            span_block_start = self.current().span.0;
+        }
+
+        let span_end = self.current().span.0;
+        if self.expect(TokenType::RBrace) {
+            let _ = self.next();
+        }
+
+        let _ = self.skip_eos();
+        Statements::FunctionDefineStatement { name: identifier, datatype, arguments: arguments_tuples, block, span: (span_start, span_end) }
     }
 
     pub fn return_statement(&mut self) -> Statements {

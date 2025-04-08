@@ -1,5 +1,5 @@
 fn main() {
-    let src = String::from("for i = [1, 2, 3] {}");
+    let src = String::from("fn foo(ab: i32, ac: *u32) []Token {}");
     let fname = String::from("test.dn");
 
     let mut lexer = deen_lexer::Lexer::new(

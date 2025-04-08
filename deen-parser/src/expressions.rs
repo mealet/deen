@@ -78,6 +78,27 @@ pub enum Expressions {
 }
 
 impl Parser {
+    #[inline]
+    pub fn span_expression(&self, expr: Expressions) -> (usize, usize) {
+        match expr {
+            Expressions::Binary { operand, lhs, rhs, span } => span,
+            Expressions::Boolean { operand, lhs, rhs, span } => span,
+            Expressions::Bitwise { operand, lhs, rhs, span } => span,
+            Expressions::Argument { name, r#type, span } => span,
+            Expressions::SubElement { parent, child, span } => span,
+            Expressions::FnCall { name, arguments, span } => span,
+            Expressions::Reference { object, span } => span,
+            Expressions::Dereference { object, span } => span,
+            Expressions::Array { values, len, span } => span,
+            Expressions::Slice { object, index, span } => span,
+            Expressions::Value(_, span) => span,
+
+            Expressions::None => (0, 0)
+        }
+    }
+}
+
+impl Parser {
     pub fn subelement_expression(&mut self, parent: Expressions, separator: TokenType) -> Expressions {
         todo!()
     }

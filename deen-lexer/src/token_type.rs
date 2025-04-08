@@ -39,6 +39,9 @@ pub enum TokenType {
     RShift, // >>
     Xor, // ^
 
+    ArrowRight, // ->
+    ArrowLeft, // <-
+
     LParen, // (
     RParen, // )
 

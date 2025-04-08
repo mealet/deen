@@ -279,14 +279,6 @@ impl Parser {
                     }
                     TokenType::DoubleDots => {
                         let _ = self.next();
-                        
-                        if !self.expect(TokenType::Type) {
-                            self.error(
-                                String::from("Unexpected variant of argument declaration"),
-                                (current.span.0, self.current().span.1)
-                            );
-                            return Expressions::None;
-                        }
 
                         let datatype = self.parse_type();
                         return Expressions::Argument { name: current.value, r#type: datatype, span: (current.span.0, self.current().span.1) }
