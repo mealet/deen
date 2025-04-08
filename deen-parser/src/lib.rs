@@ -272,6 +272,12 @@ impl Parser {
 
                 Expressions::Unary { operand: current.value, object: Box::new(object.clone()), span: (current.span.0, self.span_expression(object).1) }
             }
+            TokenType::LParen => {
+                let expr = self.expression();
+
+                if self.expect(TokenType::RParen) { let _ = self.next(); }
+                return expr;
+            }
 
             TokenType::Identifier => {
                 let output = Expressions::Value(Value::Identifier(current.value.clone()), current.span);

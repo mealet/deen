@@ -1,5 +1,5 @@
 fn main() {
-    let src = String::from("-a + 2");
+    let src = String::from("1 + (-2)");
     let fname = String::from("test.dn");
 
     let mut lexer = deen_lexer::Lexer::new(
