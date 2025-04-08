@@ -416,11 +416,24 @@ impl Parser {
     }
 
     pub fn return_statement(&mut self) -> Statements {
-        todo!()
+        let span_start = self.current().span.0;
+        if self.expect(TokenType::Keyword) {
+            let _ = self.next();
+        }
+
+        let return_expr = self.expression();
+        return Statements::ReturnStatement { value: return_expr.clone(), span: (span_start, self.span_expression(return_expr).1) }
     }
 
     pub fn break_statement(&mut self) -> Statements {
-        todo!()
+        let span = self.current().span;
+        if self.expect(TokenType::Keyword) {
+            let _ = self.next();
+        }
+
+        let _ = self.skip_eos();
+
+        return Statements::BreakStatements { span }
     }
 
     pub fn assign_statement(&mut self, id: String) -> Statements {
