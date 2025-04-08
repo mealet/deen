@@ -106,7 +106,20 @@ impl Parser {
 
 impl Parser {
     pub fn subelement_expression(&mut self, parent: Expressions, separator: TokenType) -> Expressions {
-        todo!()
+        if self.expect(separator) {
+            let _ = self.next();
+        }
+
+        let span_start = self.current().span.1;
+        let child = self.expression();
+        let span_end = self.span_expression(child.clone()).1;
+
+        let span = (span_start, span_end);
+        Expressions::SubElement {
+            parent: Box::new(parent),
+            child: Box::new(child),
+            span,
+        }
     }
 
     pub fn binary_expression(&mut self, node: Expressions) -> Expressions {
@@ -214,12 +227,47 @@ impl Parser {
         }
     }
 
-    pub fn call_expression(&mut self, fname: String) -> Expressions {
-        todo!()
+    pub fn call_expression(&mut self, fname: String, span: (usize, usize)) -> Expressions {
+        match self.current().token_type {
+            TokenType::Identifier => {
+                let _ = self.next();
+            },
+            TokenType::LParen => {},
+            _ => {
+                self.error(
+                    String::from("Unexpected variation of function call"),
+                    (span.0, self.current().span.1)
+                );
+                return Expressions::None;
+            }
+        };
+
+        let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+        let span_end = self.current().span.1;
+        let _ = self.skip_eos();
+
+        Expressions::FnCall { name: fname, arguments, span: (span.0, span_end) }
     }
 
     pub fn slice_expression(&mut self, expr: Expressions) -> Expressions {
-        todo!()
+        if let TokenType::LBrack = self.current().token_type {
+            let _ = self.next();
+        }
+
+        let object = Box::new(expr.clone());
+        let index = Box::new(self.expression());
+        let span_end = self.current().span.1;
+
+        if self.current().token_type != TokenType::RBrack {
+            self.error(
+                String::from(""),
+                (self.span_expression(expr).0, span_end)
+            );
+            return Expressions::None;
+        }
+
+        let _ = self.next();
+        Expressions::Slice { object, index, span: (self.span_expression(expr).0, span_end)}
     }
 
     pub fn expressions_enum(&mut self, start: TokenType, end: TokenType, separator: TokenType) -> Vec<Expressions> {

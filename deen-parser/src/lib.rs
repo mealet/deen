@@ -93,7 +93,7 @@ impl Parser {
     }
 
     fn error(&mut self, message: String, span: (usize, usize)) {
-        let span = (span.0, span.1 - span.0);
+        let span = (span.0, span.1.wrapping_sub(span.0));
 
         self.errors.push(
             error::ParserError {
@@ -105,7 +105,7 @@ impl Parser {
     }
 
     fn warning(&mut self, message: String, span: (usize, usize)) {
-        let span = (span.0, span.1 - span.0);
+        let span = (span.0, span.1.wrapping_sub(span.0));
 
         self.warnings.push(
             error::ParserWarning {
@@ -284,7 +284,7 @@ impl Parser {
 
                 match self.current().token_type {
                     TokenType::LParen => {
-                        return self.call_expression(current.value)
+                        return self.call_expression(current.value, current.span)
                     },
                     TokenType::LBrack => {
                         return self.slice_expression(output)
@@ -382,6 +382,11 @@ impl Parser {
                     index: Box::new(slice_index),
                     span
                 }
+            }
+
+            TokenType::Dot => {
+                node = self.subelement_expression(node, TokenType::Dot);
+                return node;
             }
 
             END_STATEMENT => {
