@@ -436,16 +436,63 @@ impl Parser {
         return Statements::BreakStatements { span }
     }
 
-    pub fn assign_statement(&mut self, id: String) -> Statements {
-        todo!()
+    pub fn assign_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
+        if self.expect(TokenType::Equal) {
+            let _ = self.next();
+        }
+
+        let value = self.expression();
+        let span_end = self.current().span.1;
+        let _ = self.skip_eos();
+
+        Statements::AssignStatement { identifier: id, value, span: (span.0, span_end) }
     }
 
-    pub fn binary_assign_statement(&mut self, id: String, op: String) -> Statements {
-        todo!()
+    pub fn binary_assign_statement(&mut self, id: String, op: String, span: (usize, usize)) -> Statements {
+        if self.expect(TokenType::Equal) {
+            let _ = self.next();
+        }
+
+        let value = self.expression();
+        let span_end = self.current().span.1;
+        let _ = self.skip_eos();
+
+        Statements::BinaryAssignStatement { operand: op, identifier: id, value, span: (span.0, span_end) }
     }
 
-    pub fn slice_assign_statement(&mut self, id: String) -> Statements {
-        todo!()
+    pub fn slice_assign_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
+        let brackets_span_start = self.current().span.0;
+        if self.expect(TokenType::LBrack) {
+            let _ = self.next();
+        }
+
+        let ind =  self.expression();
+        let brackets_span_end = self.current().span.1;
+
+        if !self.expect(TokenType::RBrack) {
+            self.error(
+                String::from("Brackets close expected in slice"),
+                (brackets_span_start, brackets_span_end)
+            );
+            return Statements::None;
+        }
+
+        let _ = self.next();
+        if !self.expect(TokenType::Equal) {
+            self.error(
+                String::from("Expected `=` in slice assign"),
+                (span.0, self.current().span.1)
+            );
+            return Statements::None;
+        }
+
+        let _ = self.next();
+        let val = self.expression();
+        let _ = self.skip_eos();
+
+        let span_end = self.current().span.1;
+
+        Statements::SliceAssignStatement { identifier: id, index: ind, value: val, span: (span.0, span_end) }
     }
 
     pub fn call_statement(&mut self, id: String) -> Statements {

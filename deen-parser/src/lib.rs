@@ -452,77 +452,76 @@ impl Parser {
                         );
                         Statements::None
                     }
-                    TokenType::Identifier => {
-                        let next = self.next();
-                        match next.token_type {
-                            TokenType::Equal => self.assign_statement(current.value),
-                            TokenType::Dot => {
-                                let _ = self.next();
-                                let sub_expr = self.subelement_expression(
-                                    Expressions::Value(Value::Identifier(current.value), self.current().span),
-                                    TokenType::Dot
-                                );
+                }
+            }
+            TokenType::Identifier => {
+                let next = self.next();
+                match next.token_type {
+                    TokenType::Equal => self.assign_statement(current.value, current.span),
+                    TokenType::Dot => {
+                        let _ = self.next();
+                        let sub_expr = self.subelement_expression(
+                            Expressions::Value(Value::Identifier(current.value), self.current().span),
+                            TokenType::Dot
+                        );
 
-                                Statements::Expression(sub_expr)
+                        Statements::Expression(sub_expr)
+                    }
+                    TokenType::LParen => self.call_statement(current.value),
+                    TokenType::LBrack => self.slice_assign_statement(current.value, current.span),
+
+                    tty if BINARY_OPERATORS.contains(&tty) => {
+                        match self.next().token_type {
+                            TokenType::Equal => {
+                                self.binary_assign_statement(current.value, next.value, current.span)
                             }
-                            TokenType::LParen => self.call_statement(current.value),
-                            TokenType::LBrack => self.slice_assign_statement(current.value),
+                            TokenType::Plus | TokenType::Minus => {
+                                let span_start = next.span.0;
+                                let span_end = self.current().span.1;
+                                let (op1, op2) = (next.value, self.current().value);
 
-                            tty if BINARY_OPERATORS.contains(&tty) => {
-                                match self.next().token_type {
-                                    TokenType::Equal => {
-                                        self.binary_assign_statement(current.value, next.value)
-                                    }
-                                    TokenType::Plus | TokenType::Minus => {
-                                        let span_start = next.span.0;
-                                        let span_end = self.current().span.1;
-                                        let (op1, op2) = (next.value, self.current().value);
-
-                                        if op1 != op2 {
-                                            self.error(
-                                                String::from("Unexpected variation of increment/decrement found!"),
-                                                (span_start, span_end)
-                                            );
-                                            return Statements::None;
-                                        }
-
-                                        let _ = self.next();
-                                        let _ = self.skip_eos();
-
-                                        Statements::BinaryAssignStatement {
-                                            identifier: current.value,
-                                            operand: op1,
-                                            value: Expressions::Value(Value::Integer(1), (current.span.0, span_end)),
-                                            span: (current.span.0, span_end)
-                                        }
-                                    }
-                                    _ => {
-                                        self.error(
-                                            String::from("Unexpected binary operation in statement found"),
-                                            (current.span.0, self.current().span.1)
-                                        );
-                                        return Statements::None;
-                                    }
+                                if op1 != op2 {
+                                    self.error(
+                                        String::from("Unexpected variation of increment/decrement found!"),
+                                        (span_start, span_end)
+                                    );
+                                    return Statements::None;
                                 }
-                            }
-                            END_STATEMENT => {
-                                Statements::Expression(Expressions::Value(Value::Identifier(current.value), current.span))
+
+                                let _ = self.next();
+                                let _ = self.skip_eos();
+
+                                Statements::BinaryAssignStatement {
+                                    identifier: current.value,
+                                    operand: op1,
+                                    value: Expressions::Value(Value::Integer(1), (current.span.0, span_end)),
+                                    span: (current.span.0, span_end)
+                                }
                             }
                             _ => {
                                 self.error(
-                                    String::from("Unexpected expression/statement found after identifier"),
-                                    (current.span.0, next.span.1)
+                                    String::from("Unexpected binary operation in statement found"),
+                                    (current.span.0, self.current().span.1)
                                 );
-                                Statements::None
+                                return Statements::None;
                             }
                         }
                     }
-                    TokenType::EOF => {
-                        self.eof = true;
+                    END_STATEMENT => {
+                        Statements::Expression(Expressions::Value(Value::Identifier(current.value), current.span))
+                    }
+                    _ => {
+                        self.error(
+                            String::from("Unexpected expression/statement found after identifier"),
+                            (current.span.0, next.span.1)
+                        );
                         Statements::None
                     }
-                    _ => Statements::Expression(self.expression())
                 }
+            }
+            TokenType::EOF => {
+                self.eof = true;
+                Statements::None
             }
             _ => Statements::Expression(self.expression())
         }
