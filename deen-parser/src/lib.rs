@@ -467,7 +467,7 @@ impl Parser {
 
                         Statements::Expression(sub_expr)
                     }
-                    TokenType::LParen => self.call_statement(current.value),
+                    TokenType::LParen => self.call_statement(current.value, current.span),
                     TokenType::LBrack => self.slice_assign_statement(current.value, current.span),
 
                     tty if BINARY_OPERATORS.contains(&tty) => {

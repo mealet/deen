@@ -495,7 +495,25 @@ impl Parser {
         Statements::SliceAssignStatement { identifier: id, index: ind, value: val, span: (span.0, span_end) }
     }
 
-    pub fn call_statement(&mut self, id: String) -> Statements {
-        todo!()
+    pub fn call_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
+        match self.current().token_type {
+            TokenType::Identifier => {
+                let _ = self.next();
+            }
+            TokenType::LParen => {},
+            _ => {
+                self.error(
+                    String::from("Unexpected variation of call statement"),
+                    (span.0, self.current().span.1)
+                );
+                return Statements::None;
+            }
+        };
+
+        let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+        let span_end = self.current().span.1;
+        let _ = self.skip_eos();
+
+        Statements::FunctionCallStatement { name: id, arguments, span: (span.0, span_end) }
     }
 }
