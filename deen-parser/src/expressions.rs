@@ -79,7 +79,7 @@ pub enum Expressions {
 
 impl Parser {
     #[inline]
-    pub fn span_expression(&self, expr: Expressions) -> (usize, usize) {
+    pub fn get_span_expression(expr: Expressions) -> (usize, usize) {
         match expr {
             Expressions::Binary { operand: _, lhs: _, rhs: _, span } => span,
             Expressions::Boolean { operand: _, lhs: _, rhs: _, span } => span,
@@ -96,6 +96,11 @@ impl Parser {
 
             Expressions::None => (0, 0)
         }
+    }
+
+    #[inline]
+    pub fn span_expression(&self, expr: Expressions) -> (usize, usize) {
+        Self::get_span_expression(expr)
     }
 }
 
