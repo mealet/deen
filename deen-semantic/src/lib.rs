@@ -122,7 +122,7 @@ impl Analyzer {
                         if self.is_unsigned_integer(typ) {
                             return self.unsigned_to_signed_integer(typ);
                         }
-                        return obj
+                        obj
                     },
                     (typ, "-") if self.is_float(typ) => obj,
                     (typ, "!") if self.is_integer(typ) => obj,
@@ -169,14 +169,12 @@ impl Analyzer {
                     return Type::Void;
                 };
 
-                if [">>", "<<"].contains(&operand.as_ref()) {
-                    if !self.is_unsigned_integer(&right) {
-                        self.error(
-                            format!("Shift index must be unsigned integer"),
-                            *span
-                        );
-                        return Type::Void;
-                    }
+                if [">>", "<<"].contains(&operand.as_ref()) && !self.is_unsigned_integer(&right) {
+                    self.error(
+                        "Shift index must be unsigned integer".to_string(),
+                        *span
+                    );
+                    return Type::Void;
                 }
 
                 if self.integer_order(&left) > self.integer_order(&right) { left } else { right }
@@ -186,7 +184,7 @@ impl Analyzer {
             Expressions::SubElement { parent, child, span } => self.visit_expression(child, signed),
 
             Expressions::FnCall { name, arguments, span } => {
-                let func = self.scope.get_fn(&name).unwrap_or_else(|| {
+                let func = self.scope.get_fn(name).unwrap_or_else(|| {
                     self.error(
                         format!("Function `{}` is not defined", name),
                         *span
@@ -278,7 +276,7 @@ impl Analyzer {
                                 "Tuple index must be known by compile-time".to_string(),
                                 Parser::get_span_expression(*index.clone())
                             );
-                            return Type::Void;
+                            Type::Void
                         }
                     },
                     Type::Array(tty, _) => *tty,
