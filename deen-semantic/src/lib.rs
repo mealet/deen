@@ -10,6 +10,9 @@ mod error;
 mod scope;
 mod typechecker;
 
+type SemanticOk = Vec<SemanticWarning>;
+type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
+
 pub struct Analyzer {
     scope: Scope,
 
@@ -33,7 +36,7 @@ impl Analyzer {
         }
     }
 
-    pub fn analyze(&mut self, ast: &[Statements]) -> Result<Vec<SemanticWarning>, (Vec<SemanticError>, Vec<SemanticWarning>)> {
+    pub fn analyze(&mut self, ast: &[Statements]) -> Result<SemanticOk, SemanticErr> {
         for statement in ast {
             self.visit_statement(statement);
         }
@@ -44,6 +47,47 @@ impl Analyzer {
 
 impl Analyzer {
     fn visit_statement(&mut self, statement: &Statements) {
-        if let Statements::AssignStatement { identifier, value, span } = statement {}
+        match statement {
+            Statements::AssignStatement { identifier, value, span } => {},
+            Statements::BinaryAssignStatement { identifier, operand, value, span } => {},
+            Statements::DerefAssignStatement { identifier, value, span } => {},
+            Statements::SliceAssignStatement { identifier, index, value, span } => {},
+
+            Statements::AnnotationStatement { identifier, datatype, value, span } => {}
+            Statements::FunctionDefineStatement { name, datatype, arguments, block, span } => {},
+            Statements::FunctionCallStatement { name, arguments, span } => {},
+            
+            Statements::IfStatement { condition, then_block, else_block, span } => {},
+            Statements::WhileStatement { condition, block, span } => {},
+            Statements::ForStatement { binding, iterator, block, span } => {},
+            Statements::ImportStatement { path, span } => {},
+            Statements::BreakStatements { span } => {},
+            Statements::ReturnStatement { value, span } => {},
+            
+            Statements::Expression(expr) => {},
+            Statements::None => unreachable!()
+        }
+    }
+
+    fn visit_expression(&mut self, expr: &Expressions) -> Type {
+        match expr {
+            Expressions::Binary { operand, lhs, rhs, span } => todo!(),
+            Expressions::Unary { operand, object, span } => todo!(),
+            Expressions::Boolean { operand, lhs, rhs, span } => todo!(),
+            Expressions::Bitwise { operand, lhs, rhs, span } => todo!(),
+
+            Expressions::Argument { name, r#type, span } => todo!(),
+            Expressions::SubElement { parent, child, span } => todo!(),
+
+            Expressions::FnCall { name, arguments, span } => todo!(),
+            Expressions::Reference { object, span } => todo!(),
+            Expressions::Dereference { object, span } => todo!(),
+
+            Expressions::Array { values, len, span } => todo!(),
+            Expressions::Slice { object, index, span } => todo!(),
+
+            Expressions::Value(value, span) => todo!(),
+            Expressions::None => unreachable!()
+        }
     }
 }
