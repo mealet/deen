@@ -10,5 +10,6 @@ license.workspace = true
 [dependencies]
 deen-lexer = { path = "../deen-lexer" }
 deen-parser = { path = "../deen-parser" }
+deen-semantic = { path = "../deen-semantic" }
 miette = { version = "7.5.0", features = ["fancy"] }
 thiserror = "2.0.12"

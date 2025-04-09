@@ -25,7 +25,7 @@ impl Analyzer {
     pub fn new(src: &str, filename: &str) -> Self {
         Analyzer {
             scope: Scope::new(),
-            source: NamedSource::new(src, filename.to_owned()),
+            source: NamedSource::new(filename, src.to_owned()),
 
             errors: Vec::new(),
             warnings: Vec::new()
@@ -37,11 +37,15 @@ impl Analyzer {
             self.visit_statement(statement);
         }
 
-        Ok(self.warnings.clone())
+        if !self.errors.is_empty() {
+            return Err((self.errors.clone(), self.warnings.clone()))
+        }
+
+        return Ok(self.warnings.clone())
     }
 
     fn error(&mut self, message: String, span: (usize, usize)) {
-        let span = (span.0, span.1.wrapping_sub(span.0));
+        let span = (span.0, if span.1 <= span.0 { 1 } else { span.1 - span.0 });
 
         self.errors.push(
             error::SemanticError {
@@ -54,7 +58,7 @@ impl Analyzer {
 
     #[allow(unused)]
     fn warning(&mut self, message: String, span: (usize, usize)) {
-        let span = (span.0, span.1.wrapping_sub(span.0));
+        let span = (span.0, if span.1 <= span.0 { 1 } else { span.1 - span.0 });
 
         self.warnings.push(
             error::SemanticWarning {
@@ -74,7 +78,42 @@ impl Analyzer {
             Statements::DerefAssignStatement { identifier, value, span } => {},
             Statements::SliceAssignStatement { identifier, index, value, span } => {},
 
-            Statements::AnnotationStatement { identifier, datatype, value, span } => {}
+            Statements::AnnotationStatement { identifier, datatype, value, span } => {
+                match (datatype, value) {
+                    (Some(datatype), Some(value)) => {
+                        let value_type = self.visit_expression(value, !self.is_unsigned_integer(datatype));
+
+                        if value_type != *datatype {
+                            if self.is_integer(&value_type) && self.is_integer(datatype) {
+                                if self.integer_order(&value_type) > self.integer_order(datatype) {
+                                    self.error(
+                                        format!("Expected integer type `{}` (or lower), but found `{}`", datatype, value_type),
+                                        *span
+                                    );
+                                    return;
+                                }
+
+                                return;
+                            }
+
+                            self.error(
+                                format!("Expected type `{}` but found `{}`", datatype, value_type),
+                                *span
+                            );
+                            return;
+                        }
+                    },
+                    (Some(datatype), None) => {},
+                    (None, Some(value)) => {},
+                    (None, None) => {
+                        self.error(
+                            format!("Variable `{}` has unknown type", identifier),
+                            *span
+                        );
+                        return;
+                    }
+                }
+            }
             Statements::FunctionDefineStatement { name, datatype, arguments, block, span } => {},
             Statements::FunctionCallStatement { name, arguments, span } => {},
             

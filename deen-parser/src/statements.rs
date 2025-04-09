@@ -116,10 +116,8 @@ impl Parser {
                 let _ = self.next();
                 let value = self.expression();
 
-                let span_end = self.current().span.1;
-
                 self.skip_eos();
-                Statements::AnnotationStatement { identifier: id, datatype, value: Some(value), span: (span_start, span_end) }
+                Statements::AnnotationStatement { identifier: id, datatype, value: Some(value.clone()), span: (span_start - 1, self.span_expression(value).1) }
             },
             END_STATEMENT => {
                 let span_end = self.current().span.1;
