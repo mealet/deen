@@ -1,0 +1,13 @@
+[package]
+name = "deen-semantic"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+deen-parser = { path = "../deen-parser" }
+miette = { version = "7.5.0", features = ["fancy"] }
+thiserror = "2.0.12"

@@ -81,6 +81,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "deen-semantic"
+version = "0.0.1"
+dependencies = [
+ "deen-parser",
+ "miette",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"

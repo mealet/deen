@@ -4,10 +4,10 @@ use thiserror::Error;
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 #[error("Error: {message}")]
 #[diagnostic(
-    code(deen::parser),
+    code(deen::semantic),
     severity(Error)
 )]
-pub struct ParserError {
+pub struct SemanticError {
     pub message: String,
     #[source_code]
     pub src: NamedSource<String>,
@@ -18,10 +18,10 @@ pub struct ParserError {
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 #[error("Warning: {message}")]
 #[diagnostic(
-    code(deen::parser),
+    code(deen::semantic),
     severity(Warning)
 )]
-pub struct ParserWarning {
+pub struct SemanticWarning {
     pub message: String,
     #[source_code]
     pub src: NamedSource<String>,

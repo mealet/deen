@@ -1,6 +1,4 @@
 use crate::{
-    error::{ParserError, ParserWarning},
-    statements::Statements,
     value::Value,
     types::Type,
     Parser,
@@ -11,10 +9,7 @@ use crate::{
     PRIORITY_BINARY_OPERATORS,
     PRIORITY_BOOLEAN_OPERATORS
 };
-use deen_lexer::{
-    token::Token,
-    token_type::TokenType
-};
+use deen_lexer::token_type::TokenType;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expressions {
@@ -86,18 +81,18 @@ impl Parser {
     #[inline]
     pub fn span_expression(&self, expr: Expressions) -> (usize, usize) {
         match expr {
-            Expressions::Binary { operand, lhs, rhs, span } => span,
-            Expressions::Boolean { operand, lhs, rhs, span } => span,
-            Expressions::Bitwise { operand, lhs, rhs, span } => span,
-            Expressions::Argument { name, r#type, span } => span,
-            Expressions::SubElement { parent, child, span } => span,
-            Expressions::FnCall { name, arguments, span } => span,
-            Expressions::Reference { object, span } => span,
-            Expressions::Dereference { object, span } => span,
-            Expressions::Array { values, len, span } => span,
-            Expressions::Slice { object, index, span } => span,
+            Expressions::Binary { operand: _, lhs: _, rhs: _, span } => span,
+            Expressions::Boolean { operand: _, lhs: _, rhs: _, span } => span,
+            Expressions::Bitwise { operand: _, lhs: _, rhs: _, span } => span,
+            Expressions::Argument { name: _, r#type: _, span } => span,
+            Expressions::SubElement { parent: _, child: _, span } => span,
+            Expressions::FnCall { name: _, arguments: _, span } => span,
+            Expressions::Reference { object: _, span } => span,
+            Expressions::Dereference { object: _, span } => span,
+            Expressions::Array { values: _, len: _, span } => span,
+            Expressions::Slice { object: _, index: _, span } => span,
             Expressions::Value(_, span) => span,
-            Expressions::Unary { operand, object, span } => span,
+            Expressions::Unary { operand: _, object: _, span } => span,
 
             Expressions::None => (0, 0)
         }
@@ -133,7 +128,7 @@ impl Parser {
                 let rhs = self.expression();
 
                 if PRIORITY_BINARY_OPERATORS.contains(&tty) {
-                    let mut new_node = rhs.clone();
+                    let new_node = rhs.clone();
                     let old_lhs = lhs.clone();
 
                     if let Expressions::Binary { operand, lhs, rhs, span } = new_node {
@@ -270,6 +265,7 @@ impl Parser {
         Expressions::Slice { object, index, span: (self.span_expression(expr).0, span_end)}
     }
 
+    #[allow(unused)]
     pub fn expressions_enum(&mut self, start: TokenType, end: TokenType, separator: TokenType) -> Vec<Expressions> {
         let mut current = self.current();
 

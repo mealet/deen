@@ -1,15 +1,11 @@
 use crate::{
-    error::{ParserError, ParserWarning},
     expressions::Expressions,
     value::Value,
     types::Type,
     END_STATEMENT,
     Parser
 };
-use deen_lexer::{
-    token::Token,
-    token_type::TokenType
-};
+use deen_lexer::token_type::TokenType;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statements {
@@ -373,7 +369,7 @@ impl Parser {
         let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
 
         let arguments_tuples = arguments.iter().map(|arg| {
-            if let Expressions::Argument { name, r#type, span } = arg {
+            if let Expressions::Argument { name, r#type, span: _ } = arg {
                 (name.clone(), r#type.clone())
             } else {
                 self.error(

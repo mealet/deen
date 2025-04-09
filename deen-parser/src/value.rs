@@ -1,5 +1,3 @@
-use crate::types::Type;
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Integer(i64),
@@ -9,5 +7,4 @@ pub enum Value {
     Boolean(bool),
     Identifier(String),
     Keyword(String),
-    Type(Type)
 }

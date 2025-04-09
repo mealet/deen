@@ -1,7 +1,6 @@
-#![allow(unused)]
+// #![allow(unused)]
 
-use miette::{NamedSource, Diagnostic};
-use std::collections::HashMap;
+use miette::NamedSource;
 use deen_lexer::{
     token::Token,
     token_type::TokenType
@@ -104,6 +103,7 @@ impl Parser {
         );
     }
 
+    #[allow(unused)]
     fn warning(&mut self, message: String, span: (usize, usize)) {
         let span = (span.0, span.1.wrapping_sub(span.0));
 
