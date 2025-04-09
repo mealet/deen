@@ -1,9 +1,9 @@
 fn main() {
-    let src = String::from("let a = b[5];");
-    let fname = String::from("test.dn");
+    let src = "let a = b[5];";
+    let fname = "test.dn";
 
     let mut lexer = deen_lexer::Lexer::new(
-        &src, &fname
+        src, fname
     );
 
     let handler = miette::GraphicalReportHandler::new();
@@ -36,7 +36,7 @@ fn main() {
         eprintln!("{}", buf);
     });
 
-    let mut parser = deen_parser::Parser::new(tokens, &src, &fname);
+    let mut parser = deen_parser::Parser::new(tokens, src, fname);
     let (ast, warns) = match parser.parse() {
         Ok(ast) => ast,
         Err(e) => {

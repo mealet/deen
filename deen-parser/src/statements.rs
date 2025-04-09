@@ -91,7 +91,7 @@ impl Parser {
     pub fn annotation_statement(&mut self) -> Statements {
         let span_start = self.current().span.0;
         
-        if self.current().value == String::from("let") {
+        if self.current().value == *"let" {
             let _ = self.next();
         }
 
@@ -132,7 +132,7 @@ impl Parser {
                     String::from("Expected `=` or `;` after variable declaration"),
                     (span_start, self.current().span.1 - span_start)
                 );
-                return Statements::None;
+                Statements::None
             }
         }
     }
@@ -146,7 +146,7 @@ impl Parser {
         let path = self.expression();
 
         let span_end = self.current().span.1;
-        let _ = self.skip_eos();
+        self.skip_eos();
 
         if let Expressions::Value(Value::String(_), _) = path {
             Statements::ImportStatement { path, span: (span_start, span_end) }
@@ -243,7 +243,7 @@ impl Parser {
                 }
 
                 let span_end = self.current().span.1;
-                let _ = self.skip_eos();
+                self.skip_eos();
                 Statements::IfStatement {
                     condition,
                     then_block,
@@ -301,7 +301,7 @@ impl Parser {
             let _ = self.next();
         }
 
-        let _ = self.skip_eos();
+        self.skip_eos();
         Statements::WhileStatement { condition, block, span: (span_start, self.current().span.1) }
     }
 
@@ -353,7 +353,7 @@ impl Parser {
             let _ = self.next();
         }
 
-        let _ = self.skip_eos();
+        self.skip_eos();
         Statements::ForStatement { binding, iterator, block, span: (span_start, span_end) }
     }
 
@@ -407,7 +407,7 @@ impl Parser {
             let _ = self.next();
         }
 
-        let _ = self.skip_eos();
+        self.skip_eos();
         Statements::FunctionDefineStatement { name: identifier, datatype, arguments: arguments_tuples, block, span: (span_start, span_end) }
     }
 
@@ -418,7 +418,7 @@ impl Parser {
         }
 
         let return_expr = self.expression();
-        return Statements::ReturnStatement { value: return_expr.clone(), span: (span_start, self.span_expression(return_expr).1) }
+        Statements::ReturnStatement { value: return_expr.clone(), span: (span_start, self.span_expression(return_expr).1) }
     }
 
     pub fn break_statement(&mut self) -> Statements {
@@ -427,9 +427,9 @@ impl Parser {
             let _ = self.next();
         }
 
-        let _ = self.skip_eos();
+        self.skip_eos();
 
-        return Statements::BreakStatements { span }
+        Statements::BreakStatements { span }
     }
 
     pub fn assign_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
@@ -439,7 +439,7 @@ impl Parser {
 
         let value = self.expression();
         let span_end = self.current().span.1;
-        let _ = self.skip_eos();
+        self.skip_eos();
 
         Statements::AssignStatement { identifier: id, value, span: (span.0, span_end) }
     }
@@ -451,7 +451,7 @@ impl Parser {
 
         let value = self.expression();
         let span_end = self.current().span.1;
-        let _ = self.skip_eos();
+        self.skip_eos();
 
         Statements::BinaryAssignStatement { operand: op, identifier: id, value, span: (span.0, span_end) }
     }
@@ -484,7 +484,7 @@ impl Parser {
 
         let _ = self.next();
         let val = self.expression();
-        let _ = self.skip_eos();
+        self.skip_eos();
 
         let span_end = self.current().span.1;
 
@@ -508,7 +508,7 @@ impl Parser {
 
         let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
         let span_end = self.current().span.1;
-        let _ = self.skip_eos();
+        self.skip_eos();
 
         Statements::FunctionCallStatement { name: id, arguments, span: (span.0, span_end) }
     }

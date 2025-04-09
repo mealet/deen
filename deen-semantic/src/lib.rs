@@ -17,6 +17,12 @@ pub struct Analyzer {
     warnings: Vec<SemanticWarning>,
 }
 
+impl Default for Analyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Analyzer {
     pub fn new() -> Self {
         Analyzer {
@@ -38,9 +44,6 @@ impl Analyzer {
 
 impl Analyzer {
     fn visit_statement(&mut self, statement: &Statements) {
-        match statement {
-            Statements::AssignStatement { identifier, value, span } => {}
-            _ => {}
-        }
+        if let Statements::AssignStatement { identifier, value, span } = statement {}
     }
 }

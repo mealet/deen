@@ -151,7 +151,7 @@ impl Parser {
                     }
                 }
 
-                return Expressions::Binary {
+                Expressions::Binary {
                     operand: current.value,
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
@@ -239,7 +239,7 @@ impl Parser {
 
         let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
         let span_end = self.current().span.1;
-        let _ = self.skip_eos();
+        self.skip_eos();
 
         Expressions::FnCall { name: fname, arguments, span: (span.0, span_end) }
     }
