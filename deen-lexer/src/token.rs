@@ -1,5 +1,3 @@
-use miette::SourceSpan;
-
 use crate::token_type::TokenType;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -14,7 +12,7 @@ impl Token {
         Self {
             value,
             token_type,
-            span: span
+            span
         }
     }
 }

@@ -1,6 +1,4 @@
-#![allow(unused)]
-
-use miette::{NamedSource, Diagnostic};
+use miette::NamedSource;
 use std::collections::HashMap;
 use crate::{
     error::{LexerError, LexerWarning},
@@ -162,7 +160,7 @@ impl Lexer {
     
     fn get_number(&mut self) -> (String, TokenType) {
         #[derive(PartialEq)]
-        enum ParseMode { Decimal, Hexadecimal, Binary, Float };
+        enum ParseMode { Decimal, Hexadecimal, Binary, Float }
 
         let mut value = String::new();
         let mut mode = ParseMode::Decimal;
@@ -195,6 +193,10 @@ impl Lexer {
                             );
                             return (0.to_string(), TokenType::Number);
                         }
+
+                        mode = ParseMode::Hexadecimal;
+                        self.getc();
+                        continue;
                     }
                     '0' => {
                         if value.is_empty() {
