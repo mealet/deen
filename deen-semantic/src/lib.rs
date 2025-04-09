@@ -98,7 +98,7 @@ impl Analyzer {
 
                 match (left.clone(), right.clone()) {
                     (l, r) if self.is_integer(&l) && self.is_integer(&r) => {
-                        if self.integer_order(&l) > self.integer_order(&r) { return l } else { return r }
+                        if self.integer_order(&l) > self.integer_order(&r) { l } else { r }
                     }
 
                     (l, r) if self.is_float(&l) && self.is_float(&r) => {
