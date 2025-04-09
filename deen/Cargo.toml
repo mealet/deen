@@ -8,6 +8,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+clap = { version = "4.5.35", features = ["derive"] }
 deen-lexer = { path = "../deen-lexer" }
 deen-parser = { path = "../deen-parser" }
 deen-semantic = { path = "../deen-semantic" }
