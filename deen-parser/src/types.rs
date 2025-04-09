@@ -5,6 +5,9 @@ pub enum Type {
     I32,
     I64,
 
+    F32,
+    F64,
+
     U8,
     U16,
     U32,

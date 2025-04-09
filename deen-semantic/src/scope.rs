@@ -3,14 +3,26 @@ use deen_parser::types::Type;
 
 #[derive(Debug, Clone)]
 pub struct Scope {
-    variables: HashMap<String, Type>,
+    expected: Type,
+    returned: Type,
+
+    variables: HashMap<String, Variable>,
     functions: HashMap<String, Type>,
     parent: Option<Box<Scope>>
+}
+
+#[derive(Debug, Clone)]
+pub struct Variable {
+    pub datatype: Type,
+    pub initialized: bool
 }
 
 impl Scope {
     pub fn new() -> Self {
         Scope {
+            expected: Type::Void,
+            returned: Type::Void,
+
             variables: HashMap::new(),
             functions: HashMap::new(),
             parent: None
@@ -18,13 +30,13 @@ impl Scope {
     }
 
     #[inline]
-    pub fn add_var(&mut self, name: String, datatype: Type) {
-        self.variables.insert(name, datatype);       
+    pub fn add_var(&mut self, name: String, datatype: Type, initialized: bool) {
+        self.variables.insert(name, Variable { datatype, initialized });
     }
 
     #[inline]
-    pub fn get_var(&self, name: String) -> Option<Type> {
-        self.variables.get(&name).cloned().or_else(|| {
+    pub fn get_var(&self, name: &str) -> Option<Variable> {
+        self.variables.get(name).cloned().or_else(|| {
             self.parent.as_ref().and_then(|parent| parent.get_var(name))
         })
     }
@@ -39,8 +51,8 @@ impl Scope {
     }
 
     #[inline]
-    pub fn get_fn(&self, name: String) -> Option<Type> {
-        self.functions.get(&name).cloned().or_else(|| {
+    pub fn get_fn(&self, name: &str) -> Option<Type> {
+        self.functions.get(name).cloned().or_else(|| {
             self.parent.as_ref().and_then(|parent| parent.get_fn(name))
         })
     }
