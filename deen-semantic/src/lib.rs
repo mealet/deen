@@ -96,7 +96,26 @@ impl Analyzer {
                 let left = self.visit_expression(lhs);
                 let right = self.visit_expression(rhs);
 
+                match (left.clone(), right.clone()) {
+                    (l, r) if self.is_integer(&l) && self.is_integer(&r) => {
+                        if self.integer_order(&l) > self.integer_order(&r) { return l } else { return r }
+                    }
 
+                    (l, r) if self.is_float(&l) && self.is_float(&r) => {
+                        if self.float_order(&l) > self.float_order(&r) { l } else { r }
+                    }
+
+                    (l, r) if (self.is_integer(&l) && self.is_float(&r))
+                            || (self.is_float(&l) && self.is_integer(&r)) => {
+                        self.error(
+                            format!("Cannot apply `{}` to {:?} and {:?}", operand, left, right),
+                            *span
+                        );
+                        Type::Void
+                    }
+
+                    _ => unreachable!()
+                }
             },
             Expressions::Unary { operand, object, span } => todo!(),
             Expressions::Boolean { operand, lhs, rhs, span } => todo!(),
@@ -167,7 +186,32 @@ impl Analyzer {
         [Type::U8, Type::U16, Type::U32, Type::U64].contains(typ)
     }
 
+    fn integer_order(&self, typ: &Type) -> usize {
+        match typ {
+            Type::U8 => 0,
+            Type::U16 => 1,
+            Type::U32 => 2,
+            Type::U64 => 3,
+
+            Type::I8 => 4,
+            Type::I16 => 5,
+            Type::I32 => 6,
+            Type::I64 => 7,
+
+            _ => unreachable!()
+        }
+    }
+
     fn is_float(&self, typ: &Type) -> bool {
         [Type::F32, Type::F64].contains(typ)
+    }
+
+    fn float_order(&self, typ: &Type) -> usize {
+        match typ {
+            Type::F32 => 0,
+            Type::F64 => 1,
+
+            _ => unreachable!()
+        }
     }
 }
