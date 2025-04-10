@@ -328,6 +328,16 @@ impl Lexer {
             match self.char {
                 '\0' => self.getc(),
                 '\n' | ' ' => self.getc(),
+                '/' => {
+                    self.getc();
+                    if self.char == '/' {
+                        while self.char != '\n' {
+                            self.getc();
+                        }
+                        continue;
+                    }
+                    self.position -= 1;
+                }
                 chr if self.std_symbols.contains_key(&chr) => {
                     let matched_token = self.std_symbols.get(&chr).unwrap().clone();
                     let span_start = self.position;

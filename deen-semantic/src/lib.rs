@@ -81,7 +81,7 @@ impl Analyzer {
             Statements::AnnotationStatement { identifier, datatype, value, span } => {
                 match (datatype, value) {
                     (Some(datatype), Some(value)) => {
-                        let value_type = self.visit_expression(value, !self.is_unsigned_integer(datatype));
+                        let value_type = self.visit_expression(value, !self.is_unsigned_integer(datatype), Some(datatype.clone()));
 
                         if value_type != *datatype {
                             if self.is_integer(&value_type) && self.is_integer(datatype) {
@@ -102,9 +102,16 @@ impl Analyzer {
                             );
                             return;
                         }
+
+                        self.scope.add_var(identifier.clone(), datatype.clone(), true);
                     },
-                    (Some(datatype), None) => {},
-                    (None, Some(value)) => {},
+                    (Some(datatype), None) => {
+                        self.scope.add_var(identifier.clone(), datatype.clone(), false);
+                    },
+                    (None, Some(value)) => {
+                        let value_type = self.visit_expression(value, true, None);
+                        self.scope.add_var(identifier.clone(), value_type, true);
+                    },
                     (None, None) => {
                         self.error(
                             format!("Variable `{}` has unknown type", identifier),
@@ -114,7 +121,38 @@ impl Analyzer {
                     }
                 }
             }
-            Statements::FunctionDefineStatement { name, datatype, arguments, block, span } => {},
+            Statements::FunctionDefineStatement { name, datatype, arguments, block, span } => {
+                if let Some(_) = self.scope.get_fn(name) {
+                    self.error(
+                        format!("Function `{}` already declared!", name),
+                        *span
+                    );
+                    return;
+                }
+
+                let mut function_scope = Scope::new();
+
+                function_scope.parent = Some(Box::new(self.scope.clone()));
+                function_scope.expected = datatype.clone();
+                self.scope.add_fn(name.clone(), Type::Function(
+                    arguments.iter().map(|arg| arg.1.clone()).collect::<Vec<Type>>(),
+                    Box::new(datatype.clone())
+                ));
+
+                arguments.iter().for_each(|arg| function_scope.add_var(arg.0.clone(), arg.1.clone(), true));
+                self.scope = function_scope;
+                
+                block.iter().for_each(|stmt| self.visit_statement(stmt));
+                if self.scope.expected != self.scope.returned {
+                    self.error(
+                        format!("Function `{}` returns type `{}`, but found `{}`", name, self.scope.expected, self.scope.returned),
+                        *span
+                    );
+                    return;
+                }
+
+                self.scope = *self.scope.parent.clone().unwrap();
+            },
             Statements::FunctionCallStatement { name, arguments, span } => {},
             
             Statements::IfStatement { condition, then_block, else_block, span } => {},
@@ -122,18 +160,36 @@ impl Analyzer {
             Statements::ForStatement { binding, iterator, block, span } => {},
             Statements::ImportStatement { path, span } => {},
             Statements::BreakStatements { span } => {},
-            Statements::ReturnStatement { value, span } => {},
+            Statements::ReturnStatement { value, span } => {
+                let value_type = self.visit_expression(value, !self.is_unsigned_integer(&self.scope.expected), Some(self.scope.expected.clone()));
+                
+                if self.is_integer(&value_type) && self.is_integer(&self.scope.expected) {
+                    if self.integer_order(&value_type) <= self.integer_order(&self.scope.expected) {
+                        self.scope.returned = self.scope.expected.clone();
+                        return;
+                    }
+                }
+
+                if self.is_float(&value_type) && self.is_integer(&self.scope.expected) {
+                    if self.float_order(&value_type) <= self.float_order(&self.scope.expected) {
+                        self.scope.returned = self.scope.expected.clone();
+                        return;
+                    }
+                }
+
+                self.scope.returned = value_type;
+            },
             
             Statements::Expression(expr) => {},
             Statements::None => unreachable!()
         }
     }
 
-    fn visit_expression(&mut self, expr: &Expressions, signed: bool) -> Type {
+    fn visit_expression(&mut self, expr: &Expressions, signed: bool, expected: Option<Type>) -> Type {
         match expr {
             Expressions::Binary { operand, lhs, rhs, span } => {
-                let left = self.visit_expression(lhs, signed);
-                let right = self.visit_expression(rhs, signed);
+                let left = self.visit_expression(lhs, signed, expected.clone());
+                let right = self.visit_expression(rhs, signed, expected);
 
                 match (left.clone(), right.clone()) {
                     (l, r) if self.is_integer(&l) && self.is_integer(&r) => {
@@ -146,7 +202,7 @@ impl Analyzer {
 
                     _ => {
                         self.error(
-                            format!("Cannot apply binary `{}` to {} and {}", operand, left, right),
+                            format!("Cannot apply binary \"{}\" to `{}` and `{}`", operand, left, right),
                             *span
                         );
                         Type::Void
@@ -154,7 +210,7 @@ impl Analyzer {
                 }
             },
             Expressions::Unary { operand, object, span } => {
-                let obj = self.visit_expression(object, signed);
+                let obj = self.visit_expression(object, signed, expected);
                 
                 match (&obj, operand.as_str()) {
                     (typ, "-") if self.is_integer(typ) => {
@@ -169,7 +225,7 @@ impl Analyzer {
 
                     _ => {
                         self.error(
-                            format!("Cannot apply unary `{}` to {}", operand, obj),
+                            format!("Cannot apply unary \"{}\" to `{}`", operand, obj),
                             *span
                         );
                         Type::Void
@@ -179,8 +235,8 @@ impl Analyzer {
             Expressions::Boolean { operand, lhs, rhs, span } => {
                 const SUPPORTED_EXTRA_TYPES: [Type; 3] = [Type::String, Type::Bool, Type::Char];
 
-                let left = self.visit_expression(lhs, signed);
-                let right = self.visit_expression(rhs, signed);
+                let left = self.visit_expression(lhs, signed, expected.clone());
+                let right = self.visit_expression(rhs, signed, expected);
 
                 match (left.clone(), right.clone()) {
                     (l, r) if self.is_integer(&l) && self.is_integer(&r) => Type::Bool,
@@ -189,7 +245,7 @@ impl Analyzer {
 
                     _ => {
                         self.error(
-                            format!("Cannot apply boolean `{}` to {} and {}", operand, left, right),
+                            format!("Cannot apply boolean \"{}\" to `{}` and `{}`", operand, left, right),
                             *span
                         );
                         Type::Void
@@ -197,12 +253,12 @@ impl Analyzer {
                 }
             },
             Expressions::Bitwise { operand, lhs, rhs, span } => {
-                let left = self.visit_expression(lhs, signed);
-                let right = self.visit_expression(rhs, signed);
+                let left = self.visit_expression(lhs, signed, expected.clone());
+                let right = self.visit_expression(rhs, signed, expected);
 
                 if !self.is_integer(&left) || !self.is_integer(&right) {
                     self.error(
-                        format!("Cannot apply bitwise operations to {} and {}", &left, &right),
+                        format!("Cannot apply bitwise operations to `{}` and `{}`", &left, &right),
                         *span
                     );
                     return Type::Void;
@@ -220,7 +276,7 @@ impl Analyzer {
             },
 
             Expressions::Argument { name, r#type, span } => unreachable!(),
-            Expressions::SubElement { parent, child, span } => self.visit_expression(child, signed),
+            Expressions::SubElement { parent, child, span } => self.visit_expression(child, signed, expected),
 
             Expressions::FnCall { name, arguments, span } => {
                 let func = self.scope.get_fn(name).unwrap_or_else(|| {
@@ -233,7 +289,7 @@ impl Analyzer {
 
                 if func == Type::Void { return func };
                 if let Type::Function(func_args, func_type) = func {
-                    let call_args = arguments.iter().map(|arg| self.visit_expression(arg, signed)).collect::<Vec<Type>>();
+                    let call_args = arguments.iter().map(|arg| self.visit_expression(arg, signed, None)).collect::<Vec<Type>>();
 
                     if call_args.len() != func_args.len() {
                         self.error(
@@ -258,12 +314,12 @@ impl Analyzer {
                 }
             },
             Expressions::Reference { object, span } => {
-                let obj = self.visit_expression(object, signed);
+                let obj = self.visit_expression(object, signed, expected);
 
                 Type::Pointer(Box::new(obj))
             },
             Expressions::Dereference { object, span } => {
-                let obj = self.visit_expression(object, signed);
+                let obj = self.visit_expression(object, signed, expected);
                 if let Type::Pointer(ptr_type) = obj {
                     *ptr_type
                 } else {
@@ -281,10 +337,10 @@ impl Analyzer {
                     return Type::Void;
                 }
 
-                let arr_type = self.visit_expression(&values[0], signed);
+                let arr_type = self.visit_expression(&values[0], signed, None);
 
                 values.iter().for_each(|val| {
-                    let val_type = self.visit_expression(val, signed);
+                    let val_type = self.visit_expression(val, signed, None);
                     if val_type != arr_type {
                         self.error(
                             format!("Array has type {}, but element has {}", arr_type, val_type),
@@ -296,7 +352,7 @@ impl Analyzer {
                 Type::Array(Box::new(arr_type), *len)
             },
             Expressions::Slice { object, index, span } => {
-                let obj = self.visit_expression(object, signed);
+                let obj = self.visit_expression(object, signed, expected);
 
                 match obj {
                     Type::Tuple(types) => {
@@ -332,7 +388,7 @@ impl Analyzer {
             },
 
             Expressions::Value(value, span) => {
-                match self.visit_value(value.clone(), signed) {
+                match self.visit_value(value.clone(), signed, expected) {
                     Ok(tty) => tty,
                     Err(err) => {
                         self.error(
@@ -347,9 +403,63 @@ impl Analyzer {
         }
     }
 
-    fn visit_value(&mut self, value: Value, signed: bool) -> Result<Type, String> {
+    fn visit_value(&mut self, value: Value, signed: bool, expected: Option<Type>) -> Result<Type, String> {
         match value {
             Value::Integer(int) => {
+                if let Some(exp) = expected {
+                    match exp {
+                        Type::I8 => {
+                            if int < i8::MIN as i64 || int > i8::MAX as i64 {
+                                return Err(String::from("Constant is out of `i8` type range"))
+                            }
+                        },
+                        Type::I16 => {
+                            if int < i16::MIN as i64 || int > i16::MAX as i64 {
+                                return Err(String::from("Constant is out of `i16` type range"))
+                            }
+                        },
+                        Type::I32 => {
+                            if int < i32::MIN as i64 || int > i32::MAX as i64 {
+                                return Err(String::from("Constant is out of `i32` type range"))
+                            }
+                        },
+                        Type::I64 => {
+                            if int < i64::MIN as i64 || int > i64::MAX as i64 {
+                                return Err(String::from("Constant is out of `i64` type range"))
+                            }
+                        },
+
+                        Type::U8 => {
+                            if int < u8::MIN as i64 || int > u8::MAX as i64 {
+                                return Err(String::from("Constant is out of `u8` type range"))
+                            }
+                        },
+                        Type::U16 => {
+                            if int < u16::MIN as i64 || int > u16::MAX as i64 {
+                                return Err(String::from("Constant is out of `u16` type range"))
+                            }
+                        },
+                        Type::U32 => {
+                            if int < u32::MIN as i64 || int > u32::MAX as i64 {
+                                return Err(String::from("Constant is out of `u32` type range"))
+                            }
+                        },
+                        Type::U64 => {
+                            if int < u64::MIN as i64 || int > u64::MAX as i64 {
+                                return Err(String::from("Constant is out of `u64` type range"))
+                            }
+                        },
+                        Type::USIZE => {
+                            if int < u64::MIN as i64 || int > u64::MAX as i64 {
+                                return Err(String::from("Constant is out of `usize` type range"))
+                            }
+                        },
+                        _ => unreachable!()
+                    }
+
+                    return Ok(exp);
+                }
+
                 if int > i32::MAX as i64 {
                     if !signed {
                         if int < 0 { return Err(String::from("Expected unsigned value but found signed")) }
@@ -426,12 +536,12 @@ impl Analyzer {
             Type::U32 => 2,
             Type::U64 => 3,
 
-            Type::I8 => 4,
-            Type::I16 => 5,
-            Type::I32 => 6,
-            Type::I64 => 7,
+            Type::I8 => 0,
+            Type::I16 => 1,
+            Type::I32 => 2,
+            Type::I64 => 3,
 
-            Type::USIZE => 8,
+            Type::USIZE => 4,
 
             _ => unreachable!()
         }

@@ -3,12 +3,12 @@ use deen_parser::types::Type;
 
 #[derive(Debug, Clone)]
 pub struct Scope {
-    expected: Type,
-    returned: Type,
+    pub expected: Type,
+    pub returned: Type,
+    pub parent: Option<Box<Scope>>,
 
     variables: HashMap<String, Variable>,
     functions: HashMap<String, Type>,
-    parent: Option<Box<Scope>>
 }
 
 #[derive(Debug, Clone)]
