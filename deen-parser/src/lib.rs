@@ -243,7 +243,13 @@ impl Parser {
     }
 
     fn current(&self) -> Token {
-        self.tokens[self.position].clone()
+        let mut cur = self.tokens[self.position].clone();
+
+        if let TokenType::EOF = cur.token_type {
+            cur.span = self.tokens[self.position - 1].clone().span;
+        }
+
+        cur
     }
 
     fn expect(&self, expected: TokenType) -> bool {
