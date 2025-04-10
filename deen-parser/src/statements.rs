@@ -82,6 +82,10 @@ pub enum Statements {
         value: Expressions,
         span: (usize, usize)
     },
+    ScopeStatement {
+        block: Vec<Statements>,
+        span: (usize, usize)
+    },
 
     Expression(Expressions),
     None

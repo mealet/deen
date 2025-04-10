@@ -332,11 +332,26 @@ impl Parser {
             // *-----------------------*
 
             TokenType::LBrack => {
-                let span_start = self.current().span.0;
+                let span_start = current.span.0;
                 let values = self.expressions_enum(TokenType::LBrack, TokenType::RBrack, TokenType::Comma);
                 let len = values.len();
 
                 Expressions::Array { values, len, span: (span_start, self.current().span.1) }
+            }
+            TokenType::LBrace => {
+                let span_start = current.span.0;
+                let mut block = Vec::new();
+
+                while !self.expect(TokenType::RBrace) {
+                    block.push(self.statement());
+                }
+
+                let span_end = self.current().span.1;
+                if self.expect(TokenType::RBrace) {
+                    let _ = self.next();
+                }
+
+                Expressions::Scope { block, span: (span_start, span_end) }
             }
 
             _ => {
@@ -433,6 +448,23 @@ impl Parser {
                     _ => unreachable!()
                 }
             },
+            TokenType::LBrace => {
+                let span_start = current.span.0;
+                let _ = self.next();
+                
+                let mut block = Vec::new();
+                while !self.expect(TokenType::RBrace) {
+                    block.push(self.statement());
+                }
+
+                let span = (span_start, self.current().span.1);
+                if self.expect(TokenType::RBrace) {
+                    let _ = self.next();
+                }
+                let _ = self.skip_eos();
+
+                Statements::ScopeStatement { block, span, }
+            }
             TokenType::Multiply => {
                 let _ = self.next();
 

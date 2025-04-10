@@ -1,13 +1,5 @@
 use crate::{
-    value::Value,
-    types::Type,
-    Parser,
-
-    BINARY_OPERATORS,
-    BOOLEAN_OPERATORS,
-    BITWISE_OPERATORS,
-    PRIORITY_BINARY_OPERATORS,
-    PRIORITY_BOOLEAN_OPERATORS
+    statements::Statements, types::Type, value::Value, Parser, BINARY_OPERATORS, BITWISE_OPERATORS, BOOLEAN_OPERATORS, PRIORITY_BINARY_OPERATORS, PRIORITY_BOOLEAN_OPERATORS
 };
 use deen_lexer::token_type::TokenType;
 
@@ -72,6 +64,10 @@ pub enum Expressions {
         index: Box<Expressions>,
         span: (usize, usize)
     },
+    Scope {
+        block: Vec<Statements>,
+        span: (usize, usize)
+    },
 
     Value(Value, (usize, usize)),
     None,
@@ -93,6 +89,7 @@ impl Parser {
             Expressions::Slice { object: _, index: _, span } => span,
             Expressions::Value(_, span) => span,
             Expressions::Unary { operand: _, object: _, span } => span,
+            Expressions::Scope { block: _, span } => span,
 
             Expressions::None => (0, 0)
         }

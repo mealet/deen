@@ -179,6 +179,14 @@ impl Analyzer {
 
                 self.scope.returned = value_type;
             },
+            Statements::ScopeStatement { block, span } => {
+                let mut new_scope = Scope::new();
+                new_scope.parent = Some(Box::new(self.scope.clone()));
+                self.scope = new_scope;
+
+                block.iter().for_each(|stmt| self.visit_statement(stmt));
+                self.scope = *self.scope.parent.clone().unwrap();
+            },
             
             Statements::Expression(expr) => {},
             Statements::None => unreachable!()
@@ -385,6 +393,19 @@ impl Analyzer {
                         Type::Void
                     }
                 }
+            },
+            Expressions::Scope { block, span } => {
+                let mut new_scope = Scope::new();
+                new_scope.parent = Some(Box::new(self.scope.clone()));
+                new_scope.expected = expected.unwrap_or(Type::Void);
+                self.scope = new_scope;
+
+                block.iter().for_each(|stmt| self.visit_statement(stmt));
+                
+                let scope_type = self.scope.returned.clone();
+                self.scope = *self.scope.parent.clone().unwrap();
+
+                scope_type
             },
 
             Expressions::Value(value, span) => {
