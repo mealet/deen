@@ -194,6 +194,7 @@ impl Parser {
             span_block_start = self.current().span.0;
         }
 
+        let span_end = self.current().span.1;
         if self.expect(TokenType::RBrace) {
             let _ = self.next();
         }
@@ -201,7 +202,6 @@ impl Parser {
         match self.current().token_type {
             TokenType::Keyword => {
                 if self.current().value != "else" {
-                    let span_end = self.current().span.1;
                     self.skip_eos();
                     return Statements::IfStatement {
                         condition,
@@ -214,12 +214,33 @@ impl Parser {
                 let mut else_span_start = self.current().span.0;
                 let _ = self.next();
 
-                if !self.expect(TokenType::LBrace) {
-                    self.error(
-                        String::from("New block expected after `else` keyword"),
-                        (else_span_start, self.current().span.1)
-                    );
-                    return Statements::None
+                match self.current().token_type {
+                    TokenType::Keyword => {
+                        if self.current().value != String::from("if") {
+                            self.error(
+                                String::from("Unexpected keyword found after `else`"),
+                                (else_span_start, self.current().span.1)
+                            );
+                            return Statements::None;
+                        }
+
+                        let stmt = self.if_statement();
+                        let span_end = self.current().span.1;
+                        return Statements::IfStatement {
+                            condition,
+                            then_block,
+                            else_block: Some(vec![stmt]),
+                            span: (span_start, span_end)
+                        }
+                    },
+                    TokenType::LBrace => {},
+                    _ => {
+                        self.error(
+                            String::from("New block expected after `else` keyword"),
+                            (else_span_start, self.current().span.1)
+                        );
+                        return Statements::None
+                    }
                 }
                 
                 let _ = self.next();

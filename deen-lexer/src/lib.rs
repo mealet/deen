@@ -528,12 +528,12 @@ impl Lexer {
                     }
                 }
                 _ if self.char.is_ascii_digit() => {
-                    let span_start = self.position;
+                    let span_start = self.position - 1;
                     let (value, tty) = self.get_number();
 
                     output.push(
                         Token::new(
-                            value, tty, (span_start, self.position)
+                            value, tty, (span_start, self.position - 1)
                         )
                     );
                 }
@@ -541,7 +541,7 @@ impl Lexer {
                     let allowed_id_chars = ['_'];
 
                     let mut id = String::new();
-                    let start_span = self.position;
+                    let start_span = self.position - 1;
                     while self.char.is_alphanumeric()
                         || allowed_id_chars.contains(&self.char)
                     {
@@ -551,7 +551,7 @@ impl Lexer {
 
                     if self.std_words.contains_key(&id) {
                         let mut matched_token = self.std_words.get(&id).unwrap().clone();
-                        matched_token.span = (start_span, self.position);
+                        matched_token.span = (start_span, self.position - 1);
                         output.push(matched_token);
                     } else {
                         output.push(

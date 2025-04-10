@@ -155,7 +155,58 @@ impl Analyzer {
             },
             Statements::FunctionCallStatement { name, arguments, span } => {},
             
-            Statements::IfStatement { condition, then_block, else_block, span } => {},
+            Statements::IfStatement { condition, then_block, else_block, span } => {
+                let condition_type = self.visit_expression(condition, true, None);
+                
+                if condition_type != Type::Bool {
+                    self.error(
+                        format!("Expected `bool` type in expression, but found `{}`", condition_type),
+                        *span
+                    );
+                    return;
+                }
+
+                let mut new_scope = Scope::new();
+                new_scope.parent = Some(Box::new(self.scope.clone()));
+                new_scope.expected = self.scope.expected.clone();
+                self.scope = new_scope;
+
+                then_block.iter().for_each(|stmt| self.visit_statement(stmt));
+
+                let then_block_type = self.scope.returned.clone();
+                self.scope = *self.scope.parent.clone().unwrap();
+
+                if then_block_type != self.scope.expected {
+                    self.error(
+                        format!("Expected type `{}` for scope, but found `{}`", self.scope.expected, then_block_type),
+                        *span
+                    );
+                    return;
+                }
+
+                if let Some(else_block) = else_block {
+                    let mut new_scope = Scope::new();
+                    new_scope.parent = Some(Box::new(self.scope.clone()));
+                    new_scope.expected = self.scope.expected.clone();
+                    self.scope = new_scope;
+
+                    else_block.iter().for_each(|stmt| self.visit_statement(stmt));
+
+                    let else_block_type = self.scope.returned.clone();
+                    self.scope = *self.scope.parent.clone().unwrap();
+
+                    if then_block_type != else_block_type {
+                        self.scope.returned = then_block_type.clone();
+                        self.error(
+                            format!("Scopes has incompatible types: `{}` and `{}`", then_block_type, else_block_type),
+                            *span
+                        );
+                        return;
+                    }
+
+                    self.scope.returned = then_block_type;
+                }
+            },
             Statements::WhileStatement { condition, block, span } => {},
             Statements::ForStatement { binding, iterator, block, span } => {},
             Statements::ImportStatement { path, span } => {},
@@ -475,7 +526,8 @@ impl Analyzer {
                                 return Err(String::from("Constant is out of `usize` type range"))
                             }
                         },
-                        _ => unreachable!()
+
+                        _ => return Err(format!("Expected `{}` but found integer constant", exp))
                     }
 
                     return Ok(exp);
