@@ -64,7 +64,7 @@ pub enum Statements {
         span: (usize, usize)
     },
     ForStatement {
-        binding: Expressions,
+        binding: String,
         iterator: Expressions,
         block: Vec<Statements>,
         span: (usize, usize)
@@ -333,11 +333,12 @@ impl Parser {
         if let TokenType::Keyword = self.current().token_type {
             let _ = self.next();
         }
-        let binding = self.term();
+        let binding = self.current().value;
+        let _ = self.next();
 
         if !self.expect(TokenType::Equal) {
             self.error(
-                String::from("Expected binding for iterator in loop: \"for binding : iterator {}\""),
+                String::from("Expected binding for iterator in loop: \"for binding = iterator {}\""),
                 (span_start, self.current().span.1)
             );
             return Statements::None;

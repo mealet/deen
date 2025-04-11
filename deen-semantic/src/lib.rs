@@ -253,7 +253,51 @@ impl Analyzer {
                     self.scope.returned = block_type;
                 }
             },
-            Statements::ForStatement { binding, iterator, block, span } => {},
+            Statements::ForStatement { binding, iterator, block, span } => {
+                const BASIC_SUPPORTED_ITERATOR_TYPES: [Type; 9] = [
+                    Type::I8, Type::I16, Type::I32, Type::I64,
+                    Type::U8, Type::U16, Type::U32, Type::U64,
+                    Type::String
+                ];
+
+                let iterator_type = self.visit_expression(iterator, true, None);
+                let mut binding_type = iterator_type.clone();
+
+                match iterator_type {
+                    typ if BASIC_SUPPORTED_ITERATOR_TYPES.contains(&typ) => {},
+                    Type::Array(typ, _) => binding_type = *typ,
+                    Type::DynamicArray(typ) => binding_type = *typ,
+                    _ => {
+                        self.error(
+                            format!("Type `{}` is not supported for iteration", iterator_type),
+                            *span
+                        );
+                        return;
+                    }
+                };
+
+                let mut new_scope = Scope::new();
+                new_scope.parent = Some(Box::new(self.scope.clone()));
+                new_scope.add_var(binding.clone(), binding_type, true);
+                self.scope = new_scope;
+
+                block.iter().for_each(|stmt| self.visit_statement(stmt));
+
+                let block_type = self.scope.returned.clone();
+                self.scope = *self.scope.parent.clone().unwrap();
+
+                if block_type != Type::Void {
+                    if block_type != self.scope.expected {
+                        self.error(
+                            format!("Expected type `{}`, but found `{}`", self.scope.expected, block_type),
+                            *span
+                        );
+                        return;
+                    }
+
+                    self.scope.returned = block_type;
+                }
+            },
             Statements::ImportStatement { path, span } => {},
             Statements::BreakStatements { span } => {},
             Statements::ReturnStatement { value, span } => {
