@@ -37,6 +37,18 @@ impl Analyzer {
             self.visit_statement(statement);
         }
 
+        if self.scope.get_fn("main").is_none() {
+            let err = SemanticError {
+                message: String::from("Program has no entry `main` function"),
+                src: self.source.clone(),
+                span: 0.into()
+            };
+
+            self.errors.reverse();
+            self.errors.push(err);
+            self.errors.reverse();
+        }
+
         if !self.errors.is_empty() {
             return Err((self.errors.clone(), self.warnings.clone()))
         }
@@ -132,12 +144,13 @@ impl Analyzer {
 
                 let mut function_scope = Scope::new();
 
-                function_scope.parent = Some(Box::new(self.scope.clone()));
-                function_scope.expected = datatype.clone();
                 self.scope.add_fn(name.clone(), Type::Function(
                     arguments.iter().map(|arg| arg.1.clone()).collect::<Vec<Type>>(),
                     Box::new(datatype.clone())
-                ));
+                )).unwrap();
+
+                function_scope.parent = Some(Box::new(self.scope.clone()));
+                function_scope.expected = datatype.clone();
 
                 arguments.iter().for_each(|arg| function_scope.add_var(arg.0.clone(), arg.1.clone(), true));
                 self.scope = function_scope;
