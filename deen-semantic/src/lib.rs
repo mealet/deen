@@ -207,7 +207,39 @@ impl Analyzer {
                     self.scope.returned = then_block_type;
                 }
             },
-            Statements::WhileStatement { condition, block, span } => {},
+            Statements::WhileStatement { condition, block, span } => {
+                let condition_type = self.visit_expression(condition, true, None);
+                
+                if condition_type != Type::Bool {
+                    self.error(
+                        format!("Expected `bool` type in expression, but found `{}`", condition_type),
+                        *span
+                    );
+                    return;
+                }
+
+                let mut new_scope = Scope::new();
+                new_scope.parent = Some(Box::new(self.scope.clone()));
+                new_scope.expected = self.scope.expected.clone();
+                self.scope = new_scope;
+
+                block.iter().for_each(|stmt| self.visit_statement(stmt));
+
+                let block_type = self.scope.returned.clone();
+                self.scope = *self.scope.parent.clone().unwrap();
+
+                if block_type != Type::Void {
+                    if block_type != self.scope.expected {
+                        self.error(
+                            format!("Expected type `{}`, but found `{}`", self.scope.expected, block_type),
+                            *span
+                        );
+                        return;
+                    }
+
+                    self.scope.returned = block_type;
+                }
+            },
             Statements::ForStatement { binding, iterator, block, span } => {},
             Statements::ImportStatement { path, span } => {},
             Statements::BreakStatements { span } => {},
