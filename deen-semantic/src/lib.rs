@@ -339,7 +339,9 @@ impl Analyzer {
                 self.scope = *self.scope.parent.clone().unwrap();
             },
             
-            Statements::Expression(expr) => {},
+            Statements::Expression(expr) => {
+                let _ = self.visit_expression(expr, true, None);
+            },
             Statements::None => unreachable!()
         }
     }
