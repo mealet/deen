@@ -234,6 +234,7 @@ impl Analyzer {
                 let mut new_scope = Scope::new();
                 new_scope.parent = Some(Box::new(self.scope.clone()));
                 new_scope.expected = self.scope.expected.clone();
+                new_scope.is_loop = true;
                 self.scope = new_scope;
 
                 block.iter().for_each(|stmt| self.visit_statement(stmt));
@@ -278,6 +279,8 @@ impl Analyzer {
 
                 let mut new_scope = Scope::new();
                 new_scope.parent = Some(Box::new(self.scope.clone()));
+                new_scope.expected = self.scope.expected.clone();
+                new_scope.is_loop = true;
                 new_scope.add_var(binding.clone(), binding_type, true);
                 self.scope = new_scope;
 
@@ -299,7 +302,15 @@ impl Analyzer {
                 }
             },
             Statements::ImportStatement { path, span } => {},
-            Statements::BreakStatements { span } => {},
+            Statements::BreakStatements { span } => {
+                if !self.scope.is_loop {
+                    self.error(
+                        String::from("Used `break` keyword outside loop"),
+                        *span
+                    );
+                    return
+                }
+            },
             Statements::ReturnStatement { value, span } => {
                 let value_type = self.visit_expression(value, !self.is_unsigned_integer(&self.scope.expected), Some(self.scope.expected.clone()));
                 

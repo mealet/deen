@@ -6,6 +6,7 @@ pub struct Scope {
     pub expected: Type,
     pub returned: Type,
     pub parent: Option<Box<Scope>>,
+    pub is_loop: bool,
 
     variables: HashMap<String, Variable>,
     functions: HashMap<String, Type>,
@@ -25,7 +26,8 @@ impl Scope {
 
             variables: HashMap::new(),
             functions: HashMap::new(),
-            parent: None
+            parent: None,
+            is_loop: false
         }
     }
 
