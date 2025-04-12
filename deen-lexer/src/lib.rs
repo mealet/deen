@@ -538,7 +538,7 @@ impl Lexer {
                     );
                 }
                 _ if self.char.is_alphabetic() => {
-                    let allowed_id_chars = ['_'];
+                    let allowed_id_chars = ['_', '.'];
 
                     let mut id = String::new();
                     let start_span = self.position - 1;

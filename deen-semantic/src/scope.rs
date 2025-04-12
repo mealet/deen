@@ -6,7 +6,9 @@ pub struct Scope {
     pub expected: Type,
     pub returned: Type,
     pub parent: Option<Box<Scope>>,
+
     pub is_loop: bool,
+    pub is_main: bool,
 
     variables: HashMap<String, Variable>,
     functions: HashMap<String, Type>,
@@ -27,7 +29,9 @@ impl Scope {
             variables: HashMap::new(),
             functions: HashMap::new(),
             parent: None,
-            is_loop: false
+
+            is_loop: false,
+            is_main: false,
         }
     }
 
@@ -41,6 +45,19 @@ impl Scope {
         self.variables.get(name).cloned().or_else(|| {
             self.parent.as_ref().and_then(|parent| parent.get_var(name))
         })
+    }
+
+    #[inline]
+    pub fn set_init_var(&mut self, name: &str, value: bool) -> Result<(), String> {
+        match self.get_var(name) {
+            Some(mut var) => {
+                var.initialized = true;
+                self.add_var(name.to_owned(), var.datatype, var.initialized);
+
+                Ok(())
+            },
+            None => Err(format!("Variable \"{}\" is not defined her", name))
+        }
     }
 
     #[inline]

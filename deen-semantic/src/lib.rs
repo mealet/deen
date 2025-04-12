@@ -24,7 +24,11 @@ pub struct Analyzer {
 impl Analyzer {
     pub fn new(src: &str, filename: &str) -> Self {
         Analyzer {
-            scope: Scope::new(),
+            scope: {
+                let mut scope = Scope::new();
+                scope.is_main = true;
+                scope
+            },
             source: NamedSource::new(filename, src.to_owned()),
 
             errors: Vec::new(),
@@ -37,7 +41,7 @@ impl Analyzer {
             self.visit_statement(statement);
         }
 
-        if self.scope.get_fn("main").is_none() {
+        if self.scope.get_fn("main").is_none() && self.scope.is_main {
             let err = SemanticError {
                 message: String::from("Program has no entry `main` function"),
                 src: self.source.clone(),
@@ -85,7 +89,27 @@ impl Analyzer {
 impl Analyzer {
     fn visit_statement(&mut self, statement: &Statements) {
         match statement {
-            Statements::AssignStatement { identifier, value, span } => {},
+            Statements::AssignStatement { identifier, value, span } => {
+                if let Some(variable) = self.scope.get_var(identifier) {
+                    let value_type = self.visit_expression(value, false, Some(variable.datatype.clone()));
+
+                    if variable.datatype != value_type {
+                        self.error(
+                            format!("Variable has type `{}`, but found `{}`", variable.datatype, value_type),
+                            *span
+                        );
+                        return;
+                    }
+
+                    self.scope.set_init_var(identifier, true);
+                } else {
+                    self.error(
+                        format!("Variable \"{}\" is not defined here", identifier),
+                        *span
+                    );
+                    return;
+                }
+            },
             Statements::BinaryAssignStatement { identifier, operand, value, span } => {},
             Statements::DerefAssignStatement { identifier, value, span } => {},
             Statements::SliceAssignStatement { identifier, index, value, span } => {},
@@ -166,7 +190,47 @@ impl Analyzer {
 
                 self.scope = *self.scope.parent.clone().unwrap();
             },
-            Statements::FunctionCallStatement { name, arguments, span } => {},
+            Statements::FunctionCallStatement { name, arguments, span } => {
+                let func = self.scope.get_fn(name).unwrap_or_else(|| {
+                    self.error(
+                        format!("Function `{}` is not defined here", name),
+                        *span
+                    );
+                    Type::Void
+                });
+
+                if func == Type::Void { return };
+                if let Type::Function(func_args, func_type) = func {
+                    let call_args = arguments.iter().map(|arg| self.visit_expression(arg, true, None)).collect::<Vec<Type>>();
+
+                    if call_args.len() != func_args.len() {
+                        self.error(
+                            format!("Function `{}` has {} arguments, but found {}", name, func_args.len(), call_args.len()),
+                            *span
+                        );
+                        return;
+                    }
+
+                    call_args.iter().enumerate().zip(func_args).for_each(|((ind, provided), expected)| {
+                        if &expected != provided {
+                            self.error(
+                                format!("Expected argument with type {}, but found {}", expected, provided),
+                                Parser::get_span_expression(arguments[ind].clone())
+                            );
+                        }
+                    });
+
+                    if *func_type != Type::Void {
+                        self.warning(
+                            format!("Unused `{}` result from function", func_type),
+                            *span
+                        );
+                    }
+                } else {
+                    unreachable!()
+                }
+            },
+
             
             Statements::IfStatement { condition, then_block, else_block, span } => {
                 let condition_type = self.visit_expression(condition, true, None);
@@ -301,7 +365,9 @@ impl Analyzer {
                     self.scope.returned = block_type;
                 }
             },
-            Statements::ImportStatement { path, span } => {},
+            Statements::ImportStatement { path, span } => {
+
+            },
             Statements::BreakStatements { span } => {
                 if !self.scope.is_loop {
                     self.error(
@@ -442,7 +508,7 @@ impl Analyzer {
             Expressions::FnCall { name, arguments, span } => {
                 let func = self.scope.get_fn(name).unwrap_or_else(|| {
                     self.error(
-                        format!("Function `{}` is not defined", name),
+                        format!("Function `{}` is not defined here", name),
                         *span
                     );
                     Type::Void
