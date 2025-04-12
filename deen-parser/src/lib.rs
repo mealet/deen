@@ -310,6 +310,10 @@ impl Parser {
                 output
             }
 
+            TokenType::Ref => {
+                Expressions::Reference { object: Box::new(self.term()), span: (current.span.0, self.current().span.1) }
+            }
+
             // This case looks is for C-like syntax: `type name`,
             // but syntax must be like: `name: type`
             // *-----------------------*
@@ -472,7 +476,7 @@ impl Parser {
                     TokenType::Identifier => {
                         let span_start = self.current().span.0;
                         let stmt = self.statement();
-                        let span_end = self.current().span.1;
+                        let span_end = self.current().span.1 - 1;
 
                         match stmt {
                             Statements::AssignStatement { identifier, value, span } => {

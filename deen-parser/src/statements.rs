@@ -463,9 +463,8 @@ impl Parser {
 
         let value = self.expression();
         let span_end = self.current().span.1;
-        self.skip_eos();
 
-        Statements::AssignStatement { identifier: id, value, span: (span.0, span_end) }
+        Statements::AssignStatement { identifier: id, value, span: (span.0, span_end - 3) }
     }
 
     pub fn binary_assign_statement(&mut self, id: String, op: String, span: (usize, usize)) -> Statements {
@@ -477,7 +476,7 @@ impl Parser {
         let span_end = self.current().span.1;
         self.skip_eos();
 
-        Statements::BinaryAssignStatement { operand: op, identifier: id, value, span: (span.0, span_end) }
+        Statements::BinaryAssignStatement { operand: op, identifier: id, value, span: (span.0, span_end - 3) }
     }
 
     pub fn slice_assign_statement(&mut self, id: String, span: (usize, usize)) -> Statements {

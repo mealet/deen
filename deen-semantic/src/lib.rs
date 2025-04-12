@@ -101,7 +101,9 @@ impl Analyzer {
                         return;
                     }
 
-                    self.scope.set_init_var(identifier, true);
+                    self.scope.set_init_var(identifier, true).unwrap_or_else(|err| {
+                        self.error(err, *span);
+                    });
                 } else {
                     self.error(
                         format!("Variable \"{}\" is not defined here", identifier),
@@ -126,7 +128,37 @@ impl Analyzer {
                     }
                 );
             },
-            Statements::DerefAssignStatement { identifier, value, span } => {},
+            Statements::DerefAssignStatement { identifier, value, span } => {
+                if let Some(variable) = self.scope.get_var(identifier) {
+                    if let Type::Pointer(ptr_type) = variable.datatype {
+                        let value_type = self.visit_expression(value, true, None);
+
+                        if value_type != *ptr_type {
+                            self.error(
+                                format!("Pointer has type `{}`, but found `{}`", ptr_type, value_type),
+                                *span
+                            );
+                            return;
+                        }
+
+                        self.scope.set_init_var(identifier, true).unwrap_or_else(|err| {
+                            self.error(err, *span);
+                        });
+                    } else {
+                        self.error(
+                            format!("Unable to dereference non-pointer type `{}`", variable.datatype),
+                            *span
+                        );
+                        return;
+                    }
+                } else {
+                    self.error(
+                        format!("Variable \"{}\" is not defined here", identifier),
+                        *span
+                    );
+                    return;
+                }               
+            },
             Statements::SliceAssignStatement { identifier, index, value, span } => {},
 
             Statements::AnnotationStatement { identifier, datatype, value, span } => {

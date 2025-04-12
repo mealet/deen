@@ -356,7 +356,7 @@ impl Lexer {
                                 Token::new(
                                     captured_string,
                                     TokenType::String,
-                                    (span_start, self.position)
+                                    (span_start, self.position - 1)
                                 )
                             );
                             self.getc();
@@ -380,7 +380,7 @@ impl Lexer {
                                 Token::new(
                                     chr.to_string(),
                                     TokenType::Char,
-                                    (span_start, self.position)
+                                    (span_start, self.position - 1)
                                 )
                             );
                             self.getc();
@@ -394,13 +394,13 @@ impl Lexer {
                                     Token::new(
                                         String::from("=="),
                                         TokenType::Eq,
-                                        (span_start, self.position)
+                                        (span_start, self.position - 1)
                                     )
                                 );
                                 self.getc();
                             } else {
                                 let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start, self.position);
+                                formatted_token.span = (span_start, self.position - 1);
 
                                 output.push(formatted_token);
                             }
