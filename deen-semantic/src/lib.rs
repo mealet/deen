@@ -110,7 +110,22 @@ impl Analyzer {
                     return;
                 }
             },
-            Statements::BinaryAssignStatement { identifier, operand, value, span } => {},
+            Statements::BinaryAssignStatement { identifier, operand, value, span } => {
+                self.visit_statement(
+                    &Statements::AssignStatement {
+                        identifier: identifier.clone(),
+                        span: *span,
+                        value: Expressions::Binary {
+                            operand: operand.clone(),
+                            lhs: Box::new(
+                                Expressions::Value(Value::Identifier(identifier.clone()), *span)
+                            ),
+                            rhs: Box::new(value.clone()),
+                            span: *span,
+                        },
+                    }
+                );
+            },
             Statements::DerefAssignStatement { identifier, value, span } => {},
             Statements::SliceAssignStatement { identifier, index, value, span } => {},
 
