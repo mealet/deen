@@ -4,49 +4,73 @@ mod cli;
 
 fn main() {
     let args = cli::Args::parse();
+
     let fname = std::path::Path::new(&args.path)
         .file_name()
-        .unwrap()
+        .unwrap_or_else(|| {
+            cli::error("Unable to find source file");
+            std::process::exit(1);
+        })
         .to_str()
-        .unwrap();
+        .unwrap_or_else(|| {
+            cli::error("Unable to get source module name");
+            std::process::exit(1);
+        });
+
+    cli::info("Reading", &format!(
+        "`{}` ({})",
+            &fname,
+            std::fs::canonicalize(&args.path).unwrap().display()
+        )
+    );
+
     let src = std::fs::read_to_string(&args.path).unwrap_or_else(|_| {
-        eprintln!("Unable to open path: {}", args.path);
+        eprintln!("Unable to open path: {}", std::path::Path::new(&args.path).display());
         std::process::exit(1);
     });
+
+    cli::info("Processing", &format!("tokens ({} lines of code)", src.lines().count()));
 
     let mut lexer = deen_lexer::Lexer::new(
         &src, fname
     );
 
     let handler = miette::GraphicalReportHandler::new();
+    let mut total_warns = 0;
 
     let (tokens, warns) = match lexer.tokenize() {
         Ok(res) => res,
         Err((errors, warns)) => {
-            errors.into_iter().for_each(|e| {
+            println!("");
+            errors.iter().for_each(|e| {
                 let mut buf = String::new();
-                handler.render_report(&mut buf, &e).unwrap();
+                handler.render_report(&mut buf, e).unwrap();
 
                 eprintln!("{}", buf);
             });
 
-            warns.into_iter().for_each(|w| {
+            warns.iter().for_each(|w| {
                 let mut buf = String::new();
-                handler.render_report(&mut buf, &w).unwrap();
+                handler.render_report(&mut buf, w).unwrap();
 
                 eprintln!("{}", buf);
             });
+
+            cli::error(&format!("`{}` returned {} errors", &fname, errors.len()));
+            if !warns.is_empty() { cli::warn(&format!("`{}` generated {} warnings", &fname, warns.len())) }
 
             std::process::exit(1);
         }
     };
 
-    warns.into_iter().for_each(|w| {
+    warns.iter().for_each(|w| {
         let mut buf = String::new();
-        handler.render_report(&mut buf, &w).unwrap();
+        handler.render_report(&mut buf, w).unwrap();
 
         eprintln!("{}", buf);
     });
+
+    total_warns += warns.len();
 
     let mut parser = deen_parser::Parser::new(tokens, &src, fname);
     let (ast, warns) = match parser.parse() {
@@ -54,57 +78,75 @@ fn main() {
         Err(e) => {
             let (errors, warns) = e;
 
-            errors.into_iter().for_each(|e| {
+            errors.iter().for_each(|e| {
                 let mut buf = String::new();
-                handler.render_report(&mut buf, &e).unwrap();
+                handler.render_report(&mut buf, e).unwrap();
 
                 eprintln!("{}", buf);
             });
 
-            warns.into_iter().for_each(|w| {
+            warns.iter().for_each(|w| {
                 let mut buf = String::new();
-                handler.render_report(&mut buf, &w).unwrap();
+                handler.render_report(&mut buf, w).unwrap();
 
                 eprintln!("{}", buf);
             });
+
+            cli::error(&format!("`{}` returned {} errors", &fname, errors.len()));
+            if !warns.is_empty() || total_warns > 0 {
+                cli::warn(&format!("`{}` generated {} warnings", &fname, warns.len() + total_warns));
+            }
 
             std::process::exit(1);
         }
     };
 
-    warns.into_iter().for_each(|w| {
+    warns.iter().for_each(|w| {
         let mut buf = String::new();
-        handler.render_report(&mut buf, &w).unwrap();
+        handler.render_report(&mut buf, w).unwrap();
 
         eprintln!("{}", buf);
     });
+    total_warns += warns.len();
 
     let mut analyzer = deen_semantic::Analyzer::new(&src, fname);
     let warns = match analyzer.analyze(&ast) {
         Ok(warns) => warns,
         Err((errors, warns)) => {
-            errors.into_iter().for_each(|e| {
+            errors.iter().for_each(|e| {
                 let mut buf = String::new();
-                handler.render_report(&mut buf, &e).unwrap();
+                handler.render_report(&mut buf, e).unwrap();
 
                 eprintln!("{}", buf);
             });
 
-            warns.into_iter().for_each(|w| {
+            warns.iter().for_each(|w| {
                 let mut buf = String::new();
-                handler.render_report(&mut buf, &w).unwrap();
+                handler.render_report(&mut buf, w).unwrap();
 
                 eprintln!("{}", buf);
             });
+
+            cli::error(&format!("`{}` returned {} errors", &fname, errors.len()));
+            if !warns.is_empty() || total_warns > 0 {
+                cli::warn(&format!("`{}` generated {} warnings", &fname, warns.len() + total_warns));
+            }
+
 
             std::process::exit(1);
         }
     };
 
-    warns.into_iter().for_each(|w| {
+    warns.iter().for_each(|w| {
         let mut buf = String::new();
-        handler.render_report(&mut buf, &w).unwrap();
+        handler.render_report(&mut buf, w).unwrap();
 
         eprintln!("{}", buf);
     });
+
+    total_warns += warns.len();
+
+    if total_warns > 0 {
+        cli::warn(&format!("`{}` generated {} warnings", &fname, total_warns));
+    }
 }
