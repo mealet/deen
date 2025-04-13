@@ -41,11 +41,21 @@ impl Scope {
 
     #[inline]
     pub fn add_var(&mut self, name: String, datatype: Type, initialized: bool, span: (usize, usize)) {
+        if name == "_" { return };
         self.variables.insert(name, Variable { datatype, initialized, used: false, span });
     }
 
     #[inline]
     pub fn get_var(&mut self, name: &str) -> Option<Variable> {
+        if name == "_" {
+            return Some(Variable {
+                datatype: Type::Void,
+                initialized: true,
+                span: (0, 0),
+                used: true
+            })
+        }
+
         self.variables.get(name).cloned().or_else(|| {
             self.parent.as_mut().and_then(|parent| parent.get_var(name))
         }).map(|mut var| {

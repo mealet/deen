@@ -30,6 +30,7 @@ pub enum TokenType {
     Ampersand, // &
     Ref, // &abc
     Verbar, // |
+    Underscore, // _
     Dot, // .
     Comma, // ,
     DoubleQuote, // "

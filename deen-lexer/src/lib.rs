@@ -537,7 +537,7 @@ impl Lexer {
                         )
                     );
                 }
-                _ if self.char.is_alphabetic() => {
+                _ if self.char.is_alphabetic() || self.char == '_' => {
                     let allowed_id_chars = ['_', '.'];
 
                     let mut id = String::new();
