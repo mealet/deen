@@ -53,6 +53,16 @@ impl Analyzer {
             self.errors.reverse();
         }
 
+        if let Some(unused) = self.scope.check_unused_variables() {
+            unused.iter().for_each(|var| {
+                self.warning(
+                    format!("Unused variable `{}` found", var.0),
+                    var.1
+                );
+            });
+        }
+
+
         if !self.errors.is_empty() {
             return Err((self.errors.clone(), self.warnings.clone()))
         }
@@ -186,14 +196,14 @@ impl Analyzer {
                             return;
                         }
 
-                        self.scope.add_var(identifier.clone(), datatype.clone(), true);
+                        self.scope.add_var(identifier.clone(), datatype.clone(), true, *span);
                     },
                     (Some(datatype), None) => {
-                        self.scope.add_var(identifier.clone(), datatype.clone(), false);
+                        self.scope.add_var(identifier.clone(), datatype.clone(), false, *span);
                     },
                     (None, Some(value)) => {
                         let value_type = self.visit_expression(value, true, None);
-                        self.scope.add_var(identifier.clone(), value_type, true);
+                        self.scope.add_var(identifier.clone(), value_type, true, *span);
                     },
                     (None, None) => {
                         self.error(
@@ -223,7 +233,7 @@ impl Analyzer {
                 function_scope.parent = Some(Box::new(self.scope.clone()));
                 function_scope.expected = datatype.clone();
 
-                arguments.iter().for_each(|arg| function_scope.add_var(arg.0.clone(), arg.1.clone(), true));
+                arguments.iter().for_each(|arg| function_scope.add_var(arg.0.clone(), arg.1.clone(), true, *span));
                 self.scope = function_scope;
                 
                 block.iter().for_each(|stmt| self.visit_statement(stmt));
@@ -233,6 +243,15 @@ impl Analyzer {
                         *span
                     );
                     return;
+                }
+
+                if let Some(unused) = self.scope.check_unused_variables() {
+                    unused.iter().for_each(|var| {
+                        self.warning(
+                            format!("Unused variable `{}` found", var.0),
+                            var.1
+                        );
+                    });
                 }
 
                 self.scope = *self.scope.parent.clone().unwrap();
@@ -298,6 +317,16 @@ impl Analyzer {
                 then_block.iter().for_each(|stmt| self.visit_statement(stmt));
 
                 let then_block_type = self.scope.returned.clone();
+
+                if let Some(unused) = self.scope.check_unused_variables() {
+                    unused.iter().for_each(|var| {
+                        self.warning(
+                            format!("Unused variable `{}` found", var.0),
+                            var.1
+                        );
+                    });
+                }
+
                 self.scope = *self.scope.parent.clone().unwrap();
 
                 if then_block_type != self.scope.expected {
@@ -317,6 +346,17 @@ impl Analyzer {
                     else_block.iter().for_each(|stmt| self.visit_statement(stmt));
 
                     let else_block_type = self.scope.returned.clone();
+
+                    if let Some(unused) = self.scope.check_unused_variables() {
+                        unused.iter().for_each(|var| {
+                            self.warning(
+                                format!("Unused variable `{}` found", var.0),
+                                var.1
+                            );
+                        });
+                    }
+
+
                     self.scope = *self.scope.parent.clone().unwrap();
 
                     if then_block_type != else_block_type {
@@ -351,6 +391,16 @@ impl Analyzer {
                 block.iter().for_each(|stmt| self.visit_statement(stmt));
 
                 let block_type = self.scope.returned.clone();
+
+                if let Some(unused) = self.scope.check_unused_variables() {
+                    unused.iter().for_each(|var| {
+                        self.warning(
+                            format!("Unused variable `{}` found", var.0),
+                            var.1
+                        );
+                    });
+                }
+
                 self.scope = *self.scope.parent.clone().unwrap();
 
                 if block_type != Type::Void {
@@ -392,12 +442,22 @@ impl Analyzer {
                 new_scope.parent = Some(Box::new(self.scope.clone()));
                 new_scope.expected = self.scope.expected.clone();
                 new_scope.is_loop = true;
-                new_scope.add_var(binding.clone(), binding_type, true);
+                new_scope.add_var(binding.clone(), binding_type, true, *span);
                 self.scope = new_scope;
 
                 block.iter().for_each(|stmt| self.visit_statement(stmt));
 
                 let block_type = self.scope.returned.clone();
+
+                if let Some(unused) = self.scope.check_unused_variables() {
+                    unused.iter().for_each(|var| {
+                        self.warning(
+                            format!("Unused variable `{}` found", var.0),
+                            var.1
+                        );
+                    });
+                }
+
                 self.scope = *self.scope.parent.clone().unwrap();
 
                 if block_type != Type::Void {
@@ -449,6 +509,16 @@ impl Analyzer {
                 self.scope = new_scope;
 
                 block.iter().for_each(|stmt| self.visit_statement(stmt));
+
+                if let Some(unused) = self.scope.check_unused_variables() {
+                    unused.iter().for_each(|var| {
+                        self.warning(
+                            format!("Unused variable `{}` found", var.0),
+                            var.1
+                        );
+                    });
+                }
+
                 self.scope = *self.scope.parent.clone().unwrap();
             },
             
@@ -669,6 +739,16 @@ impl Analyzer {
                 block.iter().for_each(|stmt| self.visit_statement(stmt));
                 
                 let scope_type = self.scope.returned.clone();
+
+                if let Some(unused) = self.scope.check_unused_variables() {
+                    unused.iter().for_each(|var| {
+                        self.warning(
+                            format!("Unused variable `{}` found", var.0),
+                            var.1
+                        );
+                    });
+                }
+
                 self.scope = *self.scope.parent.clone().unwrap();
 
                 scope_type

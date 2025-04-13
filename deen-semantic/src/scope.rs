@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use deen_parser::types::Type;
 
+type UnusedVariable = (String, (usize, usize));
+
 #[derive(Debug, Clone)]
 pub struct Scope {
     pub expected: Type,
@@ -17,7 +19,9 @@ pub struct Scope {
 #[derive(Debug, Clone)]
 pub struct Variable {
     pub datatype: Type,
-    pub initialized: bool
+    pub initialized: bool,
+    pub span: (usize, usize),
+    pub used: bool
 }
 
 impl Scope {
@@ -36,15 +40,35 @@ impl Scope {
     }
 
     #[inline]
-    pub fn add_var(&mut self, name: String, datatype: Type, initialized: bool) {
-        self.variables.insert(name, Variable { datatype, initialized });
+    pub fn add_var(&mut self, name: String, datatype: Type, initialized: bool, span: (usize, usize)) {
+        self.variables.insert(name, Variable { datatype, initialized, used: false, span });
     }
 
     #[inline]
-    pub fn get_var(&self, name: &str) -> Option<Variable> {
+    pub fn get_var(&mut self, name: &str) -> Option<Variable> {
         self.variables.get(name).cloned().or_else(|| {
-            self.parent.as_ref().and_then(|parent| parent.get_var(name))
+            self.parent.as_mut().and_then(|parent| parent.get_var(name))
+        }).map(|mut var| {
+            var.used = true;
+            self.variables.insert(name.to_owned(), var.clone());
+            var
         })
+    }
+
+    #[inline]
+    pub fn check_unused_variables(&self) -> Option<Vec<UnusedVariable>> {
+        let mut unused = Vec::new();
+
+        self.variables.iter().for_each(|(name, signature)| {
+            if !signature.used {
+                unused.push((name.clone(), signature.span));
+            }
+        });
+
+        if unused.is_empty() {
+            return None
+        }
+        return Some(unused)
     }
 
     #[inline]
@@ -52,7 +76,7 @@ impl Scope {
         match self.get_var(name) {
             Some(mut var) => {
                 var.initialized = true;
-                self.add_var(name.to_owned(), var.datatype, var.initialized);
+                self.add_var(name.to_owned(), var.datatype, var.initialized, var.span);
 
                 Ok(())
             },
