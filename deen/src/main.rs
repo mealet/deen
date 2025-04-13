@@ -72,6 +72,8 @@ fn main() {
 
     total_warns += warns.len();
 
+    cli::info("Parsing", &format!("syntax tree ({} tokens)", tokens.len()));
+
     let mut parser = deen_parser::Parser::new(tokens, &src, fname);
     let (ast, warns) = match parser.parse() {
         Ok(ast) => ast,
@@ -108,6 +110,8 @@ fn main() {
         eprintln!("{}", buf);
     });
     total_warns += warns.len();
+
+    cli::info("Analyzing", &format!("processed code ({} global statements)", ast.len()));
 
     let mut analyzer = deen_semantic::Analyzer::new(&src, fname);
     let warns = match analyzer.analyze(&ast) {
@@ -149,4 +153,10 @@ fn main() {
     if total_warns > 0 {
         cli::warn(&format!("`{}` generated {} warnings", &fname, total_warns));
     }
+
+    cli::info("Compiling", &format!(
+            "`{}` to binary",
+            &fname,
+        )
+    );
 }
