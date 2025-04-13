@@ -167,9 +167,69 @@ impl Analyzer {
                         *span
                     );
                     return;
-                }               
+                }
             },
-            Statements::SliceAssignStatement { identifier, index, value, span } => {},
+            Statements::SliceAssignStatement { identifier, index, value, span } => {
+                if let Some(variable) = self.scope.get_var(identifier) {
+                    match variable.datatype {
+                        Type::Array(typ, len) => {
+                            // i could spent some time to implement evaluating expressions for
+                            // checking index out of bounds, but it will be like in Rust: panics at
+                            // the runtime
+
+                            let index_type = self.visit_expression(index, true, Some(Type::USIZE));
+
+                            if index_type != Type::USIZE {
+                                self.error(
+                                    format!("Expected index with type `usize`, but found `{}`", index_type),
+                                    *span
+                                );
+                            }
+
+                            let value_type = self.visit_expression(value, true, Some(*typ.clone()));
+
+                            if value_type != *typ {
+                                self.error(
+                                    format!("Array has type `{}`, but found `{}`", typ, value_type),
+                                    *span
+                                );
+                            }
+                        },
+                        Type::DynamicArray(typ) => {
+                            let index_type = self.visit_expression(index, true, Some(Type::USIZE));
+
+                            if index_type != Type::USIZE {
+                                self.error(
+                                    format!("Expected index with type `usize`, but found `{}`", index_type),
+                                    *span
+                                );
+                            }
+
+                            let value_type = self.visit_expression(value, true, Some(*typ.clone()));
+
+                            if value_type != *typ {
+                                self.error(
+                                    format!("Array has type `{}`, but found `{}`", typ, value_type),
+                                    *span
+                                );
+                            }
+                        },
+                        _ => {
+                            self.error(
+                                format!("Unable to apply slicing to `{}` type", variable.datatype),
+                                *span
+                            );
+                            return
+                        }
+                    }
+                } else {
+                    self.error(
+                        format!("Variable \"{}\" is not defined here", identifier),
+                        *span
+                    );
+                    return;
+                }
+            },
 
             Statements::AnnotationStatement { identifier, datatype, value, span } => {
                 match (datatype, value) {
