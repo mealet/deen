@@ -340,7 +340,7 @@ impl Analyzer {
                     call_args.iter().enumerate().zip(func_args).for_each(|((ind, provided), expected)| {
                         if &expected != provided {
                             self.error(
-                                format!("Expected argument with type {}, but found {}", expected, provided),
+                                format!("Argument #{} must be `{}`, but found `{}`", ind + 1, expected, provided),
                                 Parser::get_span_expression(arguments[ind].clone())
                             );
                         }
@@ -706,7 +706,7 @@ impl Analyzer {
                     call_args.iter().enumerate().zip(func_args).for_each(|((ind, provided), expected)| {
                         if &expected != provided {
                             self.error(
-                                format!("Expected argument with type {}, but found {}", expected, provided),
+                                format!("Argument #{} must be `{}`, but found `{}`", ind + 1, expected, provided),
                                 Parser::get_span_expression(arguments[ind].clone())
                             );
                         }
