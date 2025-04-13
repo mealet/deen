@@ -4,6 +4,7 @@ mod cli;
 
 fn main() {
     let args = cli::Args::parse();
+    let no_warns = args.no_warns;
 
     let fname = std::path::Path::new(&args.path)
         .file_name()
@@ -20,7 +21,10 @@ fn main() {
     cli::info("Reading", &format!(
         "`{}` ({})",
             &fname,
-            std::fs::canonicalize(&args.path).unwrap().display()
+            std::fs::canonicalize(&args.path).unwrap_or_else(|_| {
+                cli::error(&format!("File `{}` does not exist", &fname));
+                std::process::exit(1);
+            }).display()
         )
     );
 
@@ -49,26 +53,30 @@ fn main() {
                 eprintln!("{}", buf);
             });
 
-            warns.iter().for_each(|w| {
-                let mut buf = String::new();
-                handler.render_report(&mut buf, w).unwrap();
+            if !no_warns {
+                warns.iter().for_each(|w| {
+                    let mut buf = String::new();
+                    handler.render_report(&mut buf, w).unwrap();
 
-                eprintln!("{}", buf);
-            });
+                    eprintln!("{}", buf);
+                });
+            }
 
             cli::error(&format!("`{}` returned {} errors", &fname, errors.len()));
-            if !warns.is_empty() { cli::warn(&format!("`{}` generated {} warnings", &fname, warns.len())) }
+            if !warns.is_empty() && !no_warns { cli::warn(&format!("`{}` generated {} warnings", &fname, warns.len())) }
 
             std::process::exit(1);
         }
     };
 
-    warns.iter().for_each(|w| {
-        let mut buf = String::new();
-        handler.render_report(&mut buf, w).unwrap();
+    if !no_warns {
+        warns.iter().for_each(|w| {
+            let mut buf = String::new();
+            handler.render_report(&mut buf, w).unwrap();
 
-        eprintln!("{}", buf);
-    });
+            eprintln!("{}", buf);
+        });
+    }
 
     total_warns += warns.len();
 
@@ -87,15 +95,17 @@ fn main() {
                 eprintln!("{}", buf);
             });
 
-            warns.iter().for_each(|w| {
-                let mut buf = String::new();
-                handler.render_report(&mut buf, w).unwrap();
+            if !no_warns {
+                warns.iter().for_each(|w| {
+                    let mut buf = String::new();
+                    handler.render_report(&mut buf, w).unwrap();
 
-                eprintln!("{}", buf);
-            });
+                    eprintln!("{}", buf);
+                });
+            }
 
             cli::error(&format!("`{}` returned {} errors", &fname, errors.len()));
-            if !warns.is_empty() || total_warns > 0 {
+            if (!warns.is_empty() || total_warns > 0) && !no_warns {
                 cli::warn(&format!("`{}` generated {} warnings", &fname, warns.len() + total_warns));
             }
 
@@ -103,12 +113,15 @@ fn main() {
         }
     };
 
-    warns.iter().for_each(|w| {
-        let mut buf = String::new();
-        handler.render_report(&mut buf, w).unwrap();
+    if !no_warns {
+        warns.iter().for_each(|w| {
+            let mut buf = String::new();
+            handler.render_report(&mut buf, w).unwrap();
 
-        eprintln!("{}", buf);
-    });
+            eprintln!("{}", buf);
+        });
+    }
+
     total_warns += warns.len();
 
     cli::info("Analyzing", &format!("processed code ({} global statements)", ast.len()));
@@ -124,15 +137,17 @@ fn main() {
                 eprintln!("{}", buf);
             });
 
-            warns.iter().for_each(|w| {
-                let mut buf = String::new();
-                handler.render_report(&mut buf, w).unwrap();
+            if !no_warns {
+                warns.iter().for_each(|w| {
+                    let mut buf = String::new();
+                    handler.render_report(&mut buf, w).unwrap();
 
-                eprintln!("{}", buf);
-            });
+                    eprintln!("{}", buf);
+                });
+            }
 
             cli::error(&format!("`{}` returned {} errors", &fname, errors.len()));
-            if !warns.is_empty() || total_warns > 0 {
+            if (!warns.is_empty() || total_warns > 0) && !no_warns {
                 cli::warn(&format!("`{}` generated {} warnings", &fname, warns.len() + total_warns));
             }
 
@@ -141,16 +156,18 @@ fn main() {
         }
     };
 
-    warns.iter().for_each(|w| {
-        let mut buf = String::new();
-        handler.render_report(&mut buf, w).unwrap();
+    if !no_warns {
+        warns.iter().for_each(|w| {
+            let mut buf = String::new();
+            handler.render_report(&mut buf, w).unwrap();
 
-        eprintln!("{}", buf);
-    });
+            eprintln!("{}", buf);
+        });
+    }
 
     total_warns += warns.len();
 
-    if total_warns > 0 {
+    if total_warns > 0 && !no_warns {
         cli::warn(&format!("`{}` generated {} warnings", &fname, total_warns));
     }
 
