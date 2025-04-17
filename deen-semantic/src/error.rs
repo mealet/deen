@@ -28,3 +28,43 @@ pub struct SemanticWarning {
     #[label("here")]
     pub span: SourceSpan
 }
+
+impl From<deen_lexer::error::LexerError> for SemanticError {
+    fn from(value: deen_lexer::error::LexerError) -> Self {
+        Self {
+            message: value.message,
+            src: value.src,
+            span: value.span
+        }
+    }
+}
+
+impl From<deen_lexer::error::LexerWarning> for SemanticWarning {
+    fn from(value: deen_lexer::error::LexerWarning) -> Self {
+        Self {
+            message: value.message,
+            src: value.src,
+            span: value.span
+        }
+    }
+}
+
+impl From<deen_parser::error::ParserError> for SemanticError {
+    fn from(value: deen_parser::error::ParserError) -> Self {
+        Self {
+            message: value.message,
+            src: value.src,
+            span: value.span
+        }
+    }
+}
+
+impl From<deen_parser::error::ParserWarning> for SemanticWarning {
+    fn from(value: deen_parser::error::ParserWarning) -> Self {
+        Self {
+            message: value.message,
+            src: value.src,
+            span: value.span
+        }
+    }
+}

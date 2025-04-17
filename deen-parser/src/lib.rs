@@ -13,7 +13,7 @@ use crate::{
     types::Type
 };
 
-mod error;
+pub mod error;
 pub mod statements;
 pub mod expressions;
 pub mod value;

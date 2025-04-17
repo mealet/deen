@@ -22,11 +22,11 @@ pub struct Analyzer {
 }
 
 impl Analyzer {
-    pub fn new(src: &str, filename: &str) -> Self {
+    pub fn new(src: &str, filename: &str, is_main: bool) -> Self {
         Analyzer {
             scope: {
                 let mut scope = Scope::new();
-                scope.is_main = true;
+                scope.is_main = is_main;
                 scope
             },
             source: NamedSource::new(filename, src.to_owned()),
@@ -533,7 +533,84 @@ impl Analyzer {
                 }
             },
             Statements::ImportStatement { path, span } => {
+                match path {
+                    Expressions::Value(Value::String(path), _) => {
+                        let fname = std::path::Path::new(path)
+                            .file_name()
+                            .map(|fname| {
+                                fname.to_str().unwrap_or("$NONE")
+                            });
 
+                        match fname {
+                            Some(fname) => {
+                                if fname == "$NONE" {
+                                    self.error(
+                                        format!("Unable to get module name: `{}`", path),
+                                        *span
+                                    );
+                                    return;
+                                }
+
+                                let src = std::fs::read_to_string(&fname).unwrap_or_else(|err| {
+                                    self.error(
+                                        format!("Unable to read `{}`: {}", fname, err),
+                                        *span
+                                    );
+                                    return String::new();
+                                });
+
+                                if src.len() == 0 { return };
+
+                                let mut lexer = deen_lexer::Lexer::new(&src, &fname);
+                                let (tokens, warns) = match lexer.tokenize() {
+                                    Ok(res) => res,
+                                    Err((errors, warns)) => {
+                                        errors.iter().for_each(|err| self.errors.push(err.clone().into()));
+                                        warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
+                                        return;
+                                    }
+                                };
+                                warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
+
+                                let mut parser = deen_parser::Parser::new(tokens, &src, &fname);
+                                let (ast, warns) = match parser.parse() {
+                                    Ok(res) => res,
+                                    Err((errors, warns)) => {
+                                        errors.iter().for_each(|err| self.errors.push(err.clone().into()));
+                                        warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
+                                        return;
+                                    }
+                                };
+                                warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
+
+                                let mut analyzer = Self::new(&src, &fname, false);
+                                let warns = match analyzer.analyze(&ast) {
+                                    Ok(warns) => warns,
+                                    Err((errors, warns)) => {
+                                        errors.iter().for_each(|err| self.errors.push(err.clone().into()));
+                                        warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
+                                        return;
+                                    }
+                                };
+                                warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
+                            }
+                            None => {
+                                self.error(
+                                    format!("Unable to find: `{}`", path),
+                                    *span
+                                );
+                                return;
+                            }
+                        }
+                    },
+                    _ => {
+                        self.error(
+                            String::from("Import must be string constant"),
+                            *span
+                        );
+                        return;
+                    }
+                }
             },
             Statements::BreakStatements { span } => {
                 if !self.scope.is_loop {

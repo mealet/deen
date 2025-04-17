@@ -7,8 +7,8 @@ use crate::{
     macros::{std_keyword, std_type, std_symbol, std_token}
 };
 
-mod error;
 mod macros;
+pub mod error;
 pub mod token;
 pub mod token_type;
 
