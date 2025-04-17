@@ -78,7 +78,7 @@ impl Scope {
         if unused.is_empty() {
             return None
         }
-        return Some(unused)
+        Some(unused)
     }
 
     #[inline]

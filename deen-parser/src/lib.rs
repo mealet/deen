@@ -465,7 +465,7 @@ impl Parser {
                 if self.expect(TokenType::RBrace) {
                     let _ = self.next();
                 }
-                let _ = self.skip_eos();
+                self.skip_eos();
 
                 Statements::ScopeStatement { block, span, }
             }

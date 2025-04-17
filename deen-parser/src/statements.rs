@@ -216,7 +216,7 @@ impl Parser {
 
                 match self.current().token_type {
                     TokenType::Keyword => {
-                        if self.current().value != String::from("if") {
+                        if self.current().value != *"if" {
                             self.error(
                                 String::from("Unexpected keyword found after `else`"),
                                 (else_span_start, self.current().span.1)

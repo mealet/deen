@@ -45,7 +45,7 @@ fn main() {
     let (tokens, warns) = match lexer.tokenize() {
         Ok(res) => res,
         Err((errors, warns)) => {
-            println!("");
+            println!();
             errors.iter().for_each(|e| {
                 let mut buf = String::new();
                 handler.render_report(&mut buf, e).unwrap();

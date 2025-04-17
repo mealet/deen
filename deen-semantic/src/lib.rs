@@ -73,7 +73,7 @@ impl Analyzer {
             return Err((self.errors.clone(), self.warnings.clone()))
         }
 
-        return Ok(
+        Ok(
             (self.imports.clone(), self.warnings.clone())
         )
     }
@@ -127,7 +127,6 @@ impl Analyzer {
                         format!("Variable \"{}\" is not defined here", identifier),
                         *span
                     );
-                    return;
                 }
             },
             Statements::BinaryAssignStatement { identifier, operand, value, span } => {
@@ -167,14 +166,12 @@ impl Analyzer {
                             format!("Unable to dereference non-pointer type `{}`", variable.datatype),
                             *span
                         );
-                        return;
                     }
                 } else {
                     self.error(
                         format!("Variable \"{}\" is not defined here", identifier),
                         *span
                     );
-                    return;
                 }
             },
             Statements::SliceAssignStatement { identifier, index, value, span } => {
@@ -227,7 +224,6 @@ impl Analyzer {
                                 format!("Unable to apply slicing to `{}` type", variable.datatype),
                                 *span
                             );
-                            return
                         }
                     }
                 } else {
@@ -235,7 +231,6 @@ impl Analyzer {
                         format!("Variable \"{}\" is not defined here", identifier),
                         *span
                     );
-                    return;
                 }
             },
 
@@ -278,12 +273,11 @@ impl Analyzer {
                             format!("Variable `{}` has unknown type", identifier),
                             *span
                         );
-                        return;
                     }
                 }
             }
             Statements::FunctionDefineStatement { name, datatype, arguments, block, span } => {
-                if let Some(_) = self.scope.get_fn(name) {
+                if self.scope.get_fn(name).is_some() {
                     self.error(
                         format!("Function `{}` already declared!", name),
                         *span
@@ -559,17 +553,17 @@ impl Analyzer {
                                     return;
                                 }
 
-                                let src = std::fs::read_to_string(&fname).unwrap_or_else(|err| {
+                                let src = std::fs::read_to_string(fname).unwrap_or_else(|err| {
                                     self.error(
                                         format!("Unable to read `{}`: {}", fname, err),
                                         *span
                                     );
-                                    return String::new();
+                                    String::new()
                                 });
 
-                                if src.len() == 0 { return };
+                                if src.is_empty() { return };
 
-                                let mut lexer = deen_lexer::Lexer::new(&src, &fname);
+                                let mut lexer = deen_lexer::Lexer::new(&src, fname);
                                 let (tokens, warns) = match lexer.tokenize() {
                                     Ok(res) => res,
                                     Err((errors, warns)) => {
@@ -580,7 +574,7 @@ impl Analyzer {
                                 };
                                 warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
 
-                                let mut parser = deen_parser::Parser::new(tokens, &src, &fname);
+                                let mut parser = deen_parser::Parser::new(tokens, &src, fname);
                                 let (ast, warns) = match parser.parse() {
                                     Ok(res) => res,
                                     Err((errors, warns)) => {
@@ -591,16 +585,16 @@ impl Analyzer {
                                 };
                                 warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
 
-                                let mut analyzer = Self::new(&src, &fname, false);
+                                let mut analyzer = Self::new(&src, fname, false);
                                 let (_, warns) = match analyzer.analyze(&ast) {
                                     Ok(warns) => warns,
                                     Err((errors, warns)) => {
-                                        errors.iter().for_each(|err| self.errors.push(err.clone().into()));
-                                        warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
+                                        errors.iter().for_each(|err| self.errors.push(err.clone()));
+                                        warns.iter().for_each(|warn| self.warnings.push(warn.clone()));
                                         return;
                                     }
                                 };
-                                warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
+                                warns.iter().for_each(|warn| self.warnings.push(warn.clone()));
 
                                 let module_name = fname
                                     .split(".")
@@ -628,7 +622,6 @@ impl Analyzer {
                                     format!("Unable to find: `{}`", path),
                                     *span
                                 );
-                                return;
                             }
                         }
                     },
@@ -637,7 +630,6 @@ impl Analyzer {
                             String::from("Import must be string constant"),
                             *span
                         );
-                        return;
                     }
                 }
             },
@@ -647,24 +639,19 @@ impl Analyzer {
                         String::from("Used `break` keyword outside loop"),
                         *span
                     );
-                    return
                 }
             },
             Statements::ReturnStatement { value, span } => {
                 let value_type = self.visit_expression(value, Some(self.scope.expected.clone()));
                 
-                if self.is_integer(&value_type) && self.is_integer(&self.scope.expected) {
-                    if self.integer_order(&value_type) <= self.integer_order(&self.scope.expected) {
-                        self.scope.returned = self.scope.expected.clone();
-                        return;
-                    }
+                if self.is_integer(&value_type) && self.is_integer(&self.scope.expected) && self.integer_order(&value_type) <= self.integer_order(&self.scope.expected) {
+                    self.scope.returned = self.scope.expected.clone();
+                    return;
                 }
 
-                if self.is_float(&value_type) && self.is_integer(&self.scope.expected) {
-                    if self.float_order(&value_type) <= self.float_order(&self.scope.expected) {
-                        self.scope.returned = self.scope.expected.clone();
-                        return;
-                    }
+                if self.is_float(&value_type) && self.is_integer(&self.scope.expected) && self.float_order(&value_type) <= self.float_order(&self.scope.expected) {
+                    self.scope.returned = self.scope.expected.clone();
+                    return;
                 }
 
                 self.scope.returned = value_type;
@@ -957,33 +944,33 @@ impl Analyzer {
                             }
                         },
                         Type::I64 => {
-                            if int < i64::MIN as i64 || int > i64::MAX as i64 {
+                            if !(i64::MIN..=i64::MAX).contains(&int) {
                                 return Err(String::from("Constant is out of `i64` type range"))
                             }
                         },
 
                         Type::U8 => {
-                            if int < 0 || int as u8 > u8::MAX {
+                            if int < 0 || int > u8::MAX as i64 {
                                 return Err(String::from("Constant is out of `u8` type range"))
                             }
                         },
                         Type::U16 => {
-                            if int < 0 || int as u16 > u16::MAX {
+                            if int < 0 || int > u16::MAX as i64 {
                                 return Err(String::from("Constant is out of `u16` type range"))
                             }
                         },
                         Type::U32 => {
-                            if int < 0 || int as u32 > u32::MAX {
+                            if int < 0 || int > u32::MAX as i64 {
                                 return Err(String::from("Constant is out of `u32` type range"))
                             }
                         },
                         Type::U64 => {
-                            if int < 0 || int as u64 > u64::MAX {
+                            if int < 0 {
                                 return Err(String::from("Constant is out of `u64` type range"))
                             }
                         },
                         Type::USIZE => {
-                            if int < 0 || int as u64 > u64::MAX {
+                            if int < 0 {
                                 return Err(String::from("Constant is out of `usize` type range"))
                             }
                         },
