@@ -12,8 +12,8 @@ pub struct Scope {
     pub is_loop: bool,
     pub is_main: bool,
 
-    variables: HashMap<String, Variable>,
-    functions: HashMap<String, Type>,
+    pub variables: HashMap<String, Variable>,
+    pub functions: HashMap<String, Type>,
 }
 
 #[derive(Debug, Clone)]

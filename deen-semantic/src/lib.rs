@@ -2,6 +2,7 @@
 
 use crate::{
     scope::Scope,
+    import::Import,
     error::{SemanticError, SemanticWarning}
 };
 use deen_parser::{expressions::Expressions, statements::Statements, types::Type, value::Value, Parser};
@@ -9,8 +10,9 @@ use miette::NamedSource;
 
 mod error;
 mod scope;
+mod import;
 
-type SemanticOk = Vec<SemanticWarning>;
+type SemanticOk = (Vec<Import>, Vec<SemanticWarning>);
 type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
 
 pub struct Analyzer {
@@ -19,6 +21,8 @@ pub struct Analyzer {
 
     errors: Vec<SemanticError>,
     warnings: Vec<SemanticWarning>,
+
+    imports: Vec<Import>
 }
 
 impl Analyzer {
@@ -32,7 +36,9 @@ impl Analyzer {
             source: NamedSource::new(filename, src.to_owned()),
 
             errors: Vec::new(),
-            warnings: Vec::new()
+            warnings: Vec::new(),
+
+            imports: Vec::new()
         }
     }
 
@@ -67,7 +73,9 @@ impl Analyzer {
             return Err((self.errors.clone(), self.warnings.clone()))
         }
 
-        return Ok(self.warnings.clone())
+        return Ok(
+            (self.imports.clone(), self.warnings.clone())
+        )
     }
 
     fn error(&mut self, message: String, span: (usize, usize)) {
@@ -584,7 +592,7 @@ impl Analyzer {
                                 warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
 
                                 let mut analyzer = Self::new(&src, &fname, false);
-                                let warns = match analyzer.analyze(&ast) {
+                                let (_, warns) = match analyzer.analyze(&ast) {
                                     Ok(warns) => warns,
                                     Err((errors, warns)) => {
                                         errors.iter().for_each(|err| self.errors.push(err.clone().into()));
@@ -593,6 +601,27 @@ impl Analyzer {
                                     }
                                 };
                                 warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
+
+                                let module_name = fname
+                                    .split(".")
+                                    .nth(0)
+                                    .map(|n| n.to_string())
+                                    .unwrap_or(fname.replace(".dn", ""));
+
+                                let mut import = Import::default();
+
+                                analyzer.scope.functions.iter().for_each(|func| {
+                                    self.scope.add_fn(
+                                        format!("{}.{}", module_name, func.0),
+                                        func.1.clone()
+                                    );
+
+                                    import.add_fn(
+                                        (format!("{}.{}", module_name, func.0), func.1.clone())
+                                    )
+                                });
+
+                                analyzer.imports.push(import);
                             }
                             None => {
                                 self.error(
