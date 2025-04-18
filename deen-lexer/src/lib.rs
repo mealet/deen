@@ -340,15 +340,17 @@ impl Lexer {
                 }
                 chr if self.std_symbols.contains_key(&chr) => {
                     let matched_token = self.std_symbols.get(&chr).unwrap().clone();
-                    let span_start = self.position;
+                    let span_start = self.position - 1;
 
                     match matched_token.token_type {
                         TokenType::DoubleQuote => {
                             self.getc();
                             let mut captured_string = String::new();
+                            let mut len = 0;
 
                             while self.char != '"' {
                                 captured_string.push(self.char);
+                                len += 1;
                                 self.getc();
                             }
 
@@ -356,7 +358,7 @@ impl Lexer {
                                 Token::new(
                                     captured_string,
                                     TokenType::String,
-                                    (span_start, self.position - 1)
+                                    (span_start, span_start + len + 1)
                                 )
                             );
                             self.getc();

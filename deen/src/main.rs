@@ -126,7 +126,7 @@ fn main() {
 
     cli::info("Analyzing", &format!("processed code ({} global statements)", ast.len()));
 
-    let mut analyzer = deen_semantic::Analyzer::new(&src, fname, true);
+    let mut analyzer = deen_semantic::Analyzer::new(&src, fname, true, None);
     let (imports, warns) = match analyzer.analyze(&ast) {
         Ok(res) => res,
         Err((errors, warns)) => {

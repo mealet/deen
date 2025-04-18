@@ -140,15 +140,17 @@ impl Parser {
     }
     
     pub fn import_statement(&mut self) -> Statements {
+        let span_start = self.current().span.0;
         if self.current().token_type == TokenType::Keyword {
             let _ = self.next();
         }
 
-        let span_start = self.current().span.0;
         let path = self.expression();
+        self.position -= 1;
 
         let span_end = self.current().span.1;
-        self.skip_eos();
+        let _ = self.next();
+        let _ = self.skip_eos();
 
         if let Expressions::Value(Value::String(_), _) = path {
             Statements::ImportStatement { path, span: (span_start, span_end) }

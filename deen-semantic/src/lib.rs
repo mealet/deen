@@ -22,11 +22,12 @@ pub struct Analyzer {
     errors: Vec<SemanticError>,
     warnings: Vec<SemanticWarning>,
 
-    imports: Vec<Import>
+    imports: Vec<Import>,
+    imported_from: Option<String>,
 }
 
 impl Analyzer {
-    pub fn new(src: &str, filename: &str, is_main: bool) -> Self {
+    pub fn new(src: &str, filename: &str, is_main: bool, imported_from: Option<String>) -> Self {
         Analyzer {
             scope: {
                 let mut scope = Scope::new();
@@ -38,7 +39,8 @@ impl Analyzer {
             errors: Vec::new(),
             warnings: Vec::new(),
 
-            imports: Vec::new()
+            imports: Vec::new(),
+            imported_from
         }
     }
 
@@ -585,7 +587,33 @@ impl Analyzer {
                                 };
                                 warns.iter().for_each(|warn| self.warnings.push(warn.clone().into()));
 
-                                let mut analyzer = Self::new(&src, fname, false);
+                                let mut mutual_import = false;
+                                ast.iter().for_each(|stmt| {
+                                    if let Statements::ImportStatement { path, span } = stmt {
+                                        if let Expressions::Value(Value::String(path), _) = path {
+                                            let imp_name = std::path::Path::new(path)
+                                                .file_name()
+                                                .map(|fname| {
+                                                    fname.to_str().unwrap_or("$NONE")
+                                                });
+
+                                            if imp_name == Some(self.source.name()) {
+                                                self.error(
+                                                    format!("Mutual import found: `{}` from `{}`", imp_name.unwrap(), fname),
+                                                    *span
+                                                );
+                                                mutual_import = true;
+                                                return;
+                                            }
+                                        } else {
+                                            return;
+                                        }
+                                    }
+                                });
+
+                                if mutual_import { return };
+
+                                let mut analyzer = Self::new(&src, fname, false, Some(self.source.name().to_owned()));
                                 let (_, warns) = match analyzer.analyze(&ast) {
                                     Ok(warns) => warns,
                                     Err((errors, warns)) => {
