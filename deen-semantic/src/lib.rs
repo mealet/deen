@@ -10,7 +10,7 @@ use miette::NamedSource;
 
 mod error;
 mod scope;
-mod import;
+pub mod import;
 
 type SemanticOk = (Vec<Import>, Vec<SemanticWarning>);
 type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
@@ -22,12 +22,11 @@ pub struct Analyzer {
     errors: Vec<SemanticError>,
     warnings: Vec<SemanticWarning>,
 
-    imports: Vec<Import>,
-    imported_from: Option<String>,
+    imports: Vec<Import>
 }
 
 impl Analyzer {
-    pub fn new(src: &str, filename: &str, is_main: bool, imported_from: Option<String>) -> Self {
+    pub fn new(src: &str, filename: &str, is_main: bool) -> Self {
         Analyzer {
             scope: {
                 let mut scope = Scope::new();
@@ -40,7 +39,6 @@ impl Analyzer {
             warnings: Vec::new(),
 
             imports: Vec::new(),
-            imported_from
         }
     }
 
@@ -108,6 +106,24 @@ impl Analyzer {
 
 impl Analyzer {
     fn visit_statement(&mut self, statement: &Statements) {
+        // checking for allowed global scope statements
+        if self.scope.parent.is_none() {
+            match statement {
+                Statements::FunctionDefineStatement { name: _, datatype: _, arguments: _, block: _, span: _ } => {},
+                Statements::ImportStatement { path: _, span: _ } => {},
+                _ => {
+                    if let Some(err) = self.errors.last() {
+                        if err.span == (255, 0).into() { return };
+                    }
+                    self.error(
+                        String::from("In global scope only allowed: functions definitions, imports"),
+                        (255, 0)
+                    );
+                    return;
+                }
+            }
+        }
+
         match statement {
             Statements::AssignStatement { identifier, value, span } => {
                 if let Some(variable) = self.scope.get_var(identifier) {
@@ -613,7 +629,7 @@ impl Analyzer {
 
                                 if mutual_import { return };
 
-                                let mut analyzer = Self::new(&src, fname, false, Some(self.source.name().to_owned()));
+                                let mut analyzer = Self::new(&src, fname, false);
                                 let (_, warns) = match analyzer.analyze(&ast) {
                                     Ok(warns) => warns,
                                     Err((errors, warns)) => {
@@ -630,7 +646,7 @@ impl Analyzer {
                                     .map(|n| n.to_string())
                                     .unwrap_or(fname.replace(".dn", ""));
 
-                                let mut import = Import::default();
+                                let mut import = Import::new(ast);
 
                                 analyzer.scope.functions.iter().for_each(|func| {
                                     self.scope.add_fn(

@@ -1,5 +1,5 @@
 [package]
-name = "deen"
+name = "deen-codegen"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -8,12 +8,8 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-clap = { version = "4.5.35", features = ["derive"] }
-colored = "3.0.0"
-miette = { version = "7.5.0", features = ["fancy"] }
-thiserror = "2.0.12"
-
-deen-lexer = { path = "../deen-lexer" }
 deen-parser = { path = "../deen-parser" }
 deen-semantic = { path = "../deen-semantic" }
-deen-codegen = { path = "../deen-codegen" }
+inkwell = { version = "0.5.0", features = ["llvm18-0"] }
+miette = { version = "7.5.0", features = ["fancy"] }
+thiserror = "2.0.12"
