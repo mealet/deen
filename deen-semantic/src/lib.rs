@@ -113,6 +113,7 @@ impl Analyzer {
                 Statements::FunctionDefineStatement { name: _, datatype: _, arguments: _, block: _, span: _ } => {},
                 Statements::ImportStatement { path: _, span: _ } => {},
                 Statements::StructDefineStatement { name: _, fields: _, functions: _, span: _ } => {},
+                Statements::TypedefStatement { alias: _, datatype: _, span: _ } => {},
                 Statements::EnumDefineStatement { name: _, fields: _, functions: _, span: _ } => {},
                 _ => {
                     if let Some(err) = self.errors.last() {
@@ -382,6 +383,7 @@ impl Analyzer {
 
             Statements::StructDefineStatement { name, fields, functions, span } => todo!(),
             Statements::EnumDefineStatement { name, fields, functions, span } => todo!(),
+            Statements::TypedefStatement { alias, datatype, span } => todo!(),
             
             Statements::IfStatement { condition, then_block, else_block, span } => {
                 let condition_type = self.visit_expression(condition, None);

@@ -66,6 +66,11 @@ pub enum Statements {
         functions: HashMap<String, Statements>,
         span: (usize, usize)
     },
+    TypedefStatement {
+        alias: String,
+        datatype: Type,
+        span: (usize, usize)
+    },
 
     IfStatement {
         condition: Expressions,
@@ -740,5 +745,28 @@ impl Parser {
         self.skip_eos();
 
         Statements::EnumDefineStatement { name, fields, functions, span: (span_start, self.current().span.1) }
+    }
+
+    pub fn typedef_statement(&mut self) -> Statements {
+        let span_start = self.current().span.0;
+        if self.expect(TokenType::Keyword) {
+            let _ = self.next();
+        }
+
+        if !self.expect(TokenType::Identifier) {
+            self.error(
+                String::from("Expected alias for typedef"),
+                self.current().span
+            );
+        };
+
+        let alias = self.current().value;
+        let _ = self.next();
+
+        let datatype = self.parse_type();
+        let span_end = self.current().span.1;
+        let _ = self.skip_eos();
+
+        Statements::TypedefStatement { alias, datatype, span: (span_start, span_end) }
     }
 }
