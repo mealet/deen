@@ -35,8 +35,8 @@ pub enum Expressions {
         span: (usize, usize)
     },
     SubElement {
-        parent: Box<Expressions>,
-        child: Box<Expressions>,
+        head: Box<Expressions>,
+        subelements: Vec<Expressions>,
         span: (usize, usize)
     },
 
@@ -81,7 +81,7 @@ impl Parser {
             Expressions::Boolean { operand: _, lhs: _, rhs: _, span } => span,
             Expressions::Bitwise { operand: _, lhs: _, rhs: _, span } => span,
             Expressions::Argument { name: _, r#type: _, span } => span,
-            Expressions::SubElement { parent: _, child: _, span } => span,
+            Expressions::SubElement { head: _, subelements: _, span } => span,
             Expressions::FnCall { name: _, arguments: _, span } => span,
             Expressions::Reference { object: _, span } => span,
             Expressions::Dereference { object: _, span } => span,
@@ -102,21 +102,26 @@ impl Parser {
 }
 
 impl Parser {
-    pub fn subelement_expression(&mut self, parent: Expressions, separator: TokenType) -> Expressions {
-        if self.expect(separator) {
-            let _ = self.next();
-        }
+    pub fn subelement_expression(&mut self, head: Expressions, separator: TokenType) -> Expressions {
+        // if self.expect(separator) {
+        //     let _ = self.next();
+        // }
 
+        let head = Box::new(head);
         let span_start = self.current().span.1;
-        let child = self.expression();
-        let span_end = self.span_expression(child.clone()).1;
+        let mut subelements = Vec::new();
+        let mut span_end = self.current().span.1;
 
-        let span = (span_start, span_end);
-        Expressions::SubElement {
-            parent: Box::new(parent),
-            child: Box::new(child),
-            span,
+        while self.expect(separator.clone()) {
+            if self.expect(separator.clone()) {
+                let _ = self.next();
+            }
+            subelements.push(self.term());
+            span_end = self.current().span.1;
         }
+
+        let _ = self.skip_eos();
+        Expressions::SubElement { head, subelements, span: (span_start, span_end) }
     }
 
     pub fn binary_expression(&mut self, node: Expressions) -> Expressions {

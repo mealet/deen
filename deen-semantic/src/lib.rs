@@ -903,53 +903,62 @@ impl Analyzer {
             },
 
             Expressions::Argument { name, r#type, span } => unreachable!(),
-            Expressions::SubElement { parent, child, span } => {
+            Expressions::SubElement { head, subelements, span } => {
                 self.scope.set_init_var("a", true);
-                let mut parent_type = self.visit_expression(parent, expected.clone());
-                parent_type = self.unwrap_alias(&parent_type).unwrap_or_else(|err| {
-                    self.error(
-                        err,
-                        *span
-                    );
+                let head_type = self.visit_expression(head, expected);
+
+                let mut prev_type = self.unwrap_alias(&head_type).unwrap_or_else(|err| {
+                    self.error(err, *span);
                     Type::Void
                 });
+                if prev_type == Type::Void { return Type::Void };
 
-                if parent_type == Type::Void { return Type::Void };
-                match *child.clone() {
-                    Expressions::SubElement { parent: _, child: _, span: _ } => self.visit_expression(child, expected),
-                    Expressions::Value(Value::Identifier(field), val_span) => {
-                        match parent_type.clone() {
-                            Type::Struct(fields, _) => {
-                                fields.get(&field).unwrap_or_else(|| {
+                subelements.iter().for_each(|sub| {
+                    match sub {
+                        Expressions::Value(Value::Identifier(field), field_span) => {
+                            match prev_type.clone() {
+                                Type::Struct(fields, _) => {
+                                    let field_type = fields.get(&field.clone()).unwrap_or_else(|| {
+                                        self.error(
+                                            format!("Type `{}` has no field named `{}`", prev_type, field),
+                                            *field_span
+                                        );
+                                        &Type::Void
+                                    });
+                                    prev_type = self.unwrap_alias(field_type).unwrap_or_else(|err| {
+                                        self.error(err, *field_span);
+                                        return Type::Void;
+                                    });
+                                }
+                                Type::Enum(fields, _) => {
+                                    let opt = fields.iter().find(|&x| x == field);
+                                    if opt.is_none() {
+                                        self.error(
+                                            format!("Type `{}` has no choice named `{}`", prev_type, field),
+                                            *field_span
+                                        );
+                                    }
+                                },
+                                _ => {
                                     self.error(
-                                        format!("Structure `{}` has no field named `{}`", parent_type, field),
-                                        val_span
+                                        format!("Type `{}` has no accessible fields", prev_type),
+                                        *field_span
                                     );
-                                    &Type::Void
-                                }).clone()
-                            }
-                            _ => {
-                                self.error(
-                                    format!("Type `{}` has no accessible fields", parent_type),
-                                    val_span
-                                );
-                                Type::Void
-                            }
+                                }
+                            };
+                        }
+                        Expressions::FnCall { name, arguments, span } => {},
+                        _ => {
+                            self.error(
+                                String::from("Unsupported subelement expression found"),
+                                *span
+                            );
+                            return;
                         }
                     }
-                    // Expressions::FnCall { name, arguments, span } => {
-                    //     self.imports.get
-                    // }
-                    _ => {
-                        self.error(
-                            String::from("Unsupported subelement expression found"),
-                            *span
-                        );
-                        Type::Void
-                    }
-                }
+                });
 
-                // self.visit_expression(child, expected)
+                prev_type
             },
 
             Expressions::FnCall { name, arguments, span } => {
