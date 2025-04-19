@@ -313,6 +313,9 @@ impl Parser {
             TokenType::Ref => {
                 Expressions::Reference { object: Box::new(self.term()), span: (current.span.0, self.current().span.1) }
             }
+            TokenType::Multiply => {
+                Expressions::Dereference { object: Box::new(self.term()), span: (current.span.0, self.current().span.1) }
+            }
 
             // This case looks is for C-like syntax: `type name`,
             // but syntax must be like: `name: type`

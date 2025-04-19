@@ -357,9 +357,18 @@ impl Analyzer {
                 self.scope = function_scope;
                 
                 block.iter().for_each(|stmt| self.visit_statement(stmt));
-                if self.scope.expected != self.scope.returned {
+                let exp = self.unwrap_alias(&self.scope.expected).unwrap_or_else(|err| {
+                    self.error(err, *span);
+                    Type::Void
+                });
+                let ret = self.unwrap_alias(&self.scope.returned).unwrap_or_else(|err| {
+                    self.error(err, *span);
+                    Type::Void
+                });
+
+                if exp != ret {
                     self.error(
-                        format!("Function `{}` returns type `{}`, but found `{}`", name, self.scope.expected, self.scope.returned),
+                        format!("Function `{}` returns type `{}`, but found `{}`", name, exp, ret),
                         *span
                     );
                     return;
@@ -418,6 +427,9 @@ impl Analyzer {
             },
 
             Statements::StructDefineStatement { name, functions, fields, span } => {
+                let pre_type = Type::Struct(fields.clone(), HashMap::new());
+                self.scope.structures.insert(name.clone(), pre_type);
+
                 let mut structure_scope = Scope::new();
                 structure_scope.parent = Some(Box::new(self.scope.clone()));
                 self.scope = structure_scope;
@@ -429,16 +441,25 @@ impl Analyzer {
                 let functions_signatures = self.scope.functions.clone();
                 self.scope = *self.scope.parent.clone().unwrap();
 
+                let _ = self.scope.structures.remove(name);
+
                 let struct_type = Type::Struct(fields.clone(), functions_signatures);
-                self.scope.add_struct(name.clone(), struct_type).unwrap_or_else(|err| {
+                self.scope.add_struct(name.clone(), struct_type.clone()).unwrap_or_else(|err| {
                     self.error(
                         err,
                         *span
                     );
                     return;
                 });
+                self.scope.add_typedef(name.clone(), struct_type).unwrap_or_else(|err| {
+                    self.error(err, *span);
+                    return;
+                })
             },
             Statements::EnumDefineStatement { name, fields, functions, span } => {
+                let pre_type = Type::Enum(fields.clone(), HashMap::new());
+                self.scope.structures.insert(name.clone(), pre_type);
+
                 let mut enum_scope = Scope::new();
                 enum_scope.parent = Some(Box::new(self.scope.clone()));
                 self.scope = enum_scope;
@@ -450,14 +471,20 @@ impl Analyzer {
                 let functions_signatures = self.scope.functions.clone();
                 self.scope = *self.scope.parent.clone().unwrap();
 
+                let _ = self.scope.structures.remove(name);
+
                 let enum_type = Type::Enum(fields.clone(), functions_signatures);
-                self.scope.add_struct(name.clone(), enum_type).unwrap_or_else(|err| {
+                self.scope.add_struct(name.clone(), enum_type.clone()).unwrap_or_else(|err| {
                     self.error(
                         err,
                         *span
                     );
                     return;
                 });
+                self.scope.add_typedef(name.clone(), enum_type.clone()).unwrap_or_else(|err| {
+                    self.error(err, *span);
+                    return;
+                })
             },
             Statements::TypedefStatement { alias, datatype, span } => {
                 self.scope.add_typedef(alias.clone(), datatype.clone()).unwrap_or_else(|err| {
@@ -911,6 +938,7 @@ impl Analyzer {
                     self.error(err, *span);
                     Type::Void
                 });
+                let mut prev_expr = Expressions::None;
                 if prev_type == Type::Void { return Type::Void };
 
                 subelements.iter().for_each(|sub| {
@@ -929,6 +957,7 @@ impl Analyzer {
                                         self.error(err, *field_span);
                                         return Type::Void;
                                     });
+                                    prev_expr = sub.clone();
                                 }
                                 Type::Enum(fields, _) => {
                                     let opt = fields.iter().find(|&x| x == field);
@@ -938,6 +967,8 @@ impl Analyzer {
                                             *field_span
                                         );
                                     }
+
+                                    prev_expr = Expressions::SubElement { head: Box::new(prev_expr.clone()), subelements: vec![], span: *field_span }
                                 },
                                 _ => {
                                     self.error(
@@ -947,7 +978,77 @@ impl Analyzer {
                                 }
                             };
                         }
-                        Expressions::FnCall { name, arguments, span } => {},
+                        Expressions::FnCall { name, arguments, span } => {
+                            match prev_type.clone() {
+                                Type::Struct(_, functions) | Type::Enum(_, functions) => {
+                                    let function_type = functions.get(name).unwrap_or_else(|| {
+                                        self.error(
+                                            format!("Type `{}` has no function named `{}`", prev_type, name),
+                                            *span
+                                        );
+                                        &Type::Void
+                                    });
+
+                                    if let Type::Function(args, datatype) = function_type {
+                                        let mut arguments = arguments.clone();
+
+                                        if let Some(arg) = args.first() {
+                                            if let Type::Pointer(ptr_type) = arg {
+                                                let ptr_type_unwrapped = self.unwrap_alias(ptr_type);
+                                                let prev_type_unwrapped = self.unwrap_alias(&prev_type);
+
+                                                if ptr_type_unwrapped == prev_type_unwrapped {
+                                                    arguments.reverse();
+                                                    arguments.push(prev_expr.clone());
+                                                    arguments.reverse();
+                                                }
+                                            }
+                                        }
+
+                                        prev_type = self.unwrap_alias(datatype).unwrap_or_else(|err| {
+                                            self.error(err, *span);
+                                            Type::Void
+                                        });
+
+                                        if arguments.len() != args.len() {
+                                            self.error(
+                                                format!("Function `{}` has {} arguments, but found {}", name, args.len(), arguments.len()),
+                                                *span
+                                            );
+                                            return;
+                                        }
+
+                                        arguments.iter().enumerate().zip(args).for_each(|((index, expr), expected)| {
+                                            let raw_expr_type = self.visit_expression(expr, Some(expected.clone()));
+                                            let expr_type = self.unwrap_alias(&raw_expr_type).unwrap_or_else(|err| {
+                                                    self.error(err, *span);
+                                                    Type::Void
+                                            });
+                                            let expected = self.unwrap_alias(expected).unwrap_or_else(|err| {
+                                                self.error(err, *span);
+                                                Type::Void
+                                            });
+
+                                            if expected == Type::Void || raw_expr_type == Type::Void { return };
+                                            if expr_type != expected {
+                                                self.error(
+                                                    format!("Argument #{} has type `{}`, but found `{}`", index + 1, expected, expr_type),
+                                                    *span
+                                                );
+                                                return;
+                                            }
+                                        });
+                                    };
+                                },
+                                // Type::Enum(_, functions) => {},
+                                _ => {
+                                    self.error(
+                                        format!("Type `{}` isn't supported for function calls", prev_type),
+                                        *span
+                                    );
+                                }
+                            }
+                        },
                         _ => {
                             self.error(
                                 String::from("Unsupported subelement expression found"),
@@ -1105,7 +1206,7 @@ impl Analyzer {
                     }
                 }
             },
-            Expressions::None => unreachable!()
+            Expressions::None => Type::Void
         }
     }
 
@@ -1184,6 +1285,10 @@ impl Analyzer {
                 Ok(Type::F32)
             },
             Value::Identifier(id) => {
+                // if let Some(structure) = self.scope.get_struct(&id) { return Ok(structure) }
+                if let Some(typedef) = self.scope.get_typedef(&id) { return Ok(typedef) }
+                if let Some(enumeration) = self.scope.get_enum(&id) { return Ok(enumeration) }
+
                 match self.scope.get_var(&id) {
                     Some(var) => {
                         if !var.initialized { return Err(format!("Variable `{}` isn't initalized", id)) }
@@ -1272,18 +1377,42 @@ impl Analyzer {
 
     #[inline]
     fn unwrap_alias(&self, typ: &Type) -> Result<Type, String> {
-        if let Type::Alias(alias) = typ {
-            let struct_type = self.scope.get_struct(&alias);
-            let enum_type = self.scope.get_enum(&alias);
-            let typedef_type = self.scope.get_typedef(&alias);
+        match typ {
+            Type::Alias(alias) => {
+                let struct_type = self.scope.get_struct(&alias);
+                let enum_type = self.scope.get_enum(&alias);
+                let typedef_type = self.scope.get_typedef(&alias);
 
-            if struct_type.is_some() { return Ok(struct_type.unwrap()) };
-            if enum_type.is_some() { return Ok(enum_type.unwrap()) };
-            if typedef_type.is_some() { return Ok(typedef_type.unwrap()) };
+                if struct_type.is_some() { return Ok(struct_type.unwrap()) };
+                if enum_type.is_some() { return Ok(enum_type.unwrap()) };
+                if typedef_type.is_some() { return Ok(typedef_type.unwrap()) };
 
-            Err(format!("Type `{}` is not defined in this scope", typ))
-        } else {
-            Ok(typ.clone())
+                Err(format!("Type `{}` is not defined in this scope", typ))
+            }
+            
+            Type::Pointer(ptr_type) => {
+                let unwrapped_type = self.unwrap_alias(ptr_type)?;
+                Ok(Type::Pointer(Box::new(unwrapped_type)))
+            }
+            Type::Array(typ, size) => {
+                let unwrapped_type = self.unwrap_alias(typ)?;
+                Ok(Type::Array(Box::new(unwrapped_type), *size))
+            }
+            Type::DynamicArray(typ) => {
+                let unwrapped_type = self.unwrap_alias(typ)?;
+                Ok(Type::DynamicArray(Box::new(unwrapped_type)))
+            }
+            Type::Tuple(types) => {
+                let mut unwrapped_types = Vec::new();
+                for typ in types {
+                    let unwrapped_type = self.unwrap_alias(typ)?;
+                    unwrapped_types.push(unwrapped_type)
+                }
+
+                Ok(Type::Tuple(unwrapped_types))
+            }
+
+            _ => Ok(typ.clone())
         }
     }
 }
