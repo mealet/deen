@@ -86,7 +86,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                     let _ = self.builder.build_store(param_alloca, arg_value);
                     
-                    self.variables.insert(arg_name, Variable { datatype: arg.1.clone(), llvm_type: param_type.into(), ptr: param_alloca });
+                    self.variables.insert(arg_name, Variable { datatype: arg.1.clone(), llvm_type: param_type, ptr: param_alloca });
                 });
 
                 block.iter().for_each(|stmt| self.compile_statement(stmt.clone()));

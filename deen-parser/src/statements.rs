@@ -165,7 +165,7 @@ impl Parser {
 
         let span_end = self.current().span.1;
         let _ = self.next();
-        let _ = self.skip_eos();
+        self.skip_eos();
 
         if let Expressions::Value(Value::String(_), _) = path {
             Statements::ImportStatement { path, span: (span_start, span_end) }
@@ -650,7 +650,7 @@ impl Parser {
         if self.expect(TokenType::RBrace) {
             let _ = self.next();
         }
-        let _ = self.skip_eos();
+        self.skip_eos();
 
         Statements::StructDefineStatement { name, fields, functions, span: (span_start, self.current().span.1) }
     }
@@ -737,7 +737,7 @@ impl Parser {
         if self.expect(TokenType::RBrace) {
             let _ = self.next();
         }
-        let _ = self.skip_eos();
+        self.skip_eos();
 
         Statements::EnumDefineStatement { name, fields, functions, span: (span_start, self.current().span.1) }
     }

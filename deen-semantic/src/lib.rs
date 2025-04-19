@@ -610,25 +610,20 @@ impl Analyzer {
 
                                 let mut mutual_import = false;
                                 ast.iter().for_each(|stmt| {
-                                    if let Statements::ImportStatement { path, span } = stmt {
-                                        if let Expressions::Value(Value::String(path), _) = path {
-                                            let imp_name = std::path::Path::new(path)
-                                                .file_name()
-                                                .map(|fname| {
-                                                    fname.to_str().unwrap_or("$NONE")
-                                                });
+                                    if let Statements::ImportStatement { path: Expressions::Value(Value::String(path), _), span } = stmt {
+                                        let imp_name = std::path::Path::new(path)
+                                            .file_name()
+                                            .map(|fname| {
+                                                fname.to_str().unwrap_or("$NONE")
+                                            });
 
-                                            if imp_name == Some(self.source.name()) {
-                                                self.error(
-                                                    format!("Mutual import found: `{}` from `{}`", imp_name.unwrap(), fname),
-                                                    *span
-                                                );
-                                                mutual_import = true;
-                                                return;
-                                            }
-                                        } else {
-                                            return;
-                                        }
+                                        if imp_name == Some(self.source.name()) {
+                                            self.error(
+                                                format!("Mutual import found: `{}` from `{}`", imp_name.unwrap(), fname),
+                                                *span
+                                            );
+                                            mutual_import = true;
+                                        } 
                                     }
                                 });
 

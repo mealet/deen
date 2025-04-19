@@ -113,9 +113,6 @@ fn main() {
         }
     };
 
-    println!("{:#?}", ast);
-    std::process::exit(0);
-
     if !no_warns {
         warns.iter().for_each(|w| {
             let mut buf = String::new();
