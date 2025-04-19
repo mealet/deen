@@ -445,6 +445,9 @@ impl Parser {
 
                     "while" => self.while_statement(),
                     "for" => self.for_statement(),
+
+                    "struct" => self.struct_statement(),
+                    "enum" => self.enum_statement(),
                     
                     "fn" => self.fn_statement(),
                     "return" => self.return_statement(),

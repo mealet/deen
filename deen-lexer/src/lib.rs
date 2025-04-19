@@ -81,6 +81,10 @@ impl Lexer {
                 std_keyword!("import"),
                 std_keyword!("return"),
 
+                std_keyword!("struct"),
+                std_keyword!("enum"),
+                std_keyword!("typedef"),
+
                 // Types
 
                 std_type!("i8"),

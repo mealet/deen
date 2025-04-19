@@ -6,6 +6,7 @@ use crate::{
     Parser
 };
 use deen_lexer::token_type::TokenType;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statements {
@@ -49,6 +50,20 @@ pub enum Statements {
     FunctionCallStatement {
         name: String,
         arguments: Vec<Expressions>,
+        span: (usize, usize)
+    },
+
+    StructDefineStatement {
+        name: String,
+        fields: HashMap<String, Type>,
+        functions: HashMap<String, Statements>,
+        span: (usize, usize)
+    },
+
+    EnumDefineStatement {
+        name: String,
+        fields: Vec<String>,
+        functions: HashMap<String, Statements>,
         span: (usize, usize)
     },
 
@@ -536,5 +551,194 @@ impl Parser {
         self.skip_eos();
 
         Statements::FunctionCallStatement { name: id, arguments, span: (span.0, span_end) }
+    }
+
+    pub fn struct_statement(&mut self) -> Statements {
+        let span_start = self.current().span.0;
+        if let TokenType::Keyword = self.current().token_type {
+            let _ = self.next();
+        }
+
+        if !self.expect(TokenType::Identifier) {
+            self.error(
+                String::from("Identifier for structure expected"),
+                (span_start, self.current().span.1)
+            );
+            return Statements::None;
+        }
+
+        let name = self.current().value;
+        let _ = self.next();
+
+        if !self.expect(TokenType::LBrace) {
+            self.error(
+                String::from("Expected new block after struct definition"),
+                (span_start, self.current().span.1)
+            );
+            return Statements::None;
+        }
+
+        let _ = self.next();
+        let mut fields = HashMap::new();
+        let mut functions = HashMap::new();
+
+        while !self.expect(TokenType::RBrace) {
+            match self.current().token_type {
+                TokenType::RBrace => break,
+                TokenType::Keyword => {
+                    if self.current().value != "fn" {
+                        self.error(
+                            String::from("Undefined keyword found at the struct declaration"),
+                            self.current().span
+                        );
+                        return Statements::None;
+                    }
+
+                    let stmt = self.fn_statement();
+
+                    if let Statements::FunctionDefineStatement { name, datatype: _, arguments: _, block: _, span: _ } = &stmt {
+                        functions.insert(name.to_owned(), stmt);
+                    } else { unreachable!() }
+
+                    if self.expect(TokenType::Comma) {
+                        let _ = self.next();
+                    }
+                }
+                TokenType::Identifier => {
+                    let name = self.current().value;
+                    let span = self.current().span;
+                    let _ = self.next();
+
+                    if !self.expect(TokenType::DoubleDots) {
+                        self.error(
+                            String::from("Unexpected field declaration"),
+                            (span.0, self.current().span.1)
+                        );
+                        return Statements::None;
+                    }
+
+                    let _ = self.next();
+                    let field_type = self.parse_type();
+
+                    self.position -= 1;
+                    let extra_span = self.current().span;
+                    self.position += 1;
+
+                    if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
+                        self.error(
+                            String::from("Expected COMMA"),
+                            (extra_span.1, extra_span.1)
+                        );
+                    }
+
+                    if self.expect(TokenType::Comma) {
+                        let _ = self.next();
+                    }
+
+                    fields.insert(name, field_type);
+                }
+                _ => {
+                    self.error(
+                        String::from("Undefined term found at the struct declaration"),
+                        self.current().span
+                    );
+                    return Statements::None
+                }
+            }
+        }
+
+        if self.expect(TokenType::RBrace) {
+            let _ = self.next();
+        }
+        let _ = self.skip_eos();
+
+        Statements::StructDefineStatement { name, fields, functions, span: (span_start, self.current().span.1) }
+    }
+
+   pub fn enum_statement(&mut self) -> Statements {
+        let span_start = self.current().span.0;
+        if let TokenType::Keyword = self.current().token_type {
+            let _ = self.next();
+        }
+
+        if !self.expect(TokenType::Identifier) {
+            self.error(
+                String::from("Identifier for enum expected"),
+                (span_start, self.current().span.1)
+            );
+            return Statements::None;
+        }
+
+        let name = self.current().value;
+        let _ = self.next();
+
+        if !self.expect(TokenType::LBrace) {
+            self.error(
+                String::from("Expected new block after enum declaration"),
+                (span_start, self.current().span.1)
+            );
+            return Statements::None;
+        }
+        let _ = self.next();
+
+        let mut fields = Vec::new();
+        let mut functions = HashMap::new();
+
+        while !self.expect(TokenType::RBrace) {
+            match self.current().token_type {
+                TokenType::RBrace => break,
+                TokenType::Keyword => {
+                    if self.current().value != "fn" {
+                        self.error(
+                            String::from("Undefined keyword found at the enum declaration"),
+                            self.current().span
+                        );
+                        return Statements::None;
+                    }
+
+                    let stmt = self.fn_statement();
+
+                    if let Statements::FunctionDefineStatement { name, datatype: _, arguments: _, block: _, span: _ } = &stmt {
+                        functions.insert(name.to_owned(), stmt);
+                    } else { unreachable!() }
+
+                    if self.expect(TokenType::Comma) {
+                        let _ = self.next();
+                    }
+                }
+                TokenType::Identifier => {
+                    let name = self.current().value;
+                    let extra_span = self.current().span;
+                    let _ = self.next();
+
+                    if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
+                        self.error(
+                            String::from("Expected COMMA"),
+                            (extra_span.1, extra_span.1)
+                        );
+                    }
+
+                    if self.expect(TokenType::Comma) {
+                        let _ = self.next();
+                    }
+
+                    fields.push(name);
+                }
+                _ => {
+                    self.error(
+                        String::from("Unexpected term found at enum"),
+                        self.current().span
+                    );
+                    return Statements::None
+                }
+            }
+        }
+        
+        if self.expect(TokenType::RBrace) {
+            let _ = self.next();
+        }
+        let _ = self.skip_eos();
+
+        Statements::EnumDefineStatement { name, fields, functions, span: (span_start, self.current().span.1) }
     }
 }
