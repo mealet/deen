@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     I8,
@@ -29,7 +31,8 @@ pub enum Type {
     
     // will be used for semantical analyzer
     Function(Vec<Type>, Box<Type>), // fn foo(a: i32, b: u32) string  --->  Function([I32, U32], String)
-    Struct(Vec<Type>), // struct Abc { a: i32, b: bool, c: *u64 }  ---> Struct([I32, Bool, Pointer(U64)])
+    Struct(HashMap<String, Type>, HashMap<String, Type>), // struct Abc { a: i32, b: bool, c: *u64 }  ---> Struct([I32, Bool, Pointer(U64)])
+    Enum(Vec<String>, HashMap<String, Type>), // enum Abc { A, B, C } -> Enum([A, B, C])
 }
 
 impl std::fmt::Display for Type {
@@ -72,7 +75,8 @@ impl std::fmt::Display for Type {
 
             Type::Alias(alias) => write!(f, "{alias}"),
             Type::Function(args, functype) => write!(f, "{functype} ({})", args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ")),
-            Type::Struct(args) => write!(f, "struct {{ {} }}", args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ")),
+            Type::Struct(args, _) => write!(f, "struct {{ {} }}", args.iter().map(|a| format!("{}", a.1)).collect::<Vec<String>>().join(", ")),
+            Type::Enum(args, _) => write!(f, "enum {{ {} }}", args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ")),
         }
     }
 }

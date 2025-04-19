@@ -14,6 +14,9 @@ pub struct Scope {
 
     pub variables: HashMap<String, Variable>,
     pub functions: HashMap<String, Type>,
+    pub structures: HashMap<String, Type>,
+    pub enums: HashMap<String, Type>,
+    pub typedefs: HashMap<String, Type>
 }
 
 #[derive(Debug, Clone)]
@@ -32,6 +35,10 @@ impl Scope {
 
             variables: HashMap::new(),
             functions: HashMap::new(),
+            structures: HashMap::new(),
+            enums: HashMap::new(),
+            typedefs: HashMap::new(),
+
             parent: None,
 
             is_loop: false,
@@ -107,6 +114,54 @@ impl Scope {
     pub fn get_fn(&self, name: &str) -> Option<Type> {
         self.functions.get(name).cloned().or_else(|| {
             self.parent.as_ref().and_then(|parent| parent.get_fn(name))
+        })
+    }
+
+    #[inline]
+    pub fn add_struct(&mut self, name: String, struct_type: Type) -> Result<(), String> {
+        if self.structures.contains_key(&name) {
+            return Err(format!("Structure `{}` already declared", name));
+        }
+        self.structures.insert(name, struct_type);
+        Ok(())
+    }
+
+    #[inline]
+    pub fn get_struct(&self, name: &str) -> Option<Type> {
+        self.structures.get(name).cloned().or_else(|| {
+            self.parent.as_ref().and_then(|parent| parent.get_struct(name))
+        })
+    }
+
+    #[inline]
+    pub fn add_enum(&mut self, name: String, enum_type: Type) -> Result<(), String> {
+        if self.enums.contains_key(&name) {
+            return Err(format!("Enum `{}` already declared", name));
+        }
+        self.enums.insert(name, enum_type);
+        Ok(())
+    }
+
+    #[inline]
+    pub fn get_enum(&self, name: &str) -> Option<Type> {
+        self.enums.get(name).cloned().or_else(|| {
+            self.parent.as_ref().and_then(|parent| parent.get_enum(name))
+        })
+    }
+
+    #[inline]
+    pub fn add_typedef(&mut self, name: String, typ: Type) -> Result<(), String> {
+        if self.typedefs.contains_key(&name) {
+            return Err(format!("Type `{}` already declared", name));
+        }
+        self.typedefs.insert(name, typ);
+        Ok(())
+    }
+
+    #[inline]
+    pub fn get_typedef(&self, name: &str) -> Option<Type> {
+        self.typedefs.get(name).cloned().or_else(|| {
+            self.parent.as_ref().and_then(|parent| parent.get_typedef(name))
         })
     }
 }

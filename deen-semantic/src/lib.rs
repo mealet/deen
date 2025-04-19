@@ -381,9 +381,57 @@ impl Analyzer {
                 }
             },
 
-            Statements::StructDefineStatement { name, fields, functions, span } => todo!(),
-            Statements::EnumDefineStatement { name, fields, functions, span } => todo!(),
-            Statements::TypedefStatement { alias, datatype, span } => todo!(),
+            Statements::StructDefineStatement { name, functions, fields, span } => {
+                let mut structure_scope = Scope::new();
+                structure_scope.parent = Some(Box::new(self.scope.clone()));
+                self.scope = structure_scope;
+
+                functions.iter().for_each(|func| {
+                    self.visit_statement(func.1);
+                });
+
+                let functions_signatures = self.scope.functions.clone();
+                self.scope = *self.scope.parent.clone().unwrap();
+
+                let struct_type = Type::Struct(fields.clone(), functions_signatures);
+                self.scope.add_struct(name.clone(), struct_type).unwrap_or_else(|err| {
+                    self.error(
+                        err,
+                        *span
+                    );
+                    return;
+                });
+            },
+            Statements::EnumDefineStatement { name, fields, functions, span } => {
+                let mut enum_scope = Scope::new();
+                enum_scope.parent = Some(Box::new(self.scope.clone()));
+                self.scope = enum_scope;
+
+                functions.iter().for_each(|func| {
+                    self.visit_statement(func.1);
+                });
+
+                let functions_signatures = self.scope.functions.clone();
+                self.scope = *self.scope.parent.clone().unwrap();
+
+                let enum_type = Type::Enum(fields.clone(), functions_signatures);
+                self.scope.add_struct(name.clone(), enum_type).unwrap_or_else(|err| {
+                    self.error(
+                        err,
+                        *span
+                    );
+                    return;
+                });
+            },
+            Statements::TypedefStatement { alias, datatype, span } => {
+                self.scope.add_typedef(alias.clone(), datatype.clone()).unwrap_or_else(|err| {
+                    self.error(
+                        err,
+                        *span
+                    );
+                    return;
+                });
+            },
             
             Statements::IfStatement { condition, then_block, else_block, span } => {
                 let condition_type = self.visit_expression(condition, None);

@@ -137,12 +137,13 @@ impl<'ctx> CodeGen<'ctx> {
             Type::Alias(alias) => todo!(),
             
             Type::Function(_, _) => unreachable!(),
-            Type::Struct(fields) => self.context.struct_type(
+            Type::Struct(fields, _) => self.context.struct_type(
                 &fields.iter().map(|field| 
-                    self.get_basic_type(field.clone())
+                    self.get_basic_type(field.1.clone())
                 ).collect::<Vec<BasicTypeEnum>>(),
                 false
             ).into(),
+            Type::Enum(fields, _) => unreachable!()
 
             // Type::Function(args, datatype) => self.get_basic_type(*datatype).fn_type(
             //     &args.iter().map(|arg| self.get_basic_type(arg.clone()).into()).collect::<Vec<BasicMetadataTypeEnum>>(),
