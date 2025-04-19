@@ -60,7 +60,7 @@ impl std::fmt::Display for Type {
             
             Type::Pointer(inner) => write!(f, "*{}", inner),
             Type::Array(inner, size) => write!(f, "[{}; {}]", inner, size),
-            Type::DynamicArray(inner) => write!(f, "[{}]", inner),
+            Type::DynamicArray(inner) => write!(f, "[]{}", inner),
             
             Type::Tuple(elements) => {
                 write!(f, "(")?;

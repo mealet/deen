@@ -257,13 +257,42 @@ impl Analyzer {
             },
 
             Statements::AnnotationStatement { identifier, datatype, value, span } => {
+                // unwrapping type
+                let mut datatype = datatype.clone().map(|tty| {
+                    self.unwrap_alias(&tty).unwrap_or_else(|err| {
+                        self.error(
+                            err,
+                            *span
+                        );
+                        Type::Void
+                    })
+                });
+
+                if let Some(tty) = &datatype {
+                    match tty {
+                        Type::Alias(alias) => {
+                            let struct_type = self.scope.get_struct(&alias);
+                            let enum_type = self.scope.get_enum(&alias);
+                            let typedef_type = self.scope.get_typedef(&alias);
+
+                            let mut staged = false;
+
+                            if struct_type.is_some() && !staged { datatype = struct_type };
+                            if enum_type.is_some() && !staged { datatype = enum_type };
+                            if typedef_type.is_some() && !staged { datatype = typedef_type };
+
+                        }
+                        _ => {},
+                    }
+                }
+
                 match (datatype, value) {
                     (Some(datatype), Some(value)) => {
                         let value_type = self.visit_expression(value, Some(datatype.clone()));
 
-                        if value_type != *datatype {
-                            if self.is_integer(&value_type) && self.is_integer(datatype) {
-                                if self.integer_order(&value_type) > self.integer_order(datatype) {
+                        if value_type != datatype {
+                            if self.is_integer(&value_type) && self.is_integer(&datatype) {
+                                if self.integer_order(&value_type) > self.integer_order(&datatype) {
                                     self.error(
                                         format!("Expected integer type `{}` (or lower), but found `{}`", datatype, value_type),
                                         *span
@@ -307,6 +336,13 @@ impl Analyzer {
                     return;
                 }
 
+                let datatype = self.unwrap_alias(&datatype).unwrap_or_else(|err| {
+                    self.error(
+                        err,
+                        *span
+                    );
+                    Type::Void
+                });
                 let mut function_scope = Scope::new();
 
                 self.scope.add_fn(name.clone(), Type::Function(
@@ -1187,6 +1223,23 @@ impl Analyzer {
             Type::F64 => 1,
 
             _ => unreachable!()
+        }
+    }
+
+    #[inline]
+    fn unwrap_alias(&self, typ: &Type) -> Result<Type, String> {
+        if let Type::Alias(alias) = typ {
+            let struct_type = self.scope.get_struct(&alias);
+            let enum_type = self.scope.get_enum(&alias);
+            let typedef_type = self.scope.get_typedef(&alias);
+
+            if struct_type.is_some() { return Ok(struct_type.unwrap()) };
+            if enum_type.is_some() { return Ok(enum_type.unwrap()) };
+            if typedef_type.is_some() { return Ok(typedef_type.unwrap()) };
+
+            Err(String::from("Type `{}` is not defined in this scope"))
+        } else {
+            Ok(typ.clone())
         }
     }
 }
