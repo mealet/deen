@@ -904,16 +904,51 @@ impl Analyzer {
 
             Expressions::Argument { name, r#type, span } => unreachable!(),
             Expressions::SubElement { parent, child, span } => {
-                // let parent_type = self.visit_expression(parent, expected);
-                //
-                // match child {
-                //     Expressions::SubElement { parent: _, child: _, span: _ } => self.visit_expression(child, expected),
-                //     Expressions::FnCall { name, arguments, span } => {
-                //         self.imports.get
-                //     }
-                // }
+                self.scope.set_init_var("a", true);
+                let mut parent_type = self.visit_expression(parent, expected.clone());
+                parent_type = self.unwrap_alias(&parent_type).unwrap_or_else(|err| {
+                    self.error(
+                        err,
+                        *span
+                    );
+                    Type::Void
+                });
 
-                Type::Void
+                if parent_type == Type::Void { return Type::Void };
+                match *child.clone() {
+                    Expressions::SubElement { parent: _, child: _, span: _ } => self.visit_expression(child, expected),
+                    Expressions::Value(Value::Identifier(field), val_span) => {
+                        match parent_type.clone() {
+                            Type::Struct(fields, _) => {
+                                fields.get(&field).unwrap_or_else(|| {
+                                    self.error(
+                                        format!("Structure `{}` has no field named `{}`", parent_type, field),
+                                        val_span
+                                    );
+                                    &Type::Void
+                                }).clone()
+                            }
+                            _ => {
+                                self.error(
+                                    format!("Type `{}` has no accessible fields", parent_type),
+                                    val_span
+                                );
+                                Type::Void
+                            }
+                        }
+                    }
+                    // Expressions::FnCall { name, arguments, span } => {
+                    //     self.imports.get
+                    // }
+                    _ => {
+                        self.error(
+                            String::from("Unsupported subelement expression found"),
+                            *span
+                        );
+                        Type::Void
+                    }
+                }
+
                 // self.visit_expression(child, expected)
             },
 
@@ -1237,7 +1272,7 @@ impl Analyzer {
             if enum_type.is_some() { return Ok(enum_type.unwrap()) };
             if typedef_type.is_some() { return Ok(typedef_type.unwrap()) };
 
-            Err(String::from("Type `{}` is not defined in this scope"))
+            Err(format!("Type `{}` is not defined in this scope", typ))
         } else {
             Ok(typ.clone())
         }
