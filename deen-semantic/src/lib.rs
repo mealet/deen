@@ -6,13 +6,14 @@ use crate::{
     error::{SemanticError, SemanticWarning}
 };
 use deen_parser::{expressions::Expressions, statements::Statements, types::Type, value::Value, Parser};
+use std::collections::HashMap;
 use miette::NamedSource;
 
 mod error;
 mod scope;
 pub mod import;
 
-type SemanticOk = (Vec<Import>, Vec<SemanticWarning>);
+type SemanticOk = (HashMap<String, Import>, Vec<SemanticWarning>);
 type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
 
 pub struct Analyzer {
@@ -22,7 +23,7 @@ pub struct Analyzer {
     errors: Vec<SemanticError>,
     warnings: Vec<SemanticWarning>,
 
-    imports: Vec<Import>
+    imports: HashMap<String, Import>
 }
 
 impl Analyzer {
@@ -38,7 +39,7 @@ impl Analyzer {
             errors: Vec::new(),
             warnings: Vec::new(),
 
-            imports: Vec::new(),
+            imports: HashMap::new(),
         }
     }
 
@@ -648,18 +649,18 @@ impl Analyzer {
 
                                 let mut import = Import::new(ast);
 
-                                analyzer.scope.functions.iter().for_each(|func| {
-                                    self.scope.add_fn(
-                                        format!("{}.{}", module_name, func.0),
-                                        func.1.clone()
-                                    );
+                                // analyzer.scope.functions.iter().for_each(|func| {
+                                //     self.scope.add_fn(
+                                //         format!("{}.{}", module_name, func.0),
+                                //         func.1.clone()
+                                //     );
+                                //
+                                //     import.add_fn(
+                                //         format!("{}.{}", module_name, func.0), func.1.clone()
+                                //     )
+                                // });
 
-                                    import.add_fn(
-                                        (format!("{}.{}", module_name, func.0), func.1.clone())
-                                    )
-                                });
-
-                                analyzer.imports.push(import);
+                                analyzer.imports.insert(module_name, import);
                             }
                             None => {
                                 self.error(
@@ -817,7 +818,19 @@ impl Analyzer {
             },
 
             Expressions::Argument { name, r#type, span } => unreachable!(),
-            Expressions::SubElement { parent, child, span } => self.visit_expression(child, expected),
+            Expressions::SubElement { parent, child, span } => {
+                // let parent_type = self.visit_expression(parent, expected);
+                //
+                // match child {
+                //     Expressions::SubElement { parent: _, child: _, span: _ } => self.visit_expression(child, expected),
+                //     Expressions::FnCall { name, arguments, span } => {
+                //         self.imports.get
+                //     }
+                // }
+
+                Type::Void
+                // self.visit_expression(child, expected)
+            },
 
             Expressions::FnCall { name, arguments, span } => {
                 let func = self.scope.get_fn(name).unwrap_or_else(|| {
