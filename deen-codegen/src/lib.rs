@@ -64,6 +64,16 @@ impl<'ctx> CodeGen<'ctx> {
             self.compile_statement(statement);
         }
 
+        let main_fn = self.functions.get("main").unwrap();
+        if main_fn.datatype == Type::Void {
+            self.builder.position_at_end(main_fn.value.get_last_basic_block().unwrap());
+            self.builder.build_return(
+                Some(
+                    &self.context.bool_type().const_zero()
+                )
+            ).unwrap();
+        }
+
         &self.module
     }
 }
