@@ -183,6 +183,7 @@ dependencies = [
  "deen-lexer",
  "deen-parser",
  "deen-semantic",
+ "inkwell",
  "miette",
  "thiserror 2.0.12",
 ]

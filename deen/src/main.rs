@@ -177,5 +177,27 @@ fn main() {
         )
     );
 
-    let _ = imports;
+    let module_name = fname
+        .split(".")
+        .nth(0)
+        .map(|n| n.to_string())
+        .unwrap_or(fname.replace(".dn", ""));
+
+    let ctx = deen_codegen::CodeGen::create_context();
+    let mut codegen = deen_codegen::CodeGen::new(&ctx, &module_name, imports);
+    
+    let module_ref = codegen.compile(ast);
+
+    if args.llvm {
+        let _ = module_ref.print_to_file(
+            format!("{}.ll", args.output)
+        ).unwrap_or_else(|_| {
+            cli::error("Unable to write LLVM IR file!");
+            std::process::exit(1);
+        });
+
+        cli::info("Successfully", &format!("compiled to LLVM IR: `{}.ll`", args.output))
+    } else {
+        // TODO: Implement object file compiling and linking
+    };
 }

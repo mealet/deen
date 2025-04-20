@@ -9,8 +9,9 @@ license.workspace = true
 
 [dependencies]
 clap = { version = "4.5.35", features = ["derive"] }
-colored = "3.0.0"
 miette = { version = "7.5.0", features = ["fancy"] }
+inkwell = { version = "0.5.0", features = ["llvm18-0"] }
+colored = "3.0.0"
 thiserror = "2.0.12"
 
 deen-lexer = { path = "../deen-lexer" }

@@ -8,11 +8,12 @@ CLIPPY_COMMAND = clippy
 # Compile example and run
 SRC_FILE = example.dn
 OUTPUT_FILE = out
+DEEN_ARGS = --llvm
 CODE_EDITOR = nvim
 
 run:
 	$(CODE_EDITOR) $(SRC_FILE)
-	$(PACKAGE_MANAGER) $(RUN_COMMAND) -- $(SRC_FILE) $(OUTPUT_FILE)
+	$(PACKAGE_MANAGER) $(RUN_COMMAND) -- $(SRC_FILE) $(OUTPUT_FILE) $(DEEN_ARGS)
 
 # Release build
 build:

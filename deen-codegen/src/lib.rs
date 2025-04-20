@@ -17,6 +17,7 @@ use inkwell::{
     },
     AddressSpace
 };
+use deen_semantic::import::Import;
 use std::collections::HashMap;
 use variable::Variable;
 use function::Function;
@@ -30,13 +31,19 @@ pub struct CodeGen<'ctx> {
     module: Module<'ctx>,
 
     variables: HashMap<String, Variable<'ctx>>,
-    functions: HashMap<String, Function<'ctx>>
+    functions: HashMap<String, Function<'ctx>>,
+    imports: HashMap<String, Import>
 }
 
 impl<'ctx> CodeGen<'ctx> {
+    pub fn create_context() -> Context {
+        inkwell::context::Context::create()
+    }
+
     pub fn new(
         context: &'ctx Context,
-        module_name: &str
+        module_name: &str,
+        imports: HashMap<String, Import>
     ) -> Self {
         let module = context.create_module(module_name);
         let builder = context.create_builder();
@@ -47,16 +54,17 @@ impl<'ctx> CodeGen<'ctx> {
             module,
 
             variables: HashMap::new(),
-            functions: HashMap::new()
+            functions: HashMap::new(),
+            imports,
         }
     }
 
-    pub fn compile(&mut self, statements: Vec<Statements>) -> Module<'ctx> {
+    pub fn compile(&mut self, statements: Vec<Statements>) -> &Module<'ctx> {
         for statement in statements {
             self.compile_statement(statement);
         }
 
-        self.module.clone()
+        &self.module
     }
 }
 
