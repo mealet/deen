@@ -104,6 +104,71 @@ impl<'ctx> CodeGen<'ctx> {
             _ => todo!()
         }
     }
+
+    fn compile_expression(&mut self, expression: Expressions, expected: Option<Type>) -> BasicValueEnum<'ctx> {
+        match expression {
+            Expressions::Value(val, _) => self.compile_value(val, expected),
+            _ => todo!()
+        }
+    }
+
+    fn compile_value(&mut self, value: Value, expected: Option<Type>) -> BasicValueEnum<'ctx> {
+        match value {
+            Value::Integer(int) => {
+                if let Some(exp) = expected {
+                    let (expected_type, signed) = match exp {
+                        Type::I8 => (self.context.i8_type(), true),
+                        Type::I16 => (self.context.i16_type(), true),
+                        Type::I32 => (self.context.i32_type(), true),
+                        Type::I64 => (self.context.i64_type(), true),
+
+                        Type::U8 => (self.context.i8_type(), false),
+                        Type::U16 => (self.context.i16_type(), false),
+                        Type::U32 => (self.context.i32_type(), false),
+                        Type::U64 => (self.context.i64_type(), false),
+                        Type::USIZE => (self.context.i64_type(), false),
+
+                        _ => unreachable!()
+                    };
+
+                    return expected_type.const_int(int as u64, signed).as_basic_value_enum();
+                }
+
+                match int {
+                    -128..=127 => self.context.i8_type().const_int(int as u64, true).into(),
+                    -32_768..=32_767 => self.context.i16_type().const_int(int as u64, true).into(),
+                    -2_147_483_648..=2_147_483_647 => self.context.i32_type().const_int(int as u64, true).into(),
+                    -9_223_372_036_854_775_808..=9_223_372_036_854_775_807 => self.context.i64_type().const_int(int as u64, true).into(),
+                }
+            }
+            Value::Float(float) => {
+                if let Some(exp) = expected {
+                    return match exp {
+                        Type::F32 => self.context.f32_type().const_float(float).into(),
+                        Type::F64 => self.context.f64_type().const_float(float).into(),
+                        _ => unreachable!()
+                    };
+                }
+
+                return self.context.f32_type().const_float(float).into();
+            },
+            
+            Value::Char(ch) => self.context.i8_type().const_int(ch as u64, false).into(),
+            Value::String(str) => {
+                let global_value = self.builder.build_global_string_ptr(&str, "const_str").unwrap();
+                global_value.set_constant(false);
+                global_value.as_pointer_value().into()
+            },
+
+            Value::Boolean(bool) => self.context.bool_type().const_int(bool as u64, false).into(),
+            Value::Identifier(id) => {
+                let variable = self.variables.get(&id).unwrap(); // already checked by semantic analyzer
+                self.builder.build_load(variable.llvm_type, variable.ptr, "").unwrap()
+            },
+
+            Value::Keyword(key) => unreachable!()
+        }
+    }
 }
 
 impl<'ctx> CodeGen<'ctx> {
@@ -143,7 +208,7 @@ impl<'ctx> CodeGen<'ctx> {
                 ).collect::<Vec<BasicTypeEnum>>(),
                 false
             ).into(),
-            Type::Enum(fields, _) => unreachable!()
+            Type::Enum(fields, _) => self.context.i16_type().into(),
 
             // Type::Function(args, datatype) => self.get_basic_type(*datatype).fn_type(
             //     &args.iter().map(|arg| self.get_basic_type(arg.clone()).into()).collect::<Vec<BasicMetadataTypeEnum>>(),
