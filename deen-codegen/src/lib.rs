@@ -108,7 +108,48 @@ impl<'ctx> CodeGen<'ctx> {
     fn compile_expression(&mut self, expression: Expressions, expected: Option<Type>) -> BasicValueEnum<'ctx> {
         match expression {
             Expressions::Value(val, _) => self.compile_value(val, expected),
-            _ => todo!()
+            Expressions::FnCall { name, arguments, span } => {
+                let mut args: Vec<BasicMetadataValueEnum> = Vec::new();
+                arguments.iter().for_each(|arg| {
+                    args.push(self.compile_expression(arg.clone(), None).into())
+                });
+
+                let fn_value = self.module.get_function(&name).unwrap();
+                self.builder.build_call(fn_value, &args, "").unwrap().try_as_basic_value().left().unwrap()
+            }
+
+            Expressions::Reference { object, span } => {
+                match *object {
+                    Expressions::Value(Value::Identifier(id), _) => {
+                        self.variables.get(&id).unwrap().ptr.into()
+                    },
+                    _ => {
+                        let value = self.compile_expression(*object, expected);
+                        let alloca = self.builder.build_alloca(value.get_type(), "").unwrap();
+                        let _ = self.builder.build_store(alloca, value);
+
+                        alloca.into()
+                    }
+                }
+            },
+            Expressions::Dereference { object, span } => {
+                let ptr = self.compile_expression(*object, expected).into_pointer_value();
+                todo!()
+            },
+
+            Expressions::Unary { operand, object, span } => todo!(),
+            Expressions::Binary { operand, lhs, rhs, span } => todo!(),
+            Expressions::Boolean { operand, lhs, rhs, span } => todo!(),
+            Expressions::Bitwise { operand, lhs, rhs, span } => todo!(),
+
+            Expressions::SubElement { head, subelements, span } => todo!(),
+            Expressions::Scope { block, span } => todo!(),
+
+            Expressions::Array { values, len, span } => todo!(),
+            Expressions::Slice { object, index, span } => todo!(),
+
+            Expressions::Argument { name, r#type, span } => unreachable!(),
+            Expressions::None => unreachable!()
         }
     }
 
