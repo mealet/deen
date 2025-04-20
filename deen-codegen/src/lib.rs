@@ -19,15 +19,18 @@ use inkwell::{
 };
 use std::collections::HashMap;
 use variable::Variable;
+use function::Function;
 
 mod variable;
+mod function;
 
 pub struct CodeGen<'ctx> {
     context: &'ctx Context,
     builder: Builder<'ctx>,
     module: Module<'ctx>,
 
-    variables: HashMap<String, Variable<'ctx>>
+    variables: HashMap<String, Variable<'ctx>>,
+    functions: HashMap<String, Function<'ctx>>
 }
 
 impl<'ctx> CodeGen<'ctx> {
@@ -43,7 +46,8 @@ impl<'ctx> CodeGen<'ctx> {
             builder,
             module,
 
-            variables: HashMap::new()
+            variables: HashMap::new(),
+            functions: HashMap::new()
         }
     }
 
@@ -67,7 +71,7 @@ impl<'ctx> CodeGen<'ctx> {
                     );
                 });
 
-                let fn_type = self.get_fn_type(datatype, &args, false);
+                let fn_type = self.get_fn_type(datatype.clone(), &args, false);
                 let function = self.module.add_function(&name, fn_type, Some(inkwell::module::Linkage::External));
                 let entry = self.context.append_basic_block(function, "entry");
 
@@ -89,6 +93,8 @@ impl<'ctx> CodeGen<'ctx> {
                     self.variables.insert(arg_name, Variable { datatype: arg.1.clone(), llvm_type: param_type, ptr: param_alloca });
                 });
 
+                let typed_args = arguments.iter().map(|x| x.1.clone()).collect();
+                self.functions.insert(name.clone(), Function { name, datatype, value: function, arguments: typed_args });
                 block.iter().for_each(|stmt| self.compile_statement(stmt.clone()));
 
                 if let Some(basic_block) = old_position {
@@ -105,36 +111,40 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    fn compile_expression(&mut self, expression: Expressions, expected: Option<Type>) -> BasicValueEnum<'ctx> {
+    fn compile_expression(&mut self, expression: Expressions, expected: Option<Type>) -> (Type, BasicValueEnum<'ctx>) {
         match expression {
             Expressions::Value(val, _) => self.compile_value(val, expected),
             Expressions::FnCall { name, arguments, span } => {
+                let function = self.functions.get(&name).unwrap().clone();
                 let mut args: Vec<BasicMetadataValueEnum> = Vec::new();
-                arguments.iter().for_each(|arg| {
-                    args.push(self.compile_expression(arg.clone(), None).into())
+                arguments.iter().zip(function.arguments).for_each(|(arg, fn_expected)| {
+                    args.push(self.compile_expression(arg.clone(), Some(fn_expected)).1.into())
                 });
 
-                let fn_value = self.module.get_function(&name).unwrap();
-                self.builder.build_call(fn_value, &args, "").unwrap().try_as_basic_value().left().unwrap()
+                (function.datatype, self.builder.build_call(function.value, &args, "").unwrap().try_as_basic_value().left().unwrap())
             }
 
             Expressions::Reference { object, span } => {
                 match *object {
                     Expressions::Value(Value::Identifier(id), _) => {
-                        self.variables.get(&id).unwrap().ptr.into()
+                        let var = self.variables.get(&id).unwrap();
+                        (var.datatype.clone(), var.ptr.into())
                     },
                     _ => {
                         let value = self.compile_expression(*object, expected);
-                        let alloca = self.builder.build_alloca(value.get_type(), "").unwrap();
-                        let _ = self.builder.build_store(alloca, value);
+                        let alloca = self.builder.build_alloca(value.1.get_type(), "").unwrap();
+                        let _ = self.builder.build_store(alloca, value.1);
 
-                        alloca.into()
+                        (Type::Pointer(Box::new(value.0)), alloca.into())
                     }
                 }
             },
             Expressions::Dereference { object, span } => {
-                let ptr = self.compile_expression(*object, expected).into_pointer_value();
-                todo!()
+                let (ptr_type, ptr) = self.compile_expression(*object, expected);
+                let basic_type = self.get_basic_type(ptr_type.clone());
+
+                let value = self.builder.build_load(basic_type, ptr.into_pointer_value(), "").unwrap();
+                (ptr_type, value)
             },
 
             Expressions::Unary { operand, object, span } => todo!(),
@@ -153,7 +163,7 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    fn compile_value(&mut self, value: Value, expected: Option<Type>) -> BasicValueEnum<'ctx> {
+    fn compile_value(&mut self, value: Value, expected: Option<Type>) -> (Type, BasicValueEnum<'ctx>) {
         match value {
             Value::Integer(int) => {
                 if let Some(exp) = expected {
@@ -172,39 +182,39 @@ impl<'ctx> CodeGen<'ctx> {
                         _ => unreachable!()
                     };
 
-                    return expected_type.const_int(int as u64, signed).as_basic_value_enum();
+                    return (exp, expected_type.const_int(int as u64, signed).as_basic_value_enum());
                 }
 
                 match int {
-                    -128..=127 => self.context.i8_type().const_int(int as u64, true).into(),
-                    -32_768..=32_767 => self.context.i16_type().const_int(int as u64, true).into(),
-                    -2_147_483_648..=2_147_483_647 => self.context.i32_type().const_int(int as u64, true).into(),
-                    -9_223_372_036_854_775_808..=9_223_372_036_854_775_807 => self.context.i64_type().const_int(int as u64, true).into(),
+                    -128..=127 => (Type::I8, self.context.i8_type().const_int(int as u64, true).into()),
+                    -32_768..=32_767 => (Type::I16, self.context.i16_type().const_int(int as u64, true).into()),
+                    -2_147_483_648..=2_147_483_647 => (Type::I32, self.context.i32_type().const_int(int as u64, true).into()),
+                    -9_223_372_036_854_775_808..=9_223_372_036_854_775_807 => (Type::I64, self.context.i64_type().const_int(int as u64, true).into()),
                 }
             }
             Value::Float(float) => {
                 if let Some(exp) = expected {
                     return match exp {
-                        Type::F32 => self.context.f32_type().const_float(float).into(),
-                        Type::F64 => self.context.f64_type().const_float(float).into(),
+                        Type::F32 => (Type::F32, self.context.f32_type().const_float(float).into()),
+                        Type::F64 => (Type::F64, self.context.f64_type().const_float(float).into()),
                         _ => unreachable!()
                     };
                 }
 
-                return self.context.f32_type().const_float(float).into();
+                return (Type::F32, self.context.f32_type().const_float(float).into());
             },
             
-            Value::Char(ch) => self.context.i8_type().const_int(ch as u64, false).into(),
+            Value::Char(ch) => (Type::Char, self.context.i8_type().const_int(ch as u64, false).into()),
             Value::String(str) => {
                 let global_value = self.builder.build_global_string_ptr(&str, "const_str").unwrap();
                 global_value.set_constant(false);
-                global_value.as_pointer_value().into()
+                (Type::String, global_value.as_pointer_value().into())
             },
 
-            Value::Boolean(bool) => self.context.bool_type().const_int(bool as u64, false).into(),
+            Value::Boolean(bool) => (Type::Bool, self.context.bool_type().const_int(bool as u64, false).into()),
             Value::Identifier(id) => {
                 let variable = self.variables.get(&id).unwrap(); // already checked by semantic analyzer
-                self.builder.build_load(variable.llvm_type, variable.ptr, "").unwrap()
+                (variable.datatype.clone(), self.builder.build_load(variable.llvm_type, variable.ptr, "").unwrap())
             },
 
             Value::Keyword(key) => unreachable!()
