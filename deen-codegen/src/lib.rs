@@ -37,6 +37,9 @@ pub struct CodeGen<'ctx> {
 
 impl<'ctx> CodeGen<'ctx> {
     pub fn create_context() -> Context {
+        inkwell::targets::Target::initialize_all(
+            &inkwell::targets::InitializationConfig::default()
+        );
         inkwell::context::Context::create()
     }
 
@@ -47,6 +50,20 @@ impl<'ctx> CodeGen<'ctx> {
     ) -> Self {
         let module = context.create_module(module_name);
         let builder = context.create_builder();
+
+        module.set_source_file_name(&format!("{}.dn", module_name));
+        module.set_triple(&inkwell::targets::TargetMachine::get_default_triple());
+
+        module.add_global_metadata(
+            "ident",
+            &context.metadata_node(
+                &[
+                    context.metadata_string(
+                        &format!("deen compiler version {}", env!("CARGO_PKG_VERSION"))
+                    ).into()
+                ]
+            )
+        ).unwrap();
 
         Self {
             context,
@@ -81,9 +98,20 @@ impl<'ctx> CodeGen<'ctx> {
 impl<'ctx> CodeGen<'ctx> {
     fn compile_statement(&mut self, statement: Statements) {
         match statement {
-            Statements::AssignStatement { identifier, value, span } => todo!(),
+            Statements::AssignStatement { identifier, value, span } => {
+                let var = self.variables.get(&identifier).unwrap().clone();
+                let compiled_value = self.compile_expression(value, Some(var.datatype));
+
+                self.builder.build_store(var.ptr, compiled_value.1);
+            },
             Statements::BinaryAssignStatement { identifier, operand, value, span } => todo!(),
-            Statements::DerefAssignStatement { identifier, value, span } => todo!(),
+            Statements::DerefAssignStatement { identifier, value, span } => {
+                let var = self.variables.get(&identifier).unwrap().clone();
+                let compiled_value = self.compile_expression(value, Some(var.datatype));
+
+                let dereferenced_ptr = self.builder.build_load(self.context.ptr_type(AddressSpace::default()), var.ptr, "").unwrap();
+                self.builder.build_store(dereferenced_ptr.into_pointer_value(), compiled_value.1);
+            },
             Statements::SliceAssignStatement { identifier, index, value, span } => todo!(),
             Statements::FieldAssignStatement { object, subelements, span } => todo!(),
 
