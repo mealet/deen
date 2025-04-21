@@ -2,6 +2,7 @@ use crate::{
     statements::Statements, types::Type, value::Value, Parser, BINARY_OPERATORS, BITWISE_OPERATORS, BOOLEAN_OPERATORS, PRIORITY_BINARY_OPERATORS, PRIORITY_BOOLEAN_OPERATORS
 };
 use deen_lexer::token_type::TokenType;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expressions {
@@ -64,6 +65,11 @@ pub enum Expressions {
         index: Box<Expressions>,
         span: (usize, usize)
     },
+    Struct {
+        name: String,
+        fields: HashMap<String, Expressions>,
+        span: (usize, usize)
+    },
     Scope {
         block: Vec<Statements>,
         span: (usize, usize)
@@ -87,9 +93,10 @@ impl Parser {
             Expressions::Dereference { object: _, span } => span,
             Expressions::Array { values: _, len: _, span } => span,
             Expressions::Slice { object: _, index: _, span } => span,
-            Expressions::Value(_, span) => span,
+            Expressions::Struct { name: _, fields: _, span } => span,
             Expressions::Unary { operand: _, object: _, span } => span,
             Expressions::Scope { block: _, span } => span,
+            Expressions::Value(_, span) => span,
 
             Expressions::None => (0, 0)
         }
@@ -270,6 +277,81 @@ impl Parser {
 
         let _ = self.next();
         Expressions::Slice { object, index, span: (self.span_expression(expr).0, span_end)}
+    }
+
+    pub fn struct_expression(&mut self, name: String) -> Expressions {
+        let span_start = self.current().span.0;
+        if self.expect(TokenType::Identifier) {
+            let _ = self.next();
+        }
+
+        if !self.expect(TokenType::LBrace) {
+            self.error(
+                String::from("Expected `{` after structure initialization"),
+                (span_start, self.current().span.1)
+            );
+            return Expressions::None;
+        };
+
+        let _ = self.next();
+        let mut fields = HashMap::new();
+
+        while !self.expect(TokenType::RBrace) {
+            if !self.expect(TokenType::Dot) {
+                self.error(
+                    String::from("Unexpected field initialization found. Use `.field = value`"),
+                    (span_start, self.current().span.1)
+                );
+                while !self.expect(TokenType::RBrace) && !self.expect(TokenType::Semicolon) && !self.expect(TokenType::EOF) { let _ = self.next(); }
+                break;
+            }
+
+            let _ = self.next();
+            if !self.expect(TokenType::Identifier) {
+                self.error(
+                    String::from("Expected field identifier for initialization"),
+                    (span_start, self.current().span.1)
+                );
+                while !self.expect(TokenType::RBrace) && !self.expect(TokenType::Semicolon) && !self.expect(TokenType::EOF) { let _ = self.next(); }
+                break;
+            }
+
+            let id = self.current().value;
+            let _ = self.next();
+
+            if !self.expect(TokenType::Equal) {
+                self.error(
+                    String::from("Fields must have assignation"),
+                    (span_start, self.current().span.1)
+                );
+                while !self.expect(TokenType::RBrace) && !self.expect(TokenType::Semicolon) && !self.expect(TokenType::EOF) { let _ = self.next(); }
+                break;
+            }
+
+            let _ = self.next();
+            let value = self.expression();
+
+            if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
+                self.error(
+                    String::from("Values must be separated by semicolons"),
+                    (span_start, self.current().span.1)
+                );
+                while !self.expect(TokenType::RBrace) && !self.expect(TokenType::Semicolon) && !self.expect(TokenType::EOF) { let _ = self.next(); }
+                break;
+            }
+
+            if !self.expect(TokenType::RBrace) {
+                let _ = self.next();
+            }
+            fields.insert(id, value);
+        }
+
+        if self.expect(TokenType::RBrace) {
+            let _ = self.next();
+        }
+
+        let span = (span_start, self.current().span.1);
+        Expressions::Struct { name, fields, span }
     }
 
     #[allow(unused)]

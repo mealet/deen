@@ -298,6 +298,10 @@ impl Parser {
                     TokenType::LBrack => {
                         return self.slice_expression(output)
                     }
+                    TokenType::LBrace => {
+                        self.position -= 1;
+                        return self.struct_expression(current.value.clone());
+                    }
                     TokenType::DoubleDots => {
                         let _ = self.next();
 

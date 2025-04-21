@@ -85,6 +85,7 @@ impl<'ctx> CodeGen<'ctx> {
             Statements::BinaryAssignStatement { identifier, operand, value, span } => todo!(),
             Statements::DerefAssignStatement { identifier, value, span } => todo!(),
             Statements::SliceAssignStatement { identifier, index, value, span } => todo!(),
+            Statements::FieldAssignStatement { object, subelements, span } => todo!(),
 
             Statements::AnnotationStatement { identifier, datatype, value, span } => todo!(),
 
@@ -202,6 +203,7 @@ impl<'ctx> CodeGen<'ctx> {
 
             Expressions::Array { values, len, span } => todo!(),
             Expressions::Slice { object, index, span } => todo!(),
+            Expressions::Struct { name, fields, span } => todo!(),
 
             Expressions::Argument { name, r#type, span } => unreachable!(),
             Expressions::None => unreachable!()

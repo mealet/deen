@@ -32,6 +32,11 @@ pub enum Statements {
         value: Expressions,
         span: (usize, usize)
     },
+    FieldAssignStatement {
+        object: Expressions,
+        subelements: Vec<Expressions>,
+        span: (usize, usize)
+    },
 
     AnnotationStatement {
         identifier: String,

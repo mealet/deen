@@ -255,6 +255,7 @@ impl Analyzer {
                     );
                 }
             },
+            Statements::FieldAssignStatement { object, subelements, span } => todo!(),
 
             Statements::AnnotationStatement { identifier, datatype, value, span } => {
                 // unwrapping type
@@ -1170,6 +1171,7 @@ impl Analyzer {
                     }
                 }
             },
+            Expressions::Struct { name, fields, span } => todo!(),
             Expressions::Scope { block, span } => {
                 let mut new_scope = Scope::new();
                 new_scope.parent = Some(Box::new(self.scope.clone()));
