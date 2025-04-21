@@ -81,6 +81,13 @@ impl<'ctx> CodeGen<'ctx> {
 impl<'ctx> CodeGen<'ctx> {
     fn compile_statement(&mut self, statement: Statements) {
         match statement {
+            Statements::AssignStatement { identifier, value, span } => todo!(),
+            Statements::BinaryAssignStatement { identifier, operand, value, span } => todo!(),
+            Statements::DerefAssignStatement { identifier, value, span } => todo!(),
+            Statements::SliceAssignStatement { identifier, index, value, span } => todo!(),
+
+            Statements::AnnotationStatement { identifier, datatype, value, span } => todo!(),
+
             Statements::FunctionDefineStatement { name, datatype, arguments, block, span } => {
                 let mut args: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
                 arguments.iter().for_each(|arg| {
@@ -125,7 +132,27 @@ impl<'ctx> CodeGen<'ctx> {
                     }
                 })
             }
-            _ => todo!()
+            Statements::FunctionCallStatement { name, arguments, span } => {},
+
+            Statements::StructDefineStatement { name, fields, functions, span } => todo!(),
+            Statements::EnumDefineStatement { name, fields, functions, span } => todo!(),
+            Statements::TypedefStatement { alias, datatype, span } => todo!(),
+
+            Statements::IfStatement { condition, then_block, else_block, span } => todo!(),
+            Statements::WhileStatement { condition, block, span } => todo!(),
+            Statements::ForStatement { binding, iterator, block, span } => todo!(),
+
+            Statements::BreakStatements { span } => todo!(),
+            Statements::ReturnStatement { value, span } => todo!(),
+            Statements::ImportStatement { path, span } => todo!(),
+            Statements::ScopeStatement { block, span } => {
+                block.iter().for_each(|stmt| self.compile_statement(stmt.clone()));
+            }
+
+            Statements::Expression(expr) => {
+                self.compile_expression(expr, None);
+            }
+            Statements::None => unreachable!()
         }
     }
 
