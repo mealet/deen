@@ -87,7 +87,31 @@ impl<'ctx> CodeGen<'ctx> {
             Statements::SliceAssignStatement { identifier, index, value, span } => todo!(),
             Statements::FieldAssignStatement { object, subelements, span } => todo!(),
 
-            Statements::AnnotationStatement { identifier, datatype, value, span } => todo!(),
+            Statements::AnnotationStatement { identifier, datatype, value, span } => {
+                match (datatype, value) {
+                    (Some(datatype), Some(value)) => {
+                        let value = self.compile_expression(value, Some(datatype));
+                        let alloca = self.builder.build_alloca(value.1.get_type(), &identifier).unwrap();
+
+                        self.variables.insert(identifier, Variable { datatype: value.0, llvm_type: value.1.get_type(), ptr: alloca });
+                        let _ = self.builder.build_store(alloca, value.1).unwrap();
+                    },
+                    (Some(datatype), _) => {
+                        let basic_type = self.get_basic_type(datatype.clone());
+                        let alloca = self.builder.build_alloca(basic_type, &identifier).unwrap();
+
+                        self.variables.insert(identifier, Variable { datatype, llvm_type: basic_type, ptr: alloca });
+                    },
+                    (_, Some(value)) => {
+                        let compiled_value = self.compile_expression(value, None);
+                        let alloca = self.builder.build_alloca(compiled_value.1.get_type(), &identifier).unwrap();
+
+                        self.variables.insert(identifier, Variable { datatype: compiled_value.0, llvm_type: compiled_value.1.get_type(), ptr: alloca });
+                        let _ = self.builder.build_store(alloca, compiled_value.1).unwrap();
+                    },
+                    _ => unreachable!()
+                }
+            },
 
             Statements::FunctionDefineStatement { name, datatype, arguments, block, span } => {
                 let mut args: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
@@ -233,8 +257,6 @@ impl<'ctx> CodeGen<'ctx> {
                 }
 
                 match int {
-                    -128..=127 => (Type::I8, self.context.i8_type().const_int(int as u64, true).into()),
-                    -32_768..=32_767 => (Type::I16, self.context.i16_type().const_int(int as u64, true).into()),
                     -2_147_483_648..=2_147_483_647 => (Type::I32, self.context.i32_type().const_int(int as u64, true).into()),
                     -9_223_372_036_854_775_808..=9_223_372_036_854_775_807 => (Type::I64, self.context.i64_type().const_int(int as u64, true).into()),
                 }
