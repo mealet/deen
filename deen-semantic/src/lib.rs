@@ -1171,7 +1171,57 @@ impl Analyzer {
                     }
                 }
             },
-            Expressions::Struct { name, fields, span } => todo!(),
+            Expressions::Struct { name, fields, span } => {
+                let structure = self.scope.get_struct(name).unwrap_or_else(|| {
+                    self.error(
+                        format!("Structure `{}` does not exist here", name),
+                        *span
+                    );
+                    return Type::Void
+                });
+
+                if structure == Type::Void { return Type::Void };
+                if let Type::Struct(struct_fields, _) = structure.clone() {
+                    let mut assigned_fields = HashMap::new();
+                    struct_fields.iter().for_each(|x| {
+                        assigned_fields.insert(x.0, false);
+                    });
+
+                    fields.iter().for_each(|field| {
+                        let struct_field = struct_fields.get(field.0);
+                        if let Some(field_type) = struct_field {
+                            let provided_type = self.visit_expression(field.1, Some(field_type.clone()));
+
+                            if field_type != &provided_type {
+                                self.error(
+                                    format!("Field `{}` expected to be type `{}`, but found `{}`", field.0, field_type, provided_type),
+                                    *span
+                                );
+                                return;
+                            }
+
+                            let _ = assigned_fields.insert(field.0, true);
+                        } else {
+                            self.error(
+                                format!("Field `{}` doesn't exist in struct `{}`", field.0, name),
+                                *span
+                            );
+                            return;
+                        }
+                    });
+
+                    let unassigned = assigned_fields.iter().filter(|x| !x.1).map(|x| x.0.to_owned().to_owned()).collect::<Vec<String>>();
+                    if !unassigned.is_empty() {
+                        let fmt = format!("`{}`", unassigned.join("` , `"));
+                        self.error(
+                            format!("Missing structure fields: {}", fmt),
+                            *span
+                        );
+                    }
+
+                    structure
+                } else { unreachable!() }
+            },
             Expressions::Scope { block, span } => {
                 let mut new_scope = Scope::new();
                 new_scope.parent = Some(Box::new(self.scope.clone()));
