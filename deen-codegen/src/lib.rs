@@ -82,11 +82,12 @@ impl<'ctx> CodeGen<'ctx> {
         }
 
         let main_fn = self.functions.get("main").unwrap();
-        if main_fn.datatype == Type::Void {
+        let verified = main_fn.value.verify(false);
+        if main_fn.datatype == Type::Void && !verified {
             self.builder.position_at_end(main_fn.value.get_last_basic_block().unwrap());
             self.builder.build_return(
                 Some(
-                    &self.context.bool_type().const_zero()
+                    &self.context.i8_type().const_int(0, false)
                 )
             ).unwrap();
         }
@@ -185,7 +186,18 @@ impl<'ctx> CodeGen<'ctx> {
                     }
                 })
             }
-            Statements::FunctionCallStatement { name, arguments, span } => {},
+            Statements::FunctionCallStatement { name, arguments, span } => {
+                let function = self.functions.get(&name).unwrap().clone();
+                let mut basic_args: Vec<BasicMetadataValueEnum> = Vec::new();
+
+                arguments.into_iter().zip(function.arguments.clone()).for_each(|(expr, expected)| {
+                    basic_args.push(
+                        self.compile_expression(expr, Some(expected)).1.into()
+                    );
+                });
+
+                self.builder.build_call(function.value, &basic_args, "");
+            },
 
             Statements::StructDefineStatement { name, fields, functions, span } => todo!(),
             Statements::EnumDefineStatement { name, fields, functions, span } => todo!(),
@@ -196,7 +208,10 @@ impl<'ctx> CodeGen<'ctx> {
             Statements::ForStatement { binding, iterator, block, span } => todo!(),
 
             Statements::BreakStatements { span } => todo!(),
-            Statements::ReturnStatement { value, span } => todo!(),
+            Statements::ReturnStatement { value, span } => {
+                let compiled_value = self.compile_expression(value, None);
+                self.builder.build_return(Some(&compiled_value.1)).unwrap();
+            },
             Statements::ImportStatement { path, span } => todo!(),
             Statements::ScopeStatement { block, span } => {
                 block.iter().for_each(|stmt| self.compile_statement(stmt.clone()));
@@ -337,7 +352,7 @@ impl<'ctx> CodeGen<'ctx> {
             Type::F32 => self.context.f32_type().into(),
             Type::F64 => self.context.f64_type().into(),
 
-            Type::Void => self.context.bool_type().into(),
+            Type::Void => self.context.i8_type().into(),
             Type::String => self.context.ptr_type(AddressSpace::default()).into(),
             Type::Char => self.context.custom_width_int_type(8).into(),
             Type::Bool => self.context.bool_type().into(),
