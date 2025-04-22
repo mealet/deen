@@ -520,7 +520,7 @@ impl Parser {
                 match next.token_type {
                     TokenType::Equal => self.assign_statement(current.value, current.span),
                     TokenType::Dot => {
-                        let _ = self.next();
+                        // let _ = self.next();
                         let sub_expr = self.subelement_expression(
                             Expressions::Value(Value::Identifier(current.value), self.current().span),
                             TokenType::Dot

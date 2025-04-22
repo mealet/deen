@@ -203,7 +203,7 @@ impl<'ctx> CodeGen<'ctx> {
             }
 
             Statements::Expression(expr) => {
-                self.compile_expression(expr, None);
+                let _ = self.compile_expression(expr, None);
             }
             Statements::None => unreachable!()
         }

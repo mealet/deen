@@ -834,7 +834,13 @@ impl Analyzer {
             },
             
             Statements::Expression(expr) => {
-                let _ = self.visit_expression(expr, None);
+                let expr_type = self.visit_expression(expr, None);
+                if expr_type != Type::Void {
+                    self.warning(
+                        String::from("Unused expression result found"),
+                        deen_parser::Parser::get_span_expression(expr.clone())
+                    );
+                }
             },
             Statements::None => unreachable!()
         }
@@ -932,7 +938,6 @@ impl Analyzer {
 
             Expressions::Argument { name, r#type, span } => unreachable!(),
             Expressions::SubElement { head, subelements, span } => {
-                self.scope.set_init_var("a", true);
                 let head_type = self.visit_expression(head, expected);
 
                 let mut prev_type = self.unwrap_alias(&head_type).unwrap_or_else(|err| {
