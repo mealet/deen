@@ -340,7 +340,7 @@ impl Lexer {
                         }
                         continue;
                     }
-                    self.position -= 1;
+                    output.push(Token::new(String::from("/"), TokenType::Divide, (self.position - 1, self.position)));
                 }
                 chr if self.std_symbols.contains_key(&chr) => {
                     let matched_token = self.std_symbols.get(&chr).unwrap().clone();
@@ -368,7 +368,7 @@ impl Lexer {
                             self.getc();
                         }
                         TokenType::SingleQuote => {
-                            let span_start = self.position;
+                            let span_start = self.position - 1;
 
                             self.getc();
 
@@ -427,7 +427,7 @@ impl Lexer {
                                 }
                                 _ => {
                                     let mut formatted_token = matched_token;
-                                    formatted_token.span = (span_start, self.position);
+                                    formatted_token.span = (span_start, self.position - 1);
 
                                     output.push(formatted_token);
                                 }
@@ -449,7 +449,7 @@ impl Lexer {
                                 }
                                 _ => {
                                     let mut formatted_token = matched_token;
-                                    formatted_token.span = (span_start, self.position);
+                                    formatted_token.span = (span_start, self.position - 1);
 
                                     output.push(formatted_token);
                                 }
@@ -469,7 +469,7 @@ impl Lexer {
                                 self.getc();
                             } else {
                                 let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start, self.position);
+                                formatted_token.span = (span_start, self.position - 1);
 
                                 output.push(formatted_token);
                             }
@@ -482,7 +482,7 @@ impl Lexer {
                                     Token::new(
                                         String::from("||"),
                                         TokenType::Or,
-                                        (span_start - 1, self.position)
+                                        (span_start, self.position)
                                     )
                                 );
                                 self.getc();
@@ -502,7 +502,7 @@ impl Lexer {
                                         Token::new(
                                             String::from("&&"),
                                             TokenType::And,
-                                            (span_start - 1, self.position)
+                                            (span_start, self.position)
                                         )
                                     );
                                     self.getc();
