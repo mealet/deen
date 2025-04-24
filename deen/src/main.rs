@@ -178,8 +178,7 @@ fn main() {
     );
 
     let module_name = fname
-        .split(".")
-        .nth(0)
+        .split(".").next()
         .map(|n| n.to_string())
         .unwrap_or(fname.replace(".dn", ""));
 
@@ -189,7 +188,7 @@ fn main() {
     let module_ref = codegen.compile(ast);
 
     if args.llvm {
-        let _ = module_ref.print_to_file(
+        module_ref.print_to_file(
             format!("{}.ll", args.output)
         ).unwrap_or_else(|_| {
             cli::error("Unable to write LLVM IR file!");

@@ -313,7 +313,7 @@ impl<'ctx> CodeGen<'ctx> {
                     };
                 }
 
-                return (Type::F32, self.context.f32_type().const_float(float).into());
+                (Type::F32, self.context.f32_type().const_float(float).into())
             },
             
             Value::Char(ch) => (Type::Char, self.context.i8_type().const_int(ch as u64, false).into()),

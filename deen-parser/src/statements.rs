@@ -770,7 +770,7 @@ impl Parser {
 
         let datatype = self.parse_type();
         let span_end = self.current().span.1;
-        let _ = self.skip_eos();
+        self.skip_eos();
 
         Statements::TypedefStatement { alias, datatype, span: (span_start, span_end) }
     }

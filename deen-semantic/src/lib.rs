@@ -269,22 +269,16 @@ impl Analyzer {
                     })
                 });
 
-                if let Some(tty) = &datatype {
-                    match tty {
-                        Type::Alias(alias) => {
-                            let struct_type = self.scope.get_struct(&alias);
-                            let enum_type = self.scope.get_enum(&alias);
-                            let typedef_type = self.scope.get_typedef(&alias);
+                if let Some(Type::Alias(alias)) = &datatype {
+                    let struct_type = self.scope.get_struct(alias);
+                    let enum_type = self.scope.get_enum(alias);
+                    let typedef_type = self.scope.get_typedef(alias);
 
-                            let mut staged = false;
+                    let mut staged = false;
 
-                            if struct_type.is_some() && !staged { datatype = struct_type };
-                            if enum_type.is_some() && !staged { datatype = enum_type };
-                            if typedef_type.is_some() && !staged { datatype = typedef_type };
-
-                        }
-                        _ => {},
-                    }
+                    if struct_type.is_some() && !staged { datatype = struct_type };
+                    if enum_type.is_some() && !staged { datatype = enum_type };
+                    if typedef_type.is_some() && !staged { datatype = typedef_type };
                 }
 
                 match (datatype, value) {
@@ -337,7 +331,7 @@ impl Analyzer {
                     return;
                 }
 
-                let datatype = self.unwrap_alias(&datatype).unwrap_or_else(|err| {
+                let datatype = self.unwrap_alias(datatype).unwrap_or_else(|err| {
                     self.error(
                         err,
                         *span
@@ -450,11 +444,9 @@ impl Analyzer {
                         err,
                         *span
                     );
-                    return;
                 });
                 self.scope.add_typedef(name.clone(), struct_type).unwrap_or_else(|err| {
                     self.error(err, *span);
-                    return;
                 })
             },
             Statements::EnumDefineStatement { name, fields, functions, span } => {
@@ -480,11 +472,9 @@ impl Analyzer {
                         err,
                         *span
                     );
-                    return;
                 });
                 self.scope.add_typedef(name.clone(), enum_type.clone()).unwrap_or_else(|err| {
                     self.error(err, *span);
-                    return;
                 })
             },
             Statements::TypedefStatement { alias, datatype, span } => {
@@ -493,7 +483,6 @@ impl Analyzer {
                         err,
                         *span
                     );
-                    return;
                 });
             },
             
@@ -961,7 +950,7 @@ impl Analyzer {
                                     });
                                     prev_type = self.unwrap_alias(field_type).unwrap_or_else(|err| {
                                         self.error(err, *field_span);
-                                        return Type::Void;
+                                        Type::Void
                                     });
                                     prev_expr = sub.clone();
                                 }
@@ -998,16 +987,14 @@ impl Analyzer {
                                     if let Type::Function(args, datatype) = function_type {
                                         let mut arguments = arguments.clone();
 
-                                        if let Some(arg) = args.first() {
-                                            if let Type::Pointer(ptr_type) = arg {
-                                                let ptr_type_unwrapped = self.unwrap_alias(ptr_type);
-                                                let prev_type_unwrapped = self.unwrap_alias(&prev_type);
+                                        if let Some(Type::Pointer(ptr_type)) = args.first() {
+                                            let ptr_type_unwrapped = self.unwrap_alias(ptr_type);
+                                            let prev_type_unwrapped = self.unwrap_alias(&prev_type);
 
-                                                if ptr_type_unwrapped == prev_type_unwrapped {
-                                                    arguments.reverse();
-                                                    arguments.push(prev_expr.clone());
-                                                    arguments.reverse();
-                                                }
+                                            if ptr_type_unwrapped == prev_type_unwrapped {
+                                                arguments.reverse();
+                                                arguments.push(prev_expr.clone());
+                                                arguments.reverse();
                                             }
                                         }
 
@@ -1041,7 +1028,6 @@ impl Analyzer {
                                                     format!("Argument #{} has type `{}`, but found `{}`", index + 1, expected, expr_type),
                                                     *span
                                                 );
-                                                return;
                                             }
                                         });
                                     };
@@ -1060,7 +1046,6 @@ impl Analyzer {
                                 String::from("Unsupported subelement expression found"),
                                 *span
                             );
-                            return;
                         }
                     }
                 });
@@ -1182,7 +1167,7 @@ impl Analyzer {
                         format!("Structure `{}` does not exist here", name),
                         *span
                     );
-                    return Type::Void
+                    Type::Void
                 });
 
                 if structure == Type::Void { return Type::Void };
@@ -1211,7 +1196,6 @@ impl Analyzer {
                                 format!("Field `{}` doesn't exist in struct `{}`", field.0, name),
                                 *span
                             );
-                            return;
                         }
                     });
 
@@ -1436,13 +1420,13 @@ impl Analyzer {
     fn unwrap_alias(&self, typ: &Type) -> Result<Type, String> {
         match typ {
             Type::Alias(alias) => {
-                let struct_type = self.scope.get_struct(&alias);
-                let enum_type = self.scope.get_enum(&alias);
-                let typedef_type = self.scope.get_typedef(&alias);
+                let struct_type = self.scope.get_struct(alias);
+                let enum_type = self.scope.get_enum(alias);
+                let typedef_type = self.scope.get_typedef(alias);
 
-                if struct_type.is_some() { return Ok(struct_type.unwrap()) };
-                if enum_type.is_some() { return Ok(enum_type.unwrap()) };
-                if typedef_type.is_some() { return Ok(typedef_type.unwrap()) };
+                if let Some(struct_type) = struct_type { return Ok(struct_type) };
+                if let Some(enum_type) = enum_type { return Ok(enum_type) };
+                if let Some(typedef_type) = typedef_type { return Ok(typedef_type) };
 
                 Err(format!("Type `{}` is not defined in this scope", typ))
             }

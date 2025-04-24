@@ -76,7 +76,7 @@ impl std::fmt::Display for Type {
             Type::Alias(alias) => write!(f, "{alias}"),
             Type::Function(args, functype) => write!(f, "{functype} ({})", args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ")),
             Type::Struct(args, _) => write!(f, "struct {{ {} }}", args.iter().map(|a| format!("{}", a.1)).collect::<Vec<String>>().join(", ")),
-            Type::Enum(args, _) => write!(f, "enum {{ {} }}", args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ")),
+            Type::Enum(args, _) => write!(f, "enum {{ {} }}", args.iter().map(|a| a.to_string()).collect::<Vec<String>>().join(", ")),
         }
     }
 }
