@@ -17,13 +17,18 @@ use inkwell::{
     },
     AddressSpace
 };
-use deen_semantic::import::Import;
+use crate::{
+    variable::Variable,
+    function::Function,
+    structure::{Structure, Field}
+};
+
 use std::collections::HashMap;
-use variable::Variable;
-use function::Function;
+use deen_semantic::import::Import;
 
 mod variable;
 mod function;
+mod structure;
 
 pub struct CodeGen<'ctx> {
     context: &'ctx Context,
@@ -32,6 +37,8 @@ pub struct CodeGen<'ctx> {
 
     variables: HashMap<String, Variable<'ctx>>,
     functions: HashMap<String, Function<'ctx>>,
+    structures: HashMap<String, Structure<'ctx>>,
+
     imports: HashMap<String, Import>
 }
 
@@ -72,13 +79,15 @@ impl<'ctx> CodeGen<'ctx> {
 
             variables: HashMap::new(),
             functions: HashMap::new(),
+            structures: HashMap::new(),
+
             imports,
         }
     }
 
     pub fn compile(&mut self, statements: Vec<Statements>) -> &Module<'ctx> {
         for statement in statements {
-            self.compile_statement(statement);
+            self.compile_statement(statement, None);
         }
 
         let main_fn = self.functions.get("main").unwrap();
@@ -97,7 +106,7 @@ impl<'ctx> CodeGen<'ctx> {
 }
 
 impl<'ctx> CodeGen<'ctx> {
-    fn compile_statement(&mut self, statement: Statements) {
+    fn compile_statement(&mut self, statement: Statements, prefix: Option<String>) {
         match statement {
             Statements::AssignStatement { identifier, value, span } => {
                 let var = self.variables.get(&identifier).unwrap().clone();
@@ -174,7 +183,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 let typed_args = arguments.iter().map(|x| x.1.clone()).collect();
                 self.functions.insert(name.clone(), Function { name, datatype, value: function, arguments: typed_args });
-                block.iter().for_each(|stmt| self.compile_statement(stmt.clone()));
+                block.iter().for_each(|stmt| self.compile_statement(stmt.clone(), None));
 
                 if let Some(basic_block) = old_position {
                     self.builder.position_at_end(basic_block);
@@ -199,7 +208,30 @@ impl<'ctx> CodeGen<'ctx> {
                 self.builder.build_call(function.value, &basic_args, "");
             },
 
-            Statements::StructDefineStatement { name, fields, functions, span } => todo!(),
+            Statements::StructDefineStatement { name, fields, functions, span } => {
+                let struct_type = self.context.opaque_struct_type(&name);
+                let mut compiled_fields = Vec::new();
+
+                fields.iter().for_each(|field| {
+                    compiled_fields.push(
+                        Field {
+                            name: field.0.to_owned(),
+                            nth: compiled_fields.len(),
+                            llvm_type: self.get_basic_type(field.1.to_owned())
+                        }
+                    );
+                });
+
+                let basic_fields_types = compiled_fields.iter().map(|field| field.llvm_type).collect::<Vec<BasicTypeEnum>>();
+                struct_type.set_body(&basic_fields_types, false);
+
+                let mut fields_hashmap = HashMap::new();
+                compiled_fields.into_iter().for_each(|field| {
+                    fields_hashmap.insert(field.name.clone(), field);
+                });
+
+                self.structures.insert(name.clone(), Structure { name, fields: fields_hashmap, llvm_type: struct_type.into() });
+            },
             Statements::EnumDefineStatement { name, fields, functions, span } => todo!(),
             Statements::TypedefStatement { alias, datatype, span } => todo!(),
 
@@ -214,7 +246,7 @@ impl<'ctx> CodeGen<'ctx> {
             },
             Statements::ImportStatement { path, span } => todo!(),
             Statements::ScopeStatement { block, span } => {
-                block.iter().for_each(|stmt| self.compile_statement(stmt.clone()));
+                block.iter().for_each(|stmt| self.compile_statement(stmt.clone(), None));
             }
 
             Statements::Expression(expr) => {
@@ -362,7 +394,13 @@ impl<'ctx> CodeGen<'ctx> {
             Type::DynamicArray(datatype) => todo!(),
             
             Type::Tuple(types) => unreachable!(),
-            Type::Alias(alias) => todo!(),
+            Type::Alias(alias) => {
+                let struct_type = self.structures.get(&alias);
+
+                if let Some(struct_type) = struct_type { return struct_type.llvm_type };
+
+                unreachable!()
+            },
             
             Type::Function(_, _) => unreachable!(),
             Type::Struct(fields, _) => self.context.struct_type(
