@@ -217,6 +217,7 @@ impl<'ctx> CodeGen<'ctx> {
                         Field {
                             name: field.0.to_owned(),
                             nth: compiled_fields.len(),
+                            datatype: field.1.to_owned(),
                             llvm_type: self.get_basic_type(field.1.to_owned())
                         }
                     );
@@ -302,7 +303,25 @@ impl<'ctx> CodeGen<'ctx> {
 
             Expressions::Array { values, len, span } => todo!(),
             Expressions::Slice { object, index, span } => todo!(),
-            Expressions::Struct { name, fields, span } => todo!(),
+            Expressions::Struct { name, fields, span } => {
+                let structure = self.structures.get(&name).unwrap().clone();
+                let struct_alloca = self.builder.build_alloca(structure.llvm_type, &format!("struct.{}.init", name)).unwrap();
+
+                for (field_name, field_expr) in fields {
+                    let struct_field = structure.fields.get(&field_name).unwrap();
+                    let field_value = self.compile_expression(field_expr, Some(struct_field.datatype.clone()));
+
+                    let ordered_index = self.context.i64_type().const_int(struct_field.nth as u64, false);
+                    let field_ptr = unsafe {
+                        self.builder.build_gep(structure.llvm_type, struct_alloca, &[ordered_index], "").unwrap()
+                    };
+
+                    let _ = self.builder.build_store(field_ptr, field_value.1).unwrap();
+                }
+                
+                let struct_value = self.builder.build_load(structure.llvm_type, struct_alloca, "").unwrap();
+                (Type::Alias(name), struct_value)
+            },
 
             Expressions::Argument { name, r#type, span } => unreachable!(),
             Expressions::None => unreachable!()
