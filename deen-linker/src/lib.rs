@@ -48,6 +48,6 @@ impl ObjectLinker {
             .output();
 
         std::fs::remove_file(input).expect("Unable to delete object file");
-        return linker_output;
+        linker_output
     }
 }

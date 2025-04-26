@@ -341,14 +341,14 @@ impl<'ctx> CodeGen<'ctx> {
                             Type::I8 | Type::I16 | Type::I32 | Type::I64 |
                             Type::U8 | Type::U16 | Type::U32 | Type::U64 |
                             Type::USIZE => {
-                                return (
+                                (
                                     deen_semantic::Analyzer::unsigned_to_signed_integer(&object_value.0),
                                     self.builder.build_int_neg(object_value.1.into_int_value(), "").unwrap().into()
                                 )
                             }
 
                             Type::F32 | Type::F64 => {
-                                return (
+                                (
                                     object_value.0,
                                     self.builder.build_float_neg(object_value.1.into_float_value(), "").unwrap().into()
                                 )
@@ -359,7 +359,7 @@ impl<'ctx> CodeGen<'ctx> {
                     }
 
                     "!" => {
-                        return (
+                        (
                             object_value.0,
                             self.builder.build_not(object_value.1.into_int_value(), "").unwrap().into()
                         )
@@ -473,10 +473,10 @@ impl<'ctx> CodeGen<'ctx> {
                             _ => unreachable!()
                         };
 
-                        return (
+                        (
                             Type::Bool,
                             self.builder.build_int_compare(predicate, lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
-                        );
+                        )
                     }
 
                     typ if deen_semantic::Analyzer::is_float(&typ) => {
@@ -491,10 +491,10 @@ impl<'ctx> CodeGen<'ctx> {
                         };
 
 
-                        return (
+                        (
                             Type::Bool,
                             self.builder.build_float_compare(predicate, lhs_value.1.into_float_value(), rhs_value.1.into_float_value(), "").unwrap().as_basic_value_enum()
-                        );
+                        )
                     }
                     Type::Pointer(ptr_type) if *ptr_type == Type::Char => {
                         todo!()
@@ -546,7 +546,7 @@ impl<'ctx> CodeGen<'ctx> {
                 let compiled_values = values.into_iter().map(|val| self.compile_expression(val, expected_items_type.clone())).collect::<Vec<(Type, BasicValueEnum)>>();
 
                 let arr_type = compiled_values[0].0.clone();
-                let arr_basic_type = compiled_values[0].1.get_type().clone();
+                let arr_basic_type = compiled_values[0].1.get_type();
 
                 let arr_alloca = self.builder.build_array_alloca(arr_basic_type, self.context.i64_type().const_int(len as u64, false), "").unwrap();
 
