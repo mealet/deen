@@ -445,7 +445,63 @@ impl<'ctx> CodeGen<'ctx> {
                 let lhs_value = self.compile_expression(*lhs, expected.clone());
                 let rhs_value = self.compile_expression(*rhs, expected);
 
-                todo!()
+                match operand.as_str() {
+                    "&&" => {
+                        return (
+                            Type::Bool,
+                            self.builder.build_and(lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
+                        )
+                    }
+                    "||" => {
+                        return (
+                            Type::Bool,
+                            self.builder.build_or(lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
+                        )
+                    }
+                    _ => {}
+                }
+
+                match lhs_value.0 {
+                    typ if deen_semantic::Analyzer::is_integer(&typ) => {
+                        let predicate = match operand.as_str() {
+                            ">" => inkwell::IntPredicate::SGT,
+                            "<" => inkwell::IntPredicate::SLT,
+                            "<=" | "=<" => inkwell::IntPredicate::SLE,
+                            ">=" | "=>" => inkwell::IntPredicate::SGE,
+                            "==" => inkwell::IntPredicate::EQ,
+                            "!=" => inkwell::IntPredicate::NE,
+                            _ => unreachable!()
+                        };
+
+                        return (
+                            Type::Bool,
+                            self.builder.build_int_compare(predicate, lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
+                        );
+                    }
+
+                    typ if deen_semantic::Analyzer::is_float(&typ) => {
+                        let predicate = match operand.as_str() {
+                            ">" => inkwell::FloatPredicate::OGT,
+                            "<" => inkwell::FloatPredicate::OLT,
+                            "<=" | "=<" => inkwell::FloatPredicate::OLE,
+                            ">=" | "=>" => inkwell::FloatPredicate::OGE,
+                            "==" => inkwell::FloatPredicate::OEQ,
+                            "!=" => inkwell::FloatPredicate::ONE,
+                            _ => unreachable!()
+                        };
+
+
+                        return (
+                            Type::Bool,
+                            self.builder.build_float_compare(predicate, lhs_value.1.into_float_value(), rhs_value.1.into_float_value(), "").unwrap().as_basic_value_enum()
+                        );
+                    }
+                    Type::Pointer(ptr_type) if *ptr_type == Type::Char => {
+                        todo!()
+                    }
+
+                    _ => unreachable!()
+                }
             },
             Expressions::Bitwise { operand, lhs, rhs, span } => todo!(),
 
