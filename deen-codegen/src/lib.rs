@@ -284,7 +284,7 @@ impl<'ctx> CodeGen<'ctx> {
                 let compiled_value = self.compile_expression(value, None);
                 self.builder.build_return(Some(&compiled_value.1)).unwrap();
             },
-            Statements::ImportStatement { path, span } => todo!(),
+            Statements::ImportStatement { path, span } => {},
             Statements::ScopeStatement { block, span } => {
                 block.iter().for_each(|stmt| self.compile_statement(stmt.clone(), None));
             }
@@ -537,8 +537,40 @@ impl<'ctx> CodeGen<'ctx> {
                 (expected.unwrap_or(Type::Void), scope_result)
             },
 
-            Expressions::Array { values, len, span } => todo!(),
-            Expressions::Slice { object, index, span } => todo!(),
+            Expressions::Array { values, len, span } => {
+                let expected_items_type = match expected {
+                    Some(Type::Array(typ, _)) => Some(*typ),
+                    _ => None
+                };
+
+                let compiled_values = values.into_iter().map(|val| self.compile_expression(val, expected_items_type.clone())).collect::<Vec<(Type, BasicValueEnum)>>();
+
+                let arr_type = compiled_values[0].0.clone();
+                let arr_basic_type = compiled_values[0].1.get_type().clone();
+
+                let arr_alloca = self.builder.build_array_alloca(arr_basic_type, self.context.i64_type().const_int(len as u64, false), "").unwrap();
+
+                compiled_values.into_iter().enumerate().for_each(|(ind, (_, basic_value))| {
+                    let ptr = unsafe {
+                        self.builder.build_gep(
+                            arr_basic_type,
+                            arr_alloca,
+                            &[
+                                self.context.i64_type().const_zero(),
+                                self.context.i64_type().const_int(ind as u64, false)
+                            ],
+                            ""
+                        ).unwrap()
+                    };
+                    self.builder.build_store(ptr, basic_value).unwrap();
+                });
+
+                (Type::Array(Box::new(arr_type), len), arr_alloca.into())
+            },
+            Expressions::Slice { object, index, span } => {
+                todo!();
+                (Type::Void, self.context.i32_type().const_zero().into())
+            },
             Expressions::Struct { name, fields, span } => {
                 let structure = self.structures.get(&name).unwrap().clone();
                 let struct_alloca = self.builder.build_alloca(structure.llvm_type, &format!("struct.{}.init", name)).unwrap();
@@ -622,6 +654,45 @@ impl<'ctx> CodeGen<'ctx> {
 
             Value::Keyword(key) => unreachable!()
         }
+    }
+}
+
+impl<'ctx> CodeGen<'ctx> {
+    fn build_panic(&mut self, message: &str, specifiers: Vec<BasicMetadataValueEnum<'ctx>>) {
+        let fn_type = self.context.void_type().fn_type(&[], false);
+        let fn_value = self.module.add_function("__deen_panic", fn_type, Some(inkwell::module::Linkage::Private));
+        let entry = self.context.append_basic_block(fn_value, "entry");
+        let old_position = self.builder.get_insert_block().unwrap();
+        self.builder.position_at_end(entry);
+        
+        let printf_fn = self.module.get_function("printf").unwrap_or_else(|| {
+            self.module.add_function(
+                "printf",
+                self.context.void_type().fn_type(&[
+                    self.context.ptr_type(AddressSpace::default()).into()
+                ], true),
+                None
+            )
+        });
+        let exit_fn = self.module.get_function("exit").unwrap_or_else(|| {
+            self.module.add_function(
+                "exit",
+                self.context.void_type().fn_type(&[
+                    self.context.i32_type().into()
+                ], false),
+                None
+            )
+        });
+
+        let message_string = self.builder.build_global_string_ptr(message, "__deen_panic_message").unwrap().as_basic_value_enum();
+        let args: Vec<BasicMetadataValueEnum> = [vec![message_string.into()], specifiers].concat();
+
+        self.builder.build_call(printf_fn, &args, "");
+        self.builder.build_call(exit_fn, &[self.context.i32_type().const_int(1, false).into()], "");
+        self.builder.build_return(None);
+
+        self.builder.position_at_end(old_position);
+        self.builder.build_call(fn_value, &[], "");
     }
 }
 
