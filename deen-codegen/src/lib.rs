@@ -522,7 +522,20 @@ impl<'ctx> CodeGen<'ctx> {
             },
 
             Expressions::SubElement { head, subelements, span } => todo!(),
-            Expressions::Scope { block, span } => todo!(),
+            Expressions::Scope { block, span } => {
+                let fn_type = self.get_fn_type(expected.clone().unwrap_or(Type::Void), &[], false);
+                let scope_fn_value = self.module.add_function("__scope_wrap", fn_type, Some(inkwell::module::Linkage::Private));
+                let entry = self.context.append_basic_block(scope_fn_value, "entry");
+                let current_position = self.builder.get_insert_block().unwrap();
+
+                self.builder.position_at_end(entry);
+                block.iter().for_each(|stmt| self.compile_statement(stmt.to_owned(), None));
+
+                self.builder.position_at_end(current_position);
+                let scope_result = self.builder.build_call(scope_fn_value, &[], "").unwrap().try_as_basic_value().left().unwrap();
+
+                (expected.unwrap_or(Type::Void), scope_result)
+            },
 
             Expressions::Array { values, len, span } => todo!(),
             Expressions::Slice { object, index, span } => todo!(),

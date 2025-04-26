@@ -905,7 +905,7 @@ impl Analyzer {
             },
             Expressions::Bitwise { operand, lhs, rhs, span } => {
                 let left = self.visit_expression(lhs, expected.clone());
-                let right = self.visit_expression(rhs, expected);
+                let right = self.visit_expression(rhs, Some(Type::U8));
 
                 if !Self::is_integer(&left) || !Self::is_integer(&right) {
                     self.error(
@@ -1255,7 +1255,8 @@ impl Analyzer {
     fn visit_value(&mut self, value: Value, expected: Option<Type>) -> Result<Type, String> {
         match value {
             Value::Integer(int) => {
-                if let Some(exp) = expected {
+            if expected.is_some() && expected.clone().unwrap() != Type::Void {
+                    let exp = expected.unwrap();
                     match exp {
                         Type::I8 => {
                             if int < i8::MIN as i64 || int > i8::MAX as i64 {
