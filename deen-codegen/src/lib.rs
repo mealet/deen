@@ -120,7 +120,26 @@ impl<'ctx> CodeGen<'ctx> {
 
                 self.builder.build_store(var.ptr, compiled_value.1);
             },
-            Statements::BinaryAssignStatement { identifier, operand, value, span } => todo!(),
+            Statements::BinaryAssignStatement { identifier, operand, value, span } => {
+                let stmt = Statements::AssignStatement {
+                    identifier: identifier.clone(),
+                    value: Expressions::Binary {
+                        operand,
+                        lhs: Box::new(
+                            Expressions::Value(
+                                Value::Identifier(identifier), (0, 0)
+                            )
+                        ),
+                        rhs: Box::new(
+                            value
+                        ),
+                        span: (0, 0)
+                    },
+                    span
+                };
+
+                self.compile_statement(stmt, prefix);
+            },
             Statements::DerefAssignStatement { identifier, value, span } => {
                 let var = self.variables.get(&identifier).unwrap().clone();
                 let compiled_value = self.compile_expression(value, Some(var.datatype));
