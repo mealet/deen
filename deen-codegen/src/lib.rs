@@ -368,7 +368,79 @@ impl<'ctx> CodeGen<'ctx> {
                     _ => unreachable!()
                 }
             },
-            Expressions::Binary { operand, lhs, rhs, span } => todo!(),
+            Expressions::Binary { operand, lhs, rhs, span } => {
+                let lhs_value = self.compile_expression(*lhs, expected.clone());
+                let rhs_value = self.compile_expression(*rhs, expected);
+
+                let senior_type = match lhs_value.0.clone() {
+                    typ if deen_semantic::Analyzer::is_integer(&typ) => {
+                        if deen_semantic::Analyzer::integer_order(&lhs_value.0) > deen_semantic::Analyzer::integer_order(&rhs_value.0) {
+                            lhs_value.0
+                        } else {
+                            rhs_value.0
+                        }
+                    }
+                    typ if deen_semantic::Analyzer::is_float(&typ) => {
+                        if deen_semantic::Analyzer::float_order(&lhs_value.0) > deen_semantic::Analyzer::float_order(&rhs_value.0) {
+                            lhs_value.0
+                        } else {
+                            rhs_value.0
+                        }
+                    }
+
+                    _ => unreachable!()
+                };
+
+                let output = match senior_type.clone() {
+                    typ if deen_semantic::Analyzer::is_integer(&typ) => {
+                        match operand.as_str() {
+                            "+" => {
+                                if deen_semantic::Analyzer::is_unsigned_integer(&typ) {
+                                    self.builder.build_int_nsw_add(lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
+                                } else {
+                                    self.builder.build_int_add(lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
+                                }
+                            }
+                            "-" => {
+                                if deen_semantic::Analyzer::is_unsigned_integer(&typ) {
+                                    self.builder.build_int_nsw_sub(lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
+                                } else {
+                                    self.builder.build_int_sub(lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
+                                }
+                            }
+                            "*" => {
+                                if deen_semantic::Analyzer::is_unsigned_integer(&typ) {
+                                    self.builder.build_int_nsw_mul(lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
+                                } else {
+                                    self.builder.build_int_mul(lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
+                                }
+                            }
+                            "/" => {
+                                if deen_semantic::Analyzer::is_unsigned_integer(&typ) {
+                                    self.builder.build_int_unsigned_div(lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
+                                } else {
+                                    self.builder.build_int_signed_div(lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "").unwrap().as_basic_value_enum()
+                                }
+                            }
+
+                            _ => unreachable!()
+                        }
+                    },
+                    typ if deen_semantic::Analyzer::is_float(&typ) => {
+                        match operand.as_str() {
+                            "+" => self.builder.build_float_add(lhs_value.1.into_float_value(), rhs_value.1.into_float_value(), "").unwrap().as_basic_value_enum(),
+                            "-" => self.builder.build_float_sub(lhs_value.1.into_float_value(), rhs_value.1.into_float_value(), "").unwrap().as_basic_value_enum(),
+                            "*" => self.builder.build_float_mul(lhs_value.1.into_float_value(), rhs_value.1.into_float_value(), "").unwrap().as_basic_value_enum(),
+                            "/" => self.builder.build_float_div(lhs_value.1.into_float_value(), rhs_value.1.into_float_value(), "").unwrap().as_basic_value_enum(),
+
+                            _ => unreachable!()
+                        }
+                    },
+                    _ => unreachable!()
+                };
+
+                (senior_type, output)
+            },
             Expressions::Boolean { operand, lhs, rhs, span } => todo!(),
             Expressions::Bitwise { operand, lhs, rhs, span } => todo!(),
 
