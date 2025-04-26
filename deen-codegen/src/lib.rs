@@ -20,7 +20,8 @@ use inkwell::{
 use crate::{
     variable::Variable,
     function::Function,
-    structure::{Structure, Field}
+    enumeration::Enumeration,
+    structure::{Structure, Field},
 };
 
 use std::collections::HashMap;
@@ -29,6 +30,7 @@ use deen_semantic::import::Import;
 mod variable;
 mod function;
 mod structure;
+mod enumeration;
 
 pub struct CodeGen<'ctx> {
     context: &'ctx Context,
@@ -38,6 +40,7 @@ pub struct CodeGen<'ctx> {
     variables: HashMap<String, Variable<'ctx>>,
     functions: HashMap<String, Function<'ctx>>,
     structures: HashMap<String, Structure<'ctx>>,
+    enumerations: HashMap<String, Enumeration<'ctx>>,
 
     imports: HashMap<String, Import>
 }
@@ -80,6 +83,7 @@ impl<'ctx> CodeGen<'ctx> {
             variables: HashMap::new(),
             functions: HashMap::new(),
             structures: HashMap::new(),
+            enumerations: HashMap::new(),
 
             imports,
         }
@@ -239,7 +243,13 @@ impl<'ctx> CodeGen<'ctx> {
                     self.compile_statement(function_statement.to_owned(), Some(format!("struct_{}__", name)));
                 });
             },
-            Statements::EnumDefineStatement { name, fields, functions, span } => todo!(),
+            Statements::EnumDefineStatement { name, fields, functions, span } => {
+                self.enumerations.insert(name.clone(), Enumeration { name: name.clone(), fields, llvm_type: self.context.i8_type().into() });
+
+                functions.iter().for_each(|(_, function_statement)| {
+                    self.compile_statement(function_statement.to_owned(), Some(format!("enum_{}__", name)))
+                });
+            },
             Statements::TypedefStatement { alias, datatype, span } => todo!(),
 
             Statements::IfStatement { condition, then_block, else_block, span } => todo!(),
