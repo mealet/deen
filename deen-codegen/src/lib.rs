@@ -152,6 +152,8 @@ impl<'ctx> CodeGen<'ctx> {
             },
 
             Statements::FunctionDefineStatement { name, datatype, arguments, block, span } => {
+                let name = format!("{}{}", prefix.unwrap_or_default(), name);
+
                 let mut args: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
                 arguments.iter().for_each(|arg| {
                     args.push(
@@ -231,7 +233,11 @@ impl<'ctx> CodeGen<'ctx> {
                     fields_hashmap.insert(field.name.clone(), field);
                 });
 
-                self.structures.insert(name.clone(), Structure { name, fields: fields_hashmap, llvm_type: struct_type.into() });
+                self.structures.insert(name.clone(), Structure { name: name.clone(), fields: fields_hashmap, llvm_type: struct_type.into() });
+                
+                functions.iter().for_each(|(_, function_statement)| {
+                    self.compile_statement(function_statement.to_owned(), Some(format!("struct_{}__", name)));
+                });
             },
             Statements::EnumDefineStatement { name, fields, functions, span } => todo!(),
             Statements::TypedefStatement { alias, datatype, span } => todo!(),
