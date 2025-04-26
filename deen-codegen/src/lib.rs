@@ -367,8 +367,6 @@ impl<'ctx> CodeGen<'ctx> {
 
                     _ => unreachable!()
                 }
-
-                (Type::Void, self.context.i8_type().const_zero().into())
             },
             Expressions::Binary { operand, lhs, rhs, span } => todo!(),
             Expressions::Boolean { operand, lhs, rhs, span } => todo!(),
