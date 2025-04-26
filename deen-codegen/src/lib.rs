@@ -334,7 +334,27 @@ impl<'ctx> CodeGen<'ctx> {
                 self.typedefs.insert(alias, datatype);
             },
 
-            Statements::IfStatement { condition, then_block, else_block, span } => todo!(),
+            Statements::IfStatement { condition, then_block, else_block, span } => {
+                let condition = self.compile_expression(condition, None);
+
+                let then_basic_block = self.context.append_basic_block(self.function.unwrap(), "__if_then");
+                let else_basic_block = if else_block.is_some() { Some(self.context.append_basic_block(self.function.unwrap(), "__if_else")) } else { None };
+                let after_basic_block = self.context.append_basic_block(self.function.unwrap(), "__if_after");
+
+                self.builder.build_conditional_branch(condition.1.into_int_value(), then_basic_block, else_basic_block.unwrap_or(after_basic_block)).unwrap();
+                self.builder.position_at_end(then_basic_block);
+
+                then_block.into_iter().for_each(|stmt| self.compile_statement(stmt, None));
+                self.builder.build_unconditional_branch(after_basic_block).unwrap();
+
+                if let Some(else_basic_block) = else_basic_block {
+                    self.builder.position_at_end(else_basic_block);
+                    else_block.unwrap().into_iter().for_each(|stmt| self.compile_statement(stmt, None));
+                    self.builder.build_unconditional_branch(after_basic_block).unwrap();
+                }
+
+                self.builder.position_at_end(after_basic_block);
+            },
             Statements::WhileStatement { condition, block, span } => todo!(),
             Statements::ForStatement { binding, iterator, block, span } => todo!(),
 
