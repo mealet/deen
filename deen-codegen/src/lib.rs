@@ -439,8 +439,12 @@ impl<'ctx> CodeGen<'ctx> {
             Type::Tuple(types) => unreachable!(),
             Type::Alias(alias) => {
                 let struct_type = self.structures.get(&alias);
+                let enum_type = self.enumerations.get(&alias);
+                let typedef_type = self.typedefs.get(&alias);
 
                 if let Some(struct_type) = struct_type { return struct_type.llvm_type };
+                if let Some(enum_type) = enum_type { return enum_type.llvm_type };
+                if let Some(typedef_type) = typedef_type { return self.get_basic_type(typedef_type.to_owned()) };
 
                 unreachable!()
             },
