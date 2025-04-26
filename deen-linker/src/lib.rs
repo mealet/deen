@@ -11,9 +11,9 @@ pub struct ObjectLinker;
 
 impl ObjectCompiler {
     pub fn compile_module(module: &Module, name: &str) {
-        const OPTIMIZATION_LEVEL: OptimizationLevel = OptimizationLevel::Aggressive;
+        const OPTIMIZATION_LEVEL: OptimizationLevel = OptimizationLevel::Default;
         const RELOC_MODE: RelocMode = RelocMode::PIC;
-        const CODE_MODEL: CodeModel = CodeModel::Large;
+        const CODE_MODEL: CodeModel = CodeModel::Default;
 
         Target::initialize_all(&InitializationConfig::default());
         let target_triple = TargetMachine::get_default_triple();

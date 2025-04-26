@@ -37,6 +37,8 @@ pub struct CodeGen<'ctx> {
     builder: Builder<'ctx>,
     module: Module<'ctx>,
 
+    function: Option<FunctionValue<'ctx>>,
+
     variables: HashMap<String, Variable<'ctx>>,
     functions: HashMap<String, Function<'ctx>>,
     structures: HashMap<String, Structure<'ctx>>,
@@ -80,6 +82,8 @@ impl<'ctx> CodeGen<'ctx> {
             context,
             builder,
             module,
+
+            function: None,
 
             variables: HashMap::new(),
             functions: HashMap::new(),
@@ -190,8 +194,10 @@ impl<'ctx> CodeGen<'ctx> {
                 let function = self.module.add_function(&name, fn_type, Some(inkwell::module::Linkage::External));
                 let entry = self.context.append_basic_block(function, "entry");
 
+                let old_function = self.function.clone();
                 let old_position = self.builder.get_insert_block();
                 self.builder.position_at_end(entry);
+                self.function = Some(function);
 
                 let mut old_variables = HashMap::new();
 
@@ -216,6 +222,7 @@ impl<'ctx> CodeGen<'ctx> {
                     self.builder.position_at_end(basic_block);
                 }
                 
+                self.function = old_function;
                 old_variables.iter().for_each(|var| {
                     if let Some(value) = var.1 {
                         self.variables.insert(var.0.to_owned(), value.to_owned());
@@ -568,8 +575,53 @@ impl<'ctx> CodeGen<'ctx> {
                 (Type::Array(Box::new(arr_type), len), arr_alloca.into())
             },
             Expressions::Slice { object, index, span } => {
-                todo!();
-                (Type::Void, self.context.i32_type().const_zero().into())
+                let obj = self.compile_expression(*object, None);
+                let idx = self.compile_expression(*index, Some(Type::USIZE));
+
+                match obj.0 {
+                    Type::Array(ret_type, len) => {
+                        // checking for right index
+                        let checker_block = self.context.append_basic_block(self.function.unwrap(), "__idxcb"); // idxcb - index checker block
+                        let error_block = self.context.append_basic_block(self.function.unwrap(), "__idxcb_err");
+                        let ok_block = self.context.append_basic_block(self.function.unwrap(), "__idxcb_ok");
+
+                        self.builder.build_unconditional_branch(checker_block).unwrap();
+                        self.builder.position_at_end(checker_block);
+
+                        let expected_basic_value = self.context.i64_type().const_int(len as u64, false);
+                        let provided_basic_value = idx.1.into_int_value();
+
+                        let cmp_value = self.builder.build_int_compare(inkwell::IntPredicate::SLT, provided_basic_value, expected_basic_value, "").unwrap();
+                        self.builder.build_conditional_branch(cmp_value, ok_block, error_block).unwrap();
+
+                        self.builder.position_at_end(error_block);
+                        self.build_panic(
+                            "Array has len %ld, but index is %ld",
+                            vec![
+                                expected_basic_value.into(),
+                                provided_basic_value.into()
+                            ]
+                        );
+
+                        self.builder.position_at_end(ok_block);
+
+                        // getting value
+
+                        let basic_ret_type = self.get_basic_type(*ret_type.clone());
+                        let ptr = unsafe {
+                            self.builder.build_in_bounds_gep(
+                                basic_ret_type,
+                                obj.1.into_pointer_value(),
+                                &[idx.1.into_int_value()],
+                                ""
+                            ).unwrap()
+                        };
+
+                        let ret_value = self.builder.build_load(basic_ret_type, ptr, "").unwrap();
+                        return (*ret_type, ret_value);
+                    }
+                    _ => unreachable!()
+                }
             },
             Expressions::Struct { name, fields, span } => {
                 let structure = self.structures.get(&name).unwrap().clone();
