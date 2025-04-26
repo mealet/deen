@@ -41,6 +41,7 @@ pub struct CodeGen<'ctx> {
     functions: HashMap<String, Function<'ctx>>,
     structures: HashMap<String, Structure<'ctx>>,
     enumerations: HashMap<String, Enumeration<'ctx>>,
+    typedefs: HashMap<String, Type>,
 
     imports: HashMap<String, Import>
 }
@@ -84,6 +85,7 @@ impl<'ctx> CodeGen<'ctx> {
             functions: HashMap::new(),
             structures: HashMap::new(),
             enumerations: HashMap::new(),
+            typedefs: HashMap::new(),
 
             imports,
         }
@@ -250,7 +252,9 @@ impl<'ctx> CodeGen<'ctx> {
                     self.compile_statement(function_statement.to_owned(), Some(format!("enum_{}__", name)))
                 });
             },
-            Statements::TypedefStatement { alias, datatype, span } => todo!(),
+            Statements::TypedefStatement { alias, datatype, span } => {
+                self.typedefs.insert(alias, datatype);
+            },
 
             Statements::IfStatement { condition, then_block, else_block, span } => todo!(),
             Statements::WhileStatement { condition, block, span } => todo!(),
