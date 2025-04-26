@@ -503,7 +503,23 @@ impl<'ctx> CodeGen<'ctx> {
                     _ => unreachable!()
                 }
             },
-            Expressions::Bitwise { operand, lhs, rhs, span } => todo!(),
+            Expressions::Bitwise { operand, lhs, rhs, span } => {
+                let left = self.compile_expression(*lhs, expected.clone());
+                let right = self.compile_expression(*rhs, expected.clone());
+
+                let sign_extend = deen_semantic::Analyzer::is_unsigned_integer(&left.0);
+                let basic_value = match operand.as_str() {
+                    "<<" => self.builder.build_left_shift(left.1.into_int_value(), right.1.into_int_value(), "").unwrap().as_basic_value_enum(),
+                    ">>" => self.builder.build_right_shift(left.1.into_int_value(), right.1.into_int_value(), sign_extend, "").unwrap().as_basic_value_enum(),
+                    "&" => self.builder.build_and(left.1.into_int_value(), right.1.into_int_value(), "").unwrap().as_basic_value_enum(),
+                    "|" => self.builder.build_or(left.1.into_int_value(), right.1.into_int_value(), "").unwrap().as_basic_value_enum(),
+                    "^" => self.builder.build_xor(left.1.into_int_value(), right.1.into_int_value(), "").unwrap().as_basic_value_enum(),
+
+                    _ => unreachable!()
+                };
+
+                (left.0, basic_value)
+            },
 
             Expressions::SubElement { head, subelements, span } => todo!(),
             Expressions::Scope { block, span } => todo!(),
