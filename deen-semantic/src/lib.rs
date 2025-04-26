@@ -255,7 +255,24 @@ impl Analyzer {
                     );
                 }
             },
-            Statements::FieldAssignStatement { object, subelements, span } => todo!(),
+            Statements::FieldAssignStatement { object, value, span } => {
+                let object_type = self.visit_expression(object, None);
+                let unwrapped_object_type = self.unwrap_alias(&object_type).unwrap_or_else(|err| {
+                    self.error(err, *span);
+                    return Type::Void;
+                });
+
+                if unwrapped_object_type == Type::Void { return };
+
+                let value_type = self.visit_expression(value, Some(unwrapped_object_type.clone()));
+                if unwrapped_object_type != value_type {
+                    self.error(
+                        format!("Field has type `{}`, but found `{}`", object_type, value_type),
+                        *span
+                    );
+                    return;
+                }
+            },
 
             Statements::AnnotationStatement { identifier, datatype, value, span } => {
                 // unwrapping type

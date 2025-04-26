@@ -34,7 +34,7 @@ pub enum Statements {
     },
     FieldAssignStatement {
         object: Expressions,
-        subelements: Vec<Expressions>,
+        value: Expressions,
         span: (usize, usize)
     },
 

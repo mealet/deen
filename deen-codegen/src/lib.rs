@@ -148,7 +148,7 @@ impl<'ctx> CodeGen<'ctx> {
                 self.builder.build_store(dereferenced_ptr.into_pointer_value(), compiled_value.1);
             },
             Statements::SliceAssignStatement { identifier, index, value, span } => todo!(),
-            Statements::FieldAssignStatement { object, subelements, span } => todo!(),
+            Statements::FieldAssignStatement { object, value, span } => todo!(),
 
             Statements::AnnotationStatement { identifier, datatype, value, span } => {
                 match (datatype, value) {
