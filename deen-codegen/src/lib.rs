@@ -659,6 +659,8 @@ impl<'ctx> CodeGen<'ctx> {
 
 impl<'ctx> CodeGen<'ctx> {
     fn build_panic(&mut self, message: &str, specifiers: Vec<BasicMetadataValueEnum<'ctx>>) {
+        let message = format!("RUNTIME PANIC: {}\n", message);
+
         let fn_type = self.context.void_type().fn_type(&[], false);
         let fn_value = self.module.add_function("__deen_panic", fn_type, Some(inkwell::module::Linkage::Private));
         let entry = self.context.append_basic_block(fn_value, "entry");
@@ -684,7 +686,7 @@ impl<'ctx> CodeGen<'ctx> {
             )
         });
 
-        let message_string = self.builder.build_global_string_ptr(message, "__deen_panic_message").unwrap().as_basic_value_enum();
+        let message_string = self.builder.build_global_string_ptr(&message, "__deen_panic_message").unwrap().as_basic_value_enum();
         let args: Vec<BasicMetadataValueEnum> = [vec![message_string.into()], specifiers].concat();
 
         self.builder.build_call(printf_fn, &args, "");

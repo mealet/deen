@@ -198,7 +198,11 @@ fn main() {
         cli::info("Successfully", &format!("compiled to LLVM IR: `{}.ll`", args.output))
     } else {
         deen_linker::ObjectCompiler::compile_module(module_ref, &module_name);
-        deen_linker::ObjectLinker::link(&module_name, &args.output);
+        deen_linker::ObjectLinker::link(&module_name, &args.output).unwrap_or_else(|err| {
+            cli::error("Linker catched an error!");
+            println!("\n{}", err);
+            std::process::exit(1);
+        });
 
         cli::info("Successfully", &format!("compiled to binary: `{}`", args.output))
     };
