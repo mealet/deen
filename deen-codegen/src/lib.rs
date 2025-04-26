@@ -319,8 +319,12 @@ impl<'ctx> CodeGen<'ctx> {
                     let _ = self.builder.build_store(field_ptr, field_value.1).unwrap();
                 }
                 
-                let struct_value = self.builder.build_load(structure.llvm_type, struct_alloca, "").unwrap();
-                (Type::Alias(name), struct_value)
+                let value = match expected {
+                    Some(Type::Pointer(_)) => struct_alloca.into(),
+                    _ => self.builder.build_load(structure.llvm_type, struct_alloca, "").unwrap()
+                };
+
+                (Type::Alias(name), value)
             },
 
             Expressions::Argument { name, r#type, span } => unreachable!(),
