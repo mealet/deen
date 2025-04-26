@@ -332,7 +332,44 @@ impl<'ctx> CodeGen<'ctx> {
                 (ptr_type, value)
             },
 
-            Expressions::Unary { operand, object, span } => todo!(),
+            Expressions::Unary { operand, object, span } => {
+                let object_value = self.compile_expression(*object, expected);
+                
+                match operand.as_str() {
+                    "-" => {
+                        match object_value.0 {
+                            Type::I8 | Type::I16 | Type::I32 | Type::I64 |
+                            Type::U8 | Type::U16 | Type::U32 | Type::U64 |
+                            Type::USIZE => {
+                                return (
+                                    deen_semantic::Analyzer::unsigned_to_signed_integer(&object_value.0),
+                                    self.builder.build_int_neg(object_value.1.into_int_value(), "").unwrap().into()
+                                )
+                            }
+
+                            Type::F32 | Type::F64 => {
+                                return (
+                                    object_value.0,
+                                    self.builder.build_float_neg(object_value.1.into_float_value(), "").unwrap().into()
+                                )
+                            }
+
+                            _ => unreachable!()
+                        }
+                    }
+
+                    "!" => {
+                        return (
+                            object_value.0,
+                            self.builder.build_not(object_value.1.into_int_value(), "").unwrap().into()
+                        )
+                    }
+
+                    _ => unreachable!()
+                }
+
+                (Type::Void, self.context.i8_type().const_zero().into())
+            },
             Expressions::Binary { operand, lhs, rhs, span } => todo!(),
             Expressions::Boolean { operand, lhs, rhs, span } => todo!(),
             Expressions::Bitwise { operand, lhs, rhs, span } => todo!(),

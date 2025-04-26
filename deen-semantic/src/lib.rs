@@ -286,8 +286,8 @@ impl Analyzer {
                         let value_type = self.visit_expression(value, Some(datatype.clone()));
 
                         if value_type != datatype {
-                            if self.is_integer(&value_type) && self.is_integer(&datatype) {
-                                if self.integer_order(&value_type) > self.integer_order(&datatype) {
+                            if Self::is_integer(&value_type) && Self::is_integer(&datatype) {
+                                if Self::integer_order(&value_type) > Self::integer_order(&datatype) {
                                     self.error(
                                         format!("Expected integer type `{}` (or lower), but found `{}`", datatype, value_type),
                                         *span
@@ -791,12 +791,12 @@ impl Analyzer {
             Statements::ReturnStatement { value, span } => {
                 let value_type = self.visit_expression(value, Some(self.scope.expected.clone()));
                 
-                if self.is_integer(&value_type) && self.is_integer(&self.scope.expected) && self.integer_order(&value_type) <= self.integer_order(&self.scope.expected) {
+                if Self::is_integer(&value_type) && Self::is_integer(&self.scope.expected) && Self::integer_order(&value_type) <= Self::integer_order(&self.scope.expected) {
                     self.scope.returned = self.scope.expected.clone();
                     return;
                 }
 
-                if self.is_float(&value_type) && self.is_integer(&self.scope.expected) && self.float_order(&value_type) <= self.float_order(&self.scope.expected) {
+                if Self::is_float(&value_type) && Self::is_integer(&self.scope.expected) && Self::float_order(&value_type) <= Self::float_order(&self.scope.expected) {
                     self.scope.returned = self.scope.expected.clone();
                     return;
                 }
@@ -842,12 +842,12 @@ impl Analyzer {
                 let right = self.visit_expression(rhs, expected);
 
                 match (left.clone(), right.clone()) {
-                    (l, r) if self.is_integer(&l) && self.is_integer(&r) => {
-                        if self.integer_order(&l) > self.integer_order(&r) { l } else { r }
+                    (l, r) if Self::is_integer(&l) && Self::is_integer(&r) => {
+                        if Self::integer_order(&l) > Self::integer_order(&r) { l } else { r }
                     }
 
-                    (l, r) if self.is_float(&l) && self.is_float(&r) => {
-                        if self.float_order(&l) > self.float_order(&r) { l } else { r }
+                    (l, r) if Self::is_float(&l) && Self::is_float(&r) => {
+                        if Self::float_order(&l) > Self::float_order(&r) { l } else { r }
                     }
 
                     _ => {
@@ -863,14 +863,14 @@ impl Analyzer {
                 let obj = self.visit_expression(object, expected);
                 
                 match (&obj, operand.as_str()) {
-                    (typ, "-") if self.is_integer(typ) => {
-                        if self.is_unsigned_integer(typ) {
-                            return self.unsigned_to_signed_integer(typ);
+                    (typ, "-") if Self::is_integer(typ) => {
+                        if Self::is_unsigned_integer(typ) {
+                            return Self::unsigned_to_signed_integer(typ);
                         }
                         obj
                     },
-                    (typ, "-") if self.is_float(typ) => obj,
-                    (typ, "!") if self.is_integer(typ) => obj,
+                    (typ, "-") if Self::is_float(typ) => obj,
+                    (typ, "!") if Self::is_integer(typ) => obj,
                     (Type::Bool, "!") => obj,
 
                     _ => {
@@ -889,8 +889,8 @@ impl Analyzer {
                 let right = self.visit_expression(rhs, expected);
 
                 match (left.clone(), right.clone()) {
-                    (l, r) if self.is_integer(&l) && self.is_integer(&r) => Type::Bool,
-                    (l, r) if self.is_float(&l) && self.is_float(&r) => Type::Bool,
+                    (l, r) if Self::is_integer(&l) && Self::is_integer(&r) => Type::Bool,
+                    (l, r) if Self::is_float(&l) && Self::is_float(&r) => Type::Bool,
                     (l, r) if l == r && SUPPORTED_EXTRA_TYPES.contains(&l) => Type::Bool,
 
                     _ => {
@@ -906,7 +906,7 @@ impl Analyzer {
                 let left = self.visit_expression(lhs, expected.clone());
                 let right = self.visit_expression(rhs, expected);
 
-                if !self.is_integer(&left) || !self.is_integer(&right) {
+                if !Self::is_integer(&left) || !Self::is_integer(&right) {
                     self.error(
                         format!("Cannot apply bitwise operations to `{}` and `{}`", &left, &right),
                         *span
@@ -914,7 +914,7 @@ impl Analyzer {
                     return Type::Void;
                 };
 
-                if [">>", "<<"].contains(&operand.as_ref()) && !self.is_unsigned_integer(&right) {
+                if [">>", "<<"].contains(&operand.as_ref()) && !Self::is_unsigned_integer(&right) {
                     self.error(
                         "Shift index must be unsigned integer".to_string(),
                         *span
@@ -922,7 +922,7 @@ impl Analyzer {
                     return Type::Void;
                 }
 
-                if self.integer_order(&left) > self.integer_order(&right) { left } else { right }
+                if Self::integer_order(&left) > Self::integer_order(&right) { left } else { right }
             },
 
             Expressions::Argument { name, r#type, span } => unreachable!(),
@@ -1309,7 +1309,7 @@ impl Analyzer {
                     return Ok(exp);
                 }
 
-                let signed = !self.is_unsigned_integer(&expected.unwrap_or(Type::Void));
+                let signed = !Self::is_unsigned_integer(&expected.unwrap_or(Type::Void));
                 if int > i32::MAX as i64 {
                     if !signed {
                         if int < 0 { return Err(String::from("Expected unsigned value but found signed")) }
@@ -1348,7 +1348,7 @@ impl Analyzer {
 
 impl Analyzer {
     #[inline]
-    fn is_integer(&self, typ: &Type) -> bool {
+    pub fn is_integer(typ: &Type) -> bool {
         [
             Type::I8, Type::I16,
             Type::I32, Type::I64,
@@ -1359,12 +1359,12 @@ impl Analyzer {
     }
 
     #[inline]
-    fn is_unsigned_integer(&self, typ: &Type) -> bool {
+    pub fn is_unsigned_integer(typ: &Type) -> bool {
         [Type::U8, Type::U16, Type::U32, Type::U64, Type::USIZE].contains(typ)
     }
 
     #[inline]
-    fn unsigned_to_signed_integer(&self, typ: &Type) -> Type {
+    pub fn unsigned_to_signed_integer(typ: &Type) -> Type {
         match typ {
             Type::U8 => Type::I8,
             Type::U16 => Type::I16,
@@ -1383,7 +1383,7 @@ impl Analyzer {
     }
 
     #[inline]
-    fn integer_order(&self, typ: &Type) -> usize {
+    pub fn integer_order(typ: &Type) -> usize {
         match typ {
             Type::U8 => 0,
             Type::U16 => 1,
@@ -1402,12 +1402,12 @@ impl Analyzer {
     }
 
     #[inline]
-    fn is_float(&self, typ: &Type) -> bool {
+    pub fn is_float(typ: &Type) -> bool {
         [Type::F32, Type::F64].contains(typ)
     }
 
     #[inline]
-    fn float_order(&self, typ: &Type) -> usize {
+    pub fn float_order(typ: &Type) -> usize {
         match typ {
             Type::F32 => 0,
             Type::F64 => 1,
