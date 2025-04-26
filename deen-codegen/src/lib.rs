@@ -563,7 +563,6 @@ impl<'ctx> CodeGen<'ctx> {
                             arr_basic_type,
                             arr_alloca,
                             &[
-                                self.context.i64_type().const_zero(),
                                 self.context.i64_type().const_int(ind as u64, false)
                             ],
                             ""
