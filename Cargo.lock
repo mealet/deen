@@ -181,6 +181,7 @@ dependencies = [
  "colored",
  "deen-codegen",
  "deen-lexer",
+ "deen-linker",
  "deen-parser",
  "deen-semantic",
  "inkwell",
@@ -205,6 +206,13 @@ version = "0.0.2"
 dependencies = [
  "miette",
  "thiserror 2.0.12",
+]
+
+[[package]]
+name = "deen-linker"
+version = "0.0.2"
+dependencies = [
+ "inkwell",
 ]
 
 [[package]]

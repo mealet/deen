@@ -1,0 +1,11 @@
+[package]
+name = "deen-linker"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+inkwell = { version = "0.5.0", features = ["llvm18-0"] }

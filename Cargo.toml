@@ -2,7 +2,7 @@
 members = [
   "deen", "deen-codegen",
   "deen-lexer"
-, "deen-parser", "deen-semantic"]
+, "deen-linker", "deen-parser", "deen-semantic"]
 resolver = "2"
 
 [workspace.package]

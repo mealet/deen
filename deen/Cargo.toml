@@ -18,3 +18,4 @@ deen-lexer = { path = "../deen-lexer" }
 deen-parser = { path = "../deen-parser" }
 deen-semantic = { path = "../deen-semantic" }
 deen-codegen = { path = "../deen-codegen" }
+deen-linker = { path = "../deen-linker" }
