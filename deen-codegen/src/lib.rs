@@ -587,7 +587,7 @@ impl<'ctx> CodeGen<'ctx> {
                         self.builder.build_unconditional_branch(checker_block).unwrap();
                         self.builder.position_at_end(checker_block);
 
-                        let expected_basic_value = self.context.i64_type().const_int(len as u64, false);
+                        let expected_basic_value = self.context.i64_type().const_int((len + 1) as u64, false);
                         let provided_basic_value = idx.1.into_int_value();
 
                         let cmp_value = self.builder.build_int_compare(inkwell::IntPredicate::SLT, provided_basic_value, expected_basic_value, "").unwrap();
@@ -601,6 +601,7 @@ impl<'ctx> CodeGen<'ctx> {
                                 provided_basic_value.into()
                             ]
                         );
+                        self.builder.build_unconditional_branch(ok_block).unwrap();
 
                         self.builder.position_at_end(ok_block);
 
@@ -608,10 +609,12 @@ impl<'ctx> CodeGen<'ctx> {
 
                         let basic_ret_type = self.get_basic_type(*ret_type.clone());
                         let ptr = unsafe {
-                            self.builder.build_in_bounds_gep(
+                            self.builder.build_gep(
                                 basic_ret_type,
                                 obj.1.into_pointer_value(),
-                                &[idx.1.into_int_value()],
+                                &[
+                                    idx.1.into_int_value()
+                                ],
                                 ""
                             ).unwrap()
                         };
