@@ -1338,7 +1338,7 @@ impl Analyzer {
                     None => Err(format!("Variable `{}` is not defined here", id))
                 }
             },
-            Value::String(_) => Ok(Type::String),
+            Value::String(_) => Ok(Type::Pointer(Box::new(Type::Char))),
             Value::Char(_) => Ok(Type::Char),
             Value::Boolean(_) => Ok(Type::Bool),
             Value::Keyword(_) => Ok(Type::Void),

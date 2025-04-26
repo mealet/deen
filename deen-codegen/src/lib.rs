@@ -441,7 +441,12 @@ impl<'ctx> CodeGen<'ctx> {
 
                 (senior_type, output)
             },
-            Expressions::Boolean { operand, lhs, rhs, span } => todo!(),
+            Expressions::Boolean { operand, lhs, rhs, span } => {
+                let lhs_value = self.compile_expression(*lhs, expected.clone());
+                let rhs_value = self.compile_expression(*rhs, expected);
+
+                todo!()
+            },
             Expressions::Bitwise { operand, lhs, rhs, span } => todo!(),
 
             Expressions::SubElement { head, subelements, span } => todo!(),
@@ -521,7 +526,7 @@ impl<'ctx> CodeGen<'ctx> {
             Value::String(str) => {
                 let global_value = self.builder.build_global_string_ptr(&str, "const_str").unwrap();
                 global_value.set_constant(false);
-                (Type::String, global_value.as_pointer_value().into())
+                (Type::Pointer(Box::new(Type::Char)), global_value.as_pointer_value().into())
             },
 
             Value::Boolean(bool) => (Type::Bool, self.context.bool_type().const_int(bool as u64, false).into()),
