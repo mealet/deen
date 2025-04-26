@@ -151,7 +151,59 @@ impl<'ctx> CodeGen<'ctx> {
                 let dereferenced_ptr = self.builder.build_load(self.context.ptr_type(AddressSpace::default()), var.ptr, "").unwrap();
                 self.builder.build_store(dereferenced_ptr.into_pointer_value(), compiled_value.1);
             },
-            Statements::SliceAssignStatement { identifier, index, value, span } => todo!(),
+            Statements::SliceAssignStatement { identifier, index, value, span } => {
+                let var = self.variables.get(&identifier).unwrap().clone();
+                let (item_type, len) = match var.datatype.clone() {
+                    Type::Array(tty, len) => (*tty, len),
+
+                    _ => unreachable!()
+                };
+
+                let compiled_value = self.compile_expression(value, Some(item_type.clone()));
+                let compiled_idx = self.compile_expression(index, Some(Type::USIZE));
+
+                // checking for the right index
+                let checker_block = self.context.append_basic_block(self.function.unwrap(), "__idxcb"); // idxcb - index checker block
+                let error_block = self.context.append_basic_block(self.function.unwrap(), "__idxcb_err");
+                let ok_block = self.context.append_basic_block(self.function.unwrap(), "__idxcb_ok");
+
+                self.builder.build_unconditional_branch(checker_block).unwrap();
+                self.builder.position_at_end(checker_block);
+
+                let expected_basic_value = self.context.i64_type().const_int((len + 1) as u64, false);
+                let provided_basic_value = compiled_idx.1.into_int_value();
+
+                let cmp_value = self.builder.build_int_compare(inkwell::IntPredicate::SLT, provided_basic_value, expected_basic_value, "").unwrap();
+                self.builder.build_conditional_branch(cmp_value, ok_block, error_block).unwrap();
+
+                self.builder.position_at_end(error_block);
+                self.build_panic(
+                    "Array has len %ld, but index is %ld",
+                    vec![
+                        expected_basic_value.into(),
+                        provided_basic_value.into()
+                    ]
+                );
+                self.builder.build_unconditional_branch(ok_block).unwrap();
+                self.builder.position_at_end(ok_block);
+
+                // getting ptr
+
+                let array_ptr = self.builder.build_load(self.context.ptr_type(AddressSpace::default()), var.ptr, "").unwrap();
+                let ptr = unsafe {
+                    self.builder.build_gep(
+                        self.get_basic_type(item_type),
+                        array_ptr.into_pointer_value(),
+                        &[
+                            compiled_idx.1.into_int_value()
+                        ],
+                        ""
+                    ).unwrap()
+                };
+
+                // storing value
+                self.builder.build_store(ptr, compiled_value.1).unwrap();
+            },
             Statements::FieldAssignStatement { object, value, span } => todo!(),
 
             Statements::AnnotationStatement { identifier, datatype, value, span } => {
@@ -579,7 +631,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 match obj.0 {
                     Type::Array(ret_type, len) => {
-                        // checking for right index
+                        // checking for the right index
                         let checker_block = self.context.append_basic_block(self.function.unwrap(), "__idxcb"); // idxcb - index checker block
                         let error_block = self.context.append_basic_block(self.function.unwrap(), "__idxcb_err");
                         let ok_block = self.context.append_basic_block(self.function.unwrap(), "__idxcb_ok");
