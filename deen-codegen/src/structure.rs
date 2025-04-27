@@ -13,7 +13,7 @@ pub struct Structure<'ctx> {
 #[derive(Debug, Clone)]
 pub struct Field<'ctx> {
     pub name: String,
-    pub nth: usize,
+    pub nth: u32,
     pub datatype: Type,
     pub llvm_type: BasicTypeEnum<'ctx>
 }

@@ -302,7 +302,7 @@ impl<'ctx> CodeGen<'ctx> {
                     compiled_fields.push(
                         Field {
                             name: field.0.to_owned(),
-                            nth: compiled_fields.len(),
+                            nth: compiled_fields.len() as u32,
                             datatype: field.1.to_owned(),
                             llvm_type: self.get_basic_type(field.1.to_owned())
                         }
@@ -600,7 +600,43 @@ impl<'ctx> CodeGen<'ctx> {
                 (left.0, basic_value)
             },
 
-            Expressions::SubElement { head, subelements, span } => todo!(),
+            Expressions::SubElement { head, subelements, span } => {
+                let compiled_head = self.compile_expression(*head, Some(Type::Pointer(Box::new(Type::Void))));
+
+                let mut prev_val = compiled_head.1;
+                let mut prev_type = compiled_head.0;
+                let mut prev_expr = Expressions::None;
+
+                subelements.iter().for_each(|sub| {
+                    match sub {
+                        Expressions::Value(Value::Identifier(field), _) => {
+                            if let Type::Alias(alias) = prev_type.clone() {
+                                let alias_type = self.get_alias_type(prev_type.clone()).unwrap();
+
+                                match alias_type {
+                                    "struct" => {
+                                        let structure = self.structures.get(&alias).unwrap();
+                                        let field = structure.fields.get(field).unwrap();
+
+                                        let ptr = self.builder.build_struct_gep(structure.llvm_type, prev_val.into_pointer_value(), field.nth, "").unwrap();
+                                        let value = self.builder.build_load(field.llvm_type, ptr, "").unwrap();
+
+                                        prev_type = field.datatype.clone();
+                                        prev_val = value;
+                                    },
+                                    "enum" => {},
+
+                                    _ => unreachable!()
+                                }
+                            }
+                        },
+
+                        _ => unreachable!()
+                    }
+                });
+
+                (prev_type, prev_val)
+            },
             Expressions::Scope { block, span } => {
                 let fn_type = self.get_fn_type(expected.clone().unwrap_or(Type::Void), &[], false);
                 let scope_fn_value = self.module.add_function("__scope_wrap", fn_type, Some(inkwell::module::Linkage::Private));
@@ -809,7 +845,12 @@ impl<'ctx> CodeGen<'ctx> {
             Value::Boolean(bool) => (Type::Bool, self.context.bool_type().const_int(bool as u64, false).into()),
             Value::Identifier(id) => {
                 let variable = self.variables.get(&id).unwrap(); // already checked by semantic analyzer
-                (variable.datatype.clone(), self.builder.build_load(variable.llvm_type, variable.ptr, "").unwrap())
+                let value = match expected {
+                    Some(Type::Pointer(_)) => variable.ptr.into(),
+                    _ => self.builder.build_load(variable.llvm_type, variable.ptr, "").unwrap()
+                };
+
+                (variable.datatype.clone(), value)
             },
 
             Value::Keyword(key) => unreachable!()
@@ -916,5 +957,21 @@ impl<'ctx> CodeGen<'ctx> {
 
     fn get_fn_type(&self, datatype: Type, arguments: &[BasicMetadataTypeEnum<'ctx>], is_var_args: bool) -> FunctionType<'ctx> {
         self.get_basic_type(datatype).fn_type(arguments, false)
+    }
+
+    fn get_alias_type(&self, alias_type: Type) -> Option<&str> {
+        if let Type::Alias(alias) = alias_type {
+            let struct_type = self.structures.get(&alias);
+            let enum_type = self.enumerations.get(&alias);
+            let typedef_type = self.typedefs.get(&alias);
+
+            if let Some(struct_type) = struct_type { return Some("struct") };
+            if let Some(enum_type) = enum_type { return Some("enum") };
+            if let Some(typedef_type) = typedef_type { return Some("typedef") };
+
+            unreachable!()
+        } else {
+            None
+        }
     }
 }

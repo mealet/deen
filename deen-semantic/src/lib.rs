@@ -1239,9 +1239,13 @@ impl Analyzer {
                     fields.iter().for_each(|field| {
                         let struct_field = struct_fields.get(field.0);
                         if let Some(field_type) = struct_field {
+                            let field_type = self.unwrap_alias(&field_type).unwrap_or_else(|err| {
+                                self.error(err, *span);
+                                Type::Void
+                            });
                             let provided_type = self.visit_expression(field.1, Some(field_type.clone()));
 
-                            if field_type != &provided_type {
+                            if field_type != provided_type {
                                 self.error(
                                     format!("Field `{}` expected to be type `{}`, but found `{}`", field.0, field_type, provided_type),
                                     *span
