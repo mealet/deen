@@ -645,7 +645,40 @@ impl<'ctx> CodeGen<'ctx> {
 
                 (Type::Array(Box::new(arr_type), len), arr_alloca.into())
             },
-            Expressions::Tuple { values, span } => todo!(),
+            Expressions::Tuple { values, span } => {
+                let mut expected_types = values.iter().map(|_| None).collect::<Vec<Option<Type>>>();
+                if let Some(Type::Tuple(expectations)) = expected.clone() {
+                    expected_types = expectations.into_iter().map(|exp| Some(exp)).collect();
+                }
+
+                let compiled_values = values.into_iter().zip(expected_types).map(|(val, exp)| self.compile_expression(val, exp)).collect::<Vec<(Type, BasicValueEnum)>>();
+                let tuple_type = self.context.struct_type(
+                    &compiled_values.iter().map(|val| val.1.get_type()).collect::<Vec<BasicTypeEnum>>(),
+                    false
+                );
+
+                let compiled_types = compiled_values.iter().map(|(typ, _)| typ.clone()).collect::<Vec<Type>>();
+                let alloca = self.builder.build_alloca(
+                    tuple_type,
+                    &format!(
+                        "tuple__{}",
+                        compiled_types.iter().map(|typ| typ.to_string()).collect::<Vec<String>>().join("_")
+                    )
+                ).unwrap();
+
+                compiled_values.into_iter().enumerate().for_each(|(idx, (_, basic_val))| {
+                    let ptr = self.builder.build_struct_gep(tuple_type, alloca, idx as u32, "").unwrap();
+                    self.builder.build_store(ptr, basic_val);
+                });
+
+                let value = match expected {
+                    Some(Type::Pointer(_)) => alloca.into(),
+                    _ => self.builder.build_load(tuple_type, alloca, "").unwrap()
+                };
+                let tuple_datatype = Type::Tuple(compiled_types);
+
+                (tuple_datatype, value)
+            },
             Expressions::Slice { object, index, span } => {
                 let obj = self.compile_expression(*object, None);
                 let idx = self.compile_expression(*index, Some(Type::USIZE));
