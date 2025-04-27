@@ -991,6 +991,32 @@ impl Analyzer {
                                 }
                             };
                         }
+                        Expressions::Value(Value::Integer(idx), idx_span) => {
+                            match prev_type.clone() {
+                                Type::Tuple(types) => {
+                                    if idx >= &(types.len() as i64) {
+                                        self.error(
+                                            format!("Type `{}` has {} fields, but index is {}", prev_type, types.len(), idx),
+                                            *idx_span
+                                        );
+                                        return;
+                                    }
+
+                                    let typ = types[idx.clone() as usize].clone();
+                                    prev_type = self.unwrap_alias(&typ).unwrap_or_else(|err| {
+                                        self.error(err, *idx_span);
+                                        Type::Void
+                                    });
+                                    prev_expr = sub.clone();
+                                },
+                                _ => {
+                                    self.error(
+                                        format!("Type `{}` has no numbered fields", prev_type),
+                                        *idx_span
+                                    )
+                                }
+                            }
+                        }
                         Expressions::FnCall { name, arguments, span } => {
                             match prev_type.clone() {
                                 Type::Struct(_, functions) | Type::Enum(_, functions) => {
@@ -1145,7 +1171,19 @@ impl Analyzer {
                 Type::Array(Box::new(arr_type), *len)
             },
             Expressions::Tuple { values, span } => {
-                todo!()
+                if values.len() < 1 {
+                    self.error("Unknown by compilation time tuple found".to_string(), *span);
+                    return Type::Void;
+                }
+
+                let mut expected_types = values.iter().map(|_| None).collect::<Vec<Option<Type>>>();
+                if let Some(Type::Tuple(expectations)) = expected.clone() {
+                    expected_types = expectations.into_iter().map(|exp| Some(exp)).collect();
+                }
+
+                let types = values.into_iter().zip(expected_types).map(|(val, exp)| self.visit_expression(val, exp)).collect::<Vec<Type>>();
+
+                Type::Tuple(types)
             }
             Expressions::Slice { object, index, span } => {
                 let obj = self.visit_expression(object, expected);
