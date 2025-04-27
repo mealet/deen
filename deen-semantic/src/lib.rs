@@ -1144,6 +1144,9 @@ impl Analyzer {
 
                 Type::Array(Box::new(arr_type), *len)
             },
+            Expressions::Tuple { values, span } => {
+                todo!()
+            }
             Expressions::Slice { object, index, span } => {
                 let obj = self.visit_expression(object, expected);
 

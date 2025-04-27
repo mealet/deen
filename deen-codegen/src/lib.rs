@@ -645,6 +645,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 (Type::Array(Box::new(arr_type), len), arr_alloca.into())
             },
+            Expressions::Tuple { values, span } => todo!(),
             Expressions::Slice { object, index, span } => {
                 let obj = self.compile_expression(*object, None);
                 let idx = self.compile_expression(*index, Some(Type::USIZE));

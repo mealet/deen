@@ -282,7 +282,28 @@ impl Parser {
                 Expressions::Unary { operand: current.value, object: Box::new(object.clone()), span: (current.span.0, self.span_expression(object).1) }
             }
             TokenType::LParen => {
+                let span_start = self.current().span.0;
                 let expr = self.expression();
+
+                if self.expect(TokenType::Comma) {
+                    let mut values = vec![expr];
+                    let _ = self.next();
+
+                    while !self.expect(TokenType::RParen) {
+                        if self.expect(TokenType::Comma) {
+                            let _ = self.next();
+                        } else if self.expect(TokenType::RParen) {
+                            break;
+                        } else {
+                            values.push(self.expression());
+                        }
+                    }
+
+                    let span_end = self.current().span.1;
+                    if self.expect(TokenType::RParen) { let _ = self.next(); }
+
+                    return Expressions::Tuple { values, span: (span_start, span_end) }
+                }
 
                 if self.expect(TokenType::RParen) { let _ = self.next(); }
                 expr
@@ -347,7 +368,11 @@ impl Parser {
                 let values = self.expressions_enum(TokenType::LBrack, TokenType::RBrack, TokenType::Comma);
                 let len = values.len();
 
-                Expressions::Array { values, len, span: (span_start, self.current().span.1) }
+                self.position -= 1;
+                let span_end = self.current().span.1;
+                let _ = self.next();
+
+                Expressions::Array { values, len, span: (span_start, span_end) }
             }
             TokenType::LBrace => {
                 let span_start = current.span.0;

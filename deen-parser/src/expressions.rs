@@ -60,6 +60,10 @@ pub enum Expressions {
         len: usize,
         span: (usize, usize)
     },
+    Tuple {
+        values: Vec<Expressions>,
+        span: (usize, usize)
+    },
     Slice {
         object: Box<Expressions>,
         index: Box<Expressions>,
@@ -92,6 +96,7 @@ impl Parser {
             Expressions::Reference { object: _, span } => span,
             Expressions::Dereference { object: _, span } => span,
             Expressions::Array { values: _, len: _, span } => span,
+            Expressions::Tuple { values: _, span } => span,
             Expressions::Slice { object: _, index: _, span } => span,
             Expressions::Struct { name: _, fields: _, span } => span,
             Expressions::Unary { operand: _, object: _, span } => span,
