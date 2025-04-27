@@ -624,7 +624,13 @@ impl<'ctx> CodeGen<'ctx> {
                                         prev_type = field.datatype.clone();
                                         prev_val = value;
                                     },
-                                    "enum" => {},
+                                    "enum" => {
+                                        let enumeration = self.enumerations.get(&alias).unwrap();
+                                        let idx = enumeration.fields.iter().position(|f| f == field).unwrap();
+                                        let idx_value = self.context.i8_type().const_int(idx as u64, false);
+
+                                        prev_val = idx_value.into();
+                                    },
 
                                     _ => unreachable!()
                                 }
@@ -844,6 +850,9 @@ impl<'ctx> CodeGen<'ctx> {
 
             Value::Boolean(bool) => (Type::Bool, self.context.bool_type().const_int(bool as u64, false).into()),
             Value::Identifier(id) => {
+                if let Some(typedef) = self.typedefs.get(&id) { return (typedef.clone(), self.context.i8_type().const_zero().into()) }
+                if let Some(enumeration) = self.enumerations.get(&id) { return (Type::Alias(id), self.context.i8_type().const_zero().into()) }
+                
                 let variable = self.variables.get(&id).unwrap(); // already checked by semantic analyzer
                 let value = match expected {
                     Some(Type::Pointer(_)) => variable.ptr.into(),
