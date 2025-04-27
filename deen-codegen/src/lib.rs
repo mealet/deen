@@ -637,6 +637,27 @@ impl<'ctx> CodeGen<'ctx> {
                             }
                         },
 
+                        Expressions::Value(Value::Integer(idx), _) => {
+                            match prev_type.clone() {
+                                Type::Tuple(types) => {
+                                    let field_type = types[idx.clone() as usize].clone();
+                                    let field_basic_type = self.get_basic_type(field_type.clone());
+
+                                    let tuple_type = self.context.struct_type(
+                                        &types.into_iter().map(|typ| self.get_basic_type(typ)).collect::<Vec<BasicTypeEnum>>(),
+                                        false
+                                    );
+
+                                    let ptr = self.builder.build_struct_gep(tuple_type, prev_val.into_pointer_value(), idx.clone() as u32, "").unwrap();
+                                    let value = self.builder.build_load(field_basic_type, ptr, "").unwrap();
+
+                                    prev_type = field_type;
+                                    prev_val = value;
+                                }
+                                _ => unreachable!()
+                            }
+                        },
+
                         _ => unreachable!()
                     }
                 });
