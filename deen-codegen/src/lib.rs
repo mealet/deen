@@ -177,8 +177,10 @@ impl<'ctx> CodeGen<'ctx> {
                 self.builder.build_conditional_branch(cmp_value, ok_block, error_block).unwrap();
 
                 self.builder.position_at_end(error_block);
+
+                let panic_message = self.builder.build_global_string_ptr("Array has len %ld, but index is %ld", "panic_msg").unwrap();
                 self.build_panic(
-                    "Array has len %ld, but index is %ld",
+                    panic_message.as_basic_value_enum(),
                     vec![
                         expected_basic_value.into(),
                         provided_basic_value.into()
@@ -658,6 +660,49 @@ impl<'ctx> CodeGen<'ctx> {
                             }
                         },
 
+                        Expressions::FnCall { name, arguments, span: _ } => {
+                            match prev_type.clone() {
+                                Type::Alias(alias) => {
+                                    let alias_type = self.get_alias_type(prev_type.clone()).unwrap();
+
+                                    match alias_type {
+                                        "struct" | "enum" => {
+                                            let function = self.functions.get(&format!("{}_{}__{}", alias_type, alias, name)).unwrap().clone();
+                                            let mut arguments = arguments
+                                                .into_iter()
+                                                .zip(function.arguments.clone())
+                                                .map(|(arg, exp)| self.compile_expression(arg.clone(), Some(exp)).1.into())
+                                                .collect::<Vec<BasicMetadataValueEnum>>();
+                                            
+                                            if let Some(Type::Alias(first_arg)) = function.arguments.get(0) {
+                                                if *first_arg == alias {
+                                                    let self_val: BasicMetadataValueEnum = if prev_val.is_pointer_value() {
+                                                        self.builder.build_load(
+                                                            self.get_basic_type(prev_type.clone()),
+                                                            prev_val.into_pointer_value(),
+                                                            ""
+                                                        ).unwrap().into()
+                                                    } else { prev_val.into() };
+
+                                                    arguments.reverse();
+                                                    arguments.push(self_val);
+                                                    arguments.reverse();
+                                                }
+                                            }
+                                            
+                                            prev_type = function.datatype;
+                                            prev_val = self.builder.build_call(function.value, &arguments, "").unwrap().try_as_basic_value().left().unwrap();
+
+                                            let panic_message = self.builder.build_global_string_ptr("%d\n", "panic_msg").unwrap();
+                                            self.build_panic(panic_message.as_basic_value_enum(), vec![prev_val.clone().into()]);
+                                        },
+                                        _ => unreachable!()
+                                    }
+                                },
+                                _ => unreachable!()
+                            }
+                        }
+
                         _ => unreachable!()
                     }
                 });
@@ -763,8 +808,11 @@ impl<'ctx> CodeGen<'ctx> {
                         self.builder.build_conditional_branch(cmp_value, ok_block, error_block).unwrap();
 
                         self.builder.position_at_end(error_block);
+
+
+                        let panic_message = self.builder.build_global_string_ptr("Array has len %ld, but index is %ld", "panic_msg").unwrap();
                         self.build_panic(
-                            "Array has len %ld, but index is %ld",
+                            panic_message.as_basic_value_enum(),
                             vec![
                                 expected_basic_value.into(),
                                 provided_basic_value.into()
@@ -889,10 +937,19 @@ impl<'ctx> CodeGen<'ctx> {
 }
 
 impl<'ctx> CodeGen<'ctx> {
-    fn build_panic(&mut self, message: &str, specifiers: Vec<BasicMetadataValueEnum<'ctx>>) {
-        let message = format!("RUNTIME PANIC: {}\n", message);
+    fn build_panic(&mut self, message: BasicValueEnum<'ctx>, specifiers: Vec<BasicMetadataValueEnum<'ctx>>) {
+        let panic_fn = self.module.get_function("__deen_panic").unwrap_or_else(|| {
+            self.create_panic_function()
+        });
 
-        let fn_type = self.context.void_type().fn_type(&[], false);
+        let mut args: Vec<BasicMetadataValueEnum> = [vec![message.into()], specifiers].concat();
+        self.builder.build_call(panic_fn, &args, "");
+    }
+
+    fn create_panic_function(&mut self) -> FunctionValue<'ctx> {
+        let fn_type = self.context.void_type().fn_type(&[
+            self.context.ptr_type(AddressSpace::default()).into()
+        ], true);
         let fn_value = self.module.add_function("__deen_panic", fn_type, Some(inkwell::module::Linkage::Private));
         let entry = self.context.append_basic_block(fn_value, "entry");
         let old_position = self.builder.get_insert_block().unwrap();
@@ -917,15 +974,15 @@ impl<'ctx> CodeGen<'ctx> {
             )
         });
 
-        let message_string = self.builder.build_global_string_ptr(&message, "__deen_panic_message").unwrap().as_basic_value_enum();
-        let args: Vec<BasicMetadataValueEnum> = [vec![message_string.into()], specifiers].concat();
+        let args = fn_value.get_params().into_iter().map(|x| x.into()).collect::<Vec<BasicMetadataValueEnum>>();
 
         self.builder.build_call(printf_fn, &args, "");
         self.builder.build_call(exit_fn, &[self.context.i32_type().const_int(1, false).into()], "");
         self.builder.build_return(None);
 
         self.builder.position_at_end(old_position);
-        self.builder.build_call(fn_value, &[], "");
+
+        fn_value
     }
 }
 

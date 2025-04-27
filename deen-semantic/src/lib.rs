@@ -1031,11 +1031,13 @@ impl Analyzer {
                                     if let Type::Function(args, datatype) = function_type {
                                         let mut arguments = arguments.clone();
 
-                                        if let Some(Type::Pointer(ptr_type)) = args.first() {
-                                            let ptr_type_unwrapped = self.unwrap_alias(ptr_type);
-                                            let prev_type_unwrapped = self.unwrap_alias(&prev_type);
+                                        if let Some(first_arg) = args.first() {
+                                            let unwrapped_arg = self.unwrap_alias(first_arg).unwrap_or_else(|err| {
+                                                self.error(err, *span);
+                                                return Type::Void
+                                            });
 
-                                            if ptr_type_unwrapped == prev_type_unwrapped {
+                                            if unwrapped_arg == prev_type {
                                                 arguments.reverse();
                                                 arguments.push(prev_expr.clone());
                                                 arguments.reverse();
