@@ -206,7 +206,12 @@ impl<'ctx> CodeGen<'ctx> {
                 // storing value
                 self.builder.build_store(ptr, compiled_value.1).unwrap();
             },
-            Statements::FieldAssignStatement { object, value, span } => todo!(),
+            Statements::FieldAssignStatement { object, value, span } => {
+                let compiled_object = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
+                let compiled_value = self.compile_expression(value, Some(compiled_object.0));
+
+                self.builder.build_store(compiled_object.1.into_pointer_value(), compiled_value.1).unwrap();
+            },
 
             Statements::AnnotationStatement { identifier, datatype, value, span } => {
                 match (datatype, value) {
@@ -621,7 +626,12 @@ impl<'ctx> CodeGen<'ctx> {
                                         let field = structure.fields.get(field).unwrap();
 
                                         let ptr = self.builder.build_struct_gep(structure.llvm_type, prev_val.into_pointer_value(), field.nth, "").unwrap();
-                                        let value = self.builder.build_load(field.llvm_type, ptr, "").unwrap();
+                                        
+                                        let value = if let Some(Type::Pointer(_)) = expected {
+                                            ptr.as_basic_value_enum()
+                                        } else {
+                                            self.builder.build_load(field.llvm_type, ptr, "").unwrap()
+                                        };
 
                                         prev_type = field.datatype.clone();
                                         prev_val = value;
@@ -651,7 +661,13 @@ impl<'ctx> CodeGen<'ctx> {
                                     );
 
                                     let ptr = self.builder.build_struct_gep(tuple_type, prev_val.into_pointer_value(), idx.clone() as u32, "").unwrap();
-                                    let value = self.builder.build_load(field_basic_type, ptr, "").unwrap();
+
+
+                                    let value = if let Some(Type::Pointer(_)) = expected {
+                                        ptr.as_basic_value_enum()
+                                    } else {
+                                        self.builder.build_load(field_basic_type, ptr, "").unwrap()
+                                    };
 
                                     prev_type = field_type;
                                     prev_val = value;
@@ -692,9 +708,6 @@ impl<'ctx> CodeGen<'ctx> {
                                             
                                             prev_type = function.datatype;
                                             prev_val = self.builder.build_call(function.value, &arguments, "").unwrap().try_as_basic_value().left().unwrap();
-
-                                            let panic_message = self.builder.build_global_string_ptr("%d\n", "panic_msg").unwrap();
-                                            self.build_panic(panic_message.as_basic_value_enum(), vec![prev_val.clone().into()]);
                                         },
                                         _ => unreachable!()
                                     }

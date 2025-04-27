@@ -256,6 +256,14 @@ impl Analyzer {
                 }
             },
             Statements::FieldAssignStatement { object, value, span } => {
+                if let Expressions::SubElement { head: _, subelements: _, span: _ } = object {} else {
+                    self.error(
+                        String::from("Field assign statement must have subelement expression"),
+                        *span
+                    );
+                    return;
+                }
+
                 let object_type = self.visit_expression(object, None);
                 let unwrapped_object_type = self.unwrap_alias(&object_type).unwrap_or_else(|err| {
                     self.error(err, *span);
