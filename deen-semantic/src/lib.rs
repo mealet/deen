@@ -794,7 +794,34 @@ impl Analyzer {
                                 //     )
                                 // });
 
-                                analyzer.imports.insert(module_name, import);
+                                analyzer.scope.functions.into_iter().for_each(|func| {
+                                    if func.1.public {
+                                        import.add_fn(
+                                            format!("__{}.{}", module_name, func.0),
+                                            func.1.datatype
+                                        );
+                                    }
+                                });
+
+                                analyzer.scope.structures.into_iter().for_each(|structure| {
+                                    if structure.1.public {
+                                        import.add_fn(
+                                            format!("__{}.{}", module_name, structure.0),
+                                            structure.1.datatype
+                                        );
+                                    }
+                                });
+
+                                analyzer.scope.enums.into_iter().for_each(|enumeration| {
+                                    if enumeration.1.public {
+                                        import.add_fn(
+                                            format!("__{}.{}", module_name, enumeration.0),
+                                            enumeration.1.datatype
+                                        );
+                                    }
+                                });
+
+                                self.imports.insert(module_name, import);
                             }
                             None => {
                                 self.error(
