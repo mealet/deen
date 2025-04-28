@@ -11,6 +11,7 @@ use miette::NamedSource;
 
 mod error;
 mod scope;
+mod element;
 pub mod import;
 
 type SemanticOk = (HashMap<String, Import>, Vec<SemanticWarning>);
@@ -368,7 +369,7 @@ impl Analyzer {
                 self.scope.add_fn(name.clone(), Type::Function(
                     arguments.iter().map(|arg| arg.1.clone()).collect::<Vec<Type>>(),
                     Box::new(datatype.clone())
-                )).unwrap();
+                ), *public).unwrap();
 
                 function_scope.parent = Some(Box::new(self.scope.clone()));
                 function_scope.expected = datatype.clone();
@@ -391,7 +392,6 @@ impl Analyzer {
                         format!("Function `{}` returns type `{}`, but found `{}`", name, exp, ret),
                         *span
                     );
-                    return;
                 }
 
                 if let Some(unused) = self.scope.check_unused_variables() {
@@ -404,6 +404,13 @@ impl Analyzer {
                 }
 
                 self.scope = *self.scope.parent.clone().unwrap();
+
+                if *public && name == "main" {
+                    self.error(
+                        String::from("Function `main()` is not allowed to be public"),
+                        *span
+                    );
+                }
             },
             Statements::FunctionCallStatement { name, arguments, span } => {
                 let func = self.scope.get_fn(name).unwrap_or_else(|| {
@@ -448,7 +455,7 @@ impl Analyzer {
 
             Statements::StructDefineStatement { name, functions, fields, public, span } => {
                 let pre_type = Type::Struct(fields.clone(), HashMap::new());
-                self.scope.structures.insert(name.clone(), pre_type);
+                self.scope.structures.insert(name.clone(), element::ScopeElement { name: name.clone(), datatype: pre_type, public: *public });
 
                 let mut structure_scope = Scope::new();
                 structure_scope.parent = Some(Box::new(self.scope.clone()));
@@ -463,8 +470,8 @@ impl Analyzer {
 
                 let _ = self.scope.structures.remove(name);
 
-                let struct_type = Type::Struct(fields.clone(), functions_signatures);
-                self.scope.add_struct(name.clone(), struct_type.clone()).unwrap_or_else(|err| {
+                let struct_type = Type::Struct(fields.clone(), functions_signatures.into_iter().map(|x| (x.0, x.1.datatype)).collect());
+                self.scope.add_struct(name.clone(), struct_type.clone(), *public).unwrap_or_else(|err| {
                     self.error(
                         err,
                         *span
@@ -476,7 +483,7 @@ impl Analyzer {
             },
             Statements::EnumDefineStatement { name, fields, functions, public, span } => {
                 let pre_type = Type::Enum(fields.clone(), HashMap::new());
-                self.scope.structures.insert(name.clone(), pre_type);
+                self.scope.enums.insert(name.clone(), element::ScopeElement { name: name.clone(), datatype: pre_type, public: *public });
 
                 let mut enum_scope = Scope::new();
                 enum_scope.parent = Some(Box::new(self.scope.clone()));
@@ -491,8 +498,8 @@ impl Analyzer {
 
                 let _ = self.scope.structures.remove(name);
 
-                let enum_type = Type::Enum(fields.clone(), functions_signatures);
-                self.scope.add_struct(name.clone(), enum_type.clone()).unwrap_or_else(|err| {
+                let enum_type = Type::Enum(fields.clone(), functions_signatures.into_iter().map(|x| (x.0, x.1.datatype)).collect());
+                self.scope.add_struct(name.clone(), enum_type.clone(), *public).unwrap_or_else(|err| {
                     self.error(
                         err,
                         *span

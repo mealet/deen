@@ -1,3 +1,4 @@
+use crate::element::ScopeElement;
 use std::collections::HashMap;
 use deen_parser::types::Type;
 
@@ -13,9 +14,9 @@ pub struct Scope {
     pub is_main: bool,
 
     pub variables: HashMap<String, Variable>,
-    pub functions: HashMap<String, Type>,
-    pub structures: HashMap<String, Type>,
-    pub enums: HashMap<String, Type>,
+    pub functions: HashMap<String, ScopeElement>,
+    pub structures: HashMap<String, ScopeElement>,
+    pub enums: HashMap<String, ScopeElement>,
     pub typedefs: HashMap<String, Type>
 }
 
@@ -102,49 +103,49 @@ impl Scope {
     }
 
     #[inline]
-    pub fn add_fn(&mut self, name: String, return_type: Type) -> Result<(), String> {
+    pub fn add_fn(&mut self, name: String, return_type: Type, public: bool) -> Result<(), String> {
         if self.functions.contains_key(&name) {
             return Err(format!("Function `{}` already declared", name));
         }
-        self.functions.insert(name, return_type);
+        self.functions.insert(name.clone(), ScopeElement { name, datatype: return_type, public });
         Ok(())
     }
 
     #[inline]
     pub fn get_fn(&self, name: &str) -> Option<Type> {
-        self.functions.get(name).cloned().or_else(|| {
+        self.functions.get(name).map(|elem| elem.datatype.clone()).or_else(|| {
             self.parent.as_ref().and_then(|parent| parent.get_fn(name))
         })
     }
 
     #[inline]
-    pub fn add_struct(&mut self, name: String, struct_type: Type) -> Result<(), String> {
+    pub fn add_struct(&mut self, name: String, struct_type: Type, public: bool) -> Result<(), String> {
         if self.structures.contains_key(&name) {
             return Err(format!("Structure `{}` already declared", name));
         }
-        self.structures.insert(name, struct_type);
+        self.functions.insert(name.clone(), ScopeElement { name, datatype: struct_type, public });
         Ok(())
     }
 
     #[inline]
     pub fn get_struct(&self, name: &str) -> Option<Type> {
-        self.structures.get(name).cloned().or_else(|| {
+        self.functions.get(name).map(|elem| elem.datatype.clone()).or_else(|| {
             self.parent.as_ref().and_then(|parent| parent.get_struct(name))
         })
     }
 
     #[inline]
-    pub fn add_enum(&mut self, name: String, enum_type: Type) -> Result<(), String> {
+    pub fn add_enum(&mut self, name: String, enum_type: Type, public: bool) -> Result<(), String> {
         if self.enums.contains_key(&name) {
             return Err(format!("Enum `{}` already declared", name));
         }
-        self.enums.insert(name, enum_type);
+        self.functions.insert(name.clone(), ScopeElement { name, datatype: enum_type, public });
         Ok(())
     }
 
     #[inline]
     pub fn get_enum(&self, name: &str) -> Option<Type> {
-        self.enums.get(name).cloned().or_else(|| {
+        self.functions.get(name).map(|elem| elem.datatype.clone()).or_else(|| {
             self.parent.as_ref().and_then(|parent| parent.get_enum(name))
         })
     }
