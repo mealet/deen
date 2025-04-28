@@ -11,6 +11,7 @@ use inkwell::{
     builder::Builder,
     context::Context,
     module::Module,
+    passes::PassManager,
     types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType},
     values::{
         BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, IntValue, PointerValue
@@ -95,20 +96,23 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    pub fn compile(&mut self, statements: Vec<Statements>) -> &Module<'ctx> {
+    pub fn compile(&mut self, statements: Vec<Statements>, prefix: Option<String>) -> &Module<'ctx> {
         for statement in statements {
-            self.compile_statement(statement, None);
+            self.compile_statement(statement, prefix.clone());
         }
 
-        let main_fn = self.functions.get("main").unwrap();
-        let verified = main_fn.value.verify(false);
-        if main_fn.datatype == Type::Void && !verified {
-            self.builder.position_at_end(main_fn.value.get_last_basic_block().unwrap());
-            self.builder.build_return(
-                Some(
-                    &self.context.i8_type().const_int(0, false)
-                )
-            ).unwrap();
+        let main_fn = self.functions.get("main");
+
+        if let Some(main_fn) = main_fn {
+            let verified = main_fn.value.verify(false);
+            if main_fn.datatype == Type::Void && !verified {
+                self.builder.position_at_end(main_fn.value.get_last_basic_block().unwrap());
+                self.builder.build_return(
+                    Some(
+                        &self.context.i8_type().const_int(0, false)
+                    )
+                ).unwrap();
+            }
         }
 
         &self.module
@@ -302,6 +306,7 @@ impl<'ctx> CodeGen<'ctx> {
             },
 
             Statements::StructDefineStatement { name, fields, functions, public, span } => {
+                let name = format!("{}{}", prefix.unwrap_or_default(), name);
                 let struct_type = self.context.opaque_struct_type(&name);
                 let mut compiled_fields = Vec::new();
 
@@ -331,6 +336,7 @@ impl<'ctx> CodeGen<'ctx> {
                 });
             },
             Statements::EnumDefineStatement { name, fields, functions, public, span } => {
+                let name = format!("{}{}", prefix.unwrap_or_default(), name);
                 self.enumerations.insert(name.clone(), Enumeration { name: name.clone(), fields, llvm_type: self.context.i8_type().into() });
 
                 functions.iter().for_each(|(_, function_statement)| {
@@ -370,7 +376,29 @@ impl<'ctx> CodeGen<'ctx> {
                 let compiled_value = self.compile_expression(value, None);
                 self.builder.build_return(Some(&compiled_value.1)).unwrap();
             },
-            Statements::ImportStatement { path, span } => {},
+            Statements::ImportStatement { path, span } => {
+                let path = if let Expressions::Value(Value::String(path), _) = path { path } else { String::default() };
+                let fname = std::path::Path::new(&path)
+                    .file_name()
+                    .map(|fname| {
+                        fname.to_str().unwrap_or("$NONE")
+                    })
+                    .unwrap();
+
+                let module_name = fname
+                    .split(".")
+                    .nth(0)
+                    .map(|n| n.to_string())
+                    .unwrap_or(fname.replace(".dn", ""));
+
+                let import = self.imports.get(&module_name).unwrap();
+                let mut codegen = Self::new(&self.context, &module_name, import.embedded_imports.clone());
+
+                let prefix = format!("__{}_", module_name);
+                let module = codegen.compile(import.ast.clone(), Some(prefix));
+
+                self.module.link_in_module(module.to_owned());
+            },
             Statements::ScopeStatement { block, span } => {
                 block.iter().for_each(|stmt| self.compile_statement(stmt.clone(), None));
             }
@@ -856,6 +884,7 @@ impl<'ctx> CodeGen<'ctx> {
                 }
             },
             Expressions::Struct { name, fields, span } => {
+                let name = if self.is_main() { name } else { format!("__{}_{}", self.module.get_name().to_str().unwrap(), name) };
                 let structure = self.structures.get(&name).unwrap().clone();
                 let struct_alloca = self.builder.build_alloca(structure.llvm_type, &format!("struct.{}.init", name)).unwrap();
 
@@ -932,8 +961,9 @@ impl<'ctx> CodeGen<'ctx> {
 
             Value::Boolean(bool) => (Type::Bool, self.context.bool_type().const_int(bool as u64, false).into()),
             Value::Identifier(id) => {
-                if let Some(typedef) = self.typedefs.get(&id) { return (typedef.clone(), self.context.i8_type().const_zero().into()) }
-                if let Some(enumeration) = self.enumerations.get(&id) { return (Type::Alias(id), self.context.i8_type().const_zero().into()) }
+                let externed_id = if self.is_main() { id.clone() } else { format!("__{}_{}", self.module.get_name().to_str().unwrap(), id) };
+                if let Some(typedef) = self.typedefs.get(&externed_id) { return (typedef.clone(), self.context.i8_type().const_zero().into()) }
+                if let Some(enumeration) = self.enumerations.get(&externed_id) { return (Type::Alias(externed_id), self.context.i8_type().const_zero().into()) }
                 
                 let variable = self.variables.get(&id).unwrap(); // already checked by semantic analyzer
                 let value = match expected {
@@ -1028,6 +1058,7 @@ impl<'ctx> CodeGen<'ctx> {
             
             Type::Tuple(types) => unreachable!(),
             Type::Alias(alias) => {
+                let alias = if self.is_main() { alias } else { format!("__{}_{}", self.module.get_name().to_str().unwrap(), alias) };
                 let struct_type = self.structures.get(&alias);
                 let enum_type = self.enumerations.get(&alias);
                 let typedef_type = self.typedefs.get(&alias);
@@ -1073,5 +1104,9 @@ impl<'ctx> CodeGen<'ctx> {
         } else {
             None
         }
+    }
+
+    fn is_main(&self) -> bool {
+        self.module.get_function("main").is_some()
     }
 }

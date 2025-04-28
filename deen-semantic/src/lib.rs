@@ -349,6 +349,14 @@ impl Analyzer {
                 }
             }
             Statements::FunctionDefineStatement { name, datatype, arguments, block, public, span } => {
+                if !self.scope.is_main && name == "main" {
+                    self.error(
+                        String::from("Function `main()` is not allowed not in main module"),
+                        *span
+                    );
+                    return;
+                }
+
                 if self.scope.get_fn(name).is_some() {
                     self.error(
                         format!("Function `{}` already declared!", name),
@@ -765,7 +773,7 @@ impl Analyzer {
                                 if mutual_import { return };
 
                                 let mut analyzer = Self::new(&src, fname, false);
-                                let (_, warns) = match analyzer.analyze(&ast) {
+                                let (embedded_imports, warns) = match analyzer.analyze(&ast) {
                                     Ok(warns) => warns,
                                     Err((errors, warns)) => {
                                         errors.iter().for_each(|err| self.errors.push(err.clone()));
@@ -782,17 +790,6 @@ impl Analyzer {
                                     .unwrap_or(fname.replace(".dn", ""));
 
                                 let mut import = Import::new(ast);
-
-                                // analyzer.scope.functions.iter().for_each(|func| {
-                                //     self.scope.add_fn(
-                                //         format!("{}.{}", module_name, func.0),
-                                //         func.1.clone()
-                                //     );
-                                //
-                                //     import.add_fn(
-                                //         format!("{}.{}", module_name, func.0), func.1.clone()
-                                //     )
-                                // });
 
                                 analyzer.scope.functions.into_iter().for_each(|func| {
                                     if func.1.public {
@@ -821,6 +818,7 @@ impl Analyzer {
                                     }
                                 });
 
+                                import.embedded_imports = embedded_imports;
                                 self.imports.insert(module_name, import);
                             }
                             None => {

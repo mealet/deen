@@ -8,6 +8,7 @@ pub struct Import {
     pub structs: HashMap<String, Type>,
     pub enums: HashMap<String, Type>,
 
+    pub embedded_imports: HashMap<String, Import>,
     pub ast: Vec<Statements>
 }
 
@@ -19,6 +20,7 @@ impl Import {
             structs: HashMap::new(),
             enums: HashMap::new(),
 
+            embedded_imports: HashMap::new(),
             ast
         }
     }
