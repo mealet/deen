@@ -33,6 +33,8 @@ pub enum Type {
     Function(Vec<Type>, Box<Type>), // fn foo(a: i32, b: u32) string  --->  Function([I32, U32], String)
     Struct(HashMap<String, Type>, HashMap<String, Type>), // struct Abc { a: i32, b: bool, c: *u64 }  ---> Struct([I32, Bool, Pointer(U64)])
     Enum(Vec<String>, HashMap<String, Type>), // enum Abc { A, B, C } -> Enum([A, B, C])
+    
+    ImportObject(String)
 }
 
 impl std::fmt::Display for Type {
@@ -77,6 +79,8 @@ impl std::fmt::Display for Type {
             Type::Function(args, functype) => write!(f, "{functype} ({})", args.iter().map(|a| format!("{}", a)).collect::<Vec<String>>().join(", ")),
             Type::Struct(args, _) => write!(f, "struct {{ {} }}", args.iter().map(|a| format!("{}", a.1)).collect::<Vec<String>>().join(", ")),
             Type::Enum(args, _) => write!(f, "enum {{ {} }}", args.iter().map(|a| a.to_string()).collect::<Vec<String>>().join(", ")),
+
+            Type::ImportObject(imp) => write!(f, "<{}>", imp)
         }
     }
 }

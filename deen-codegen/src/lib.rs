@@ -1071,6 +1071,7 @@ impl<'ctx> CodeGen<'ctx> {
             },
             
             Type::Function(_, _) => unreachable!(),
+            Type::ImportObject(_) => unreachable!(),
             Type::Struct(fields, _) => self.context.struct_type(
                 &fields.iter().map(|field| 
                     self.get_basic_type(field.1.clone())

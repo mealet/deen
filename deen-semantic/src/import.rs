@@ -1,8 +1,7 @@
 use deen_parser::{statements::Statements, types::Type};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Import {
     pub functions: HashMap<String, Type>,
     pub structs: HashMap<String, Type>,

@@ -17,6 +17,7 @@ pub mod import;
 type SemanticOk = (HashMap<String, Import>, Vec<SemanticWarning>);
 type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
 
+#[derive(Debug)]
 pub struct Analyzer {
     scope: Scope,
     source: NamedSource<String>,
@@ -790,11 +791,11 @@ impl Analyzer {
                                     .unwrap_or(fname.replace(".dn", ""));
 
                                 let mut import = Import::new(ast);
-
+                                
                                 analyzer.scope.functions.into_iter().for_each(|func| {
                                     if func.1.public {
                                         import.add_fn(
-                                            format!("__{}.{}", module_name, func.0),
+                                            format!("__{}_{}", module_name, func.0),
                                             func.1.datatype
                                         );
                                     }
@@ -802,8 +803,8 @@ impl Analyzer {
 
                                 analyzer.scope.structures.into_iter().for_each(|structure| {
                                     if structure.1.public {
-                                        import.add_fn(
-                                            format!("__{}.{}", module_name, structure.0),
+                                        import.add_struct(
+                                            format!("__{}_{}", module_name, structure.0),
                                             structure.1.datatype
                                         );
                                     }
@@ -811,8 +812,8 @@ impl Analyzer {
 
                                 analyzer.scope.enums.into_iter().for_each(|enumeration| {
                                     if enumeration.1.public {
-                                        import.add_fn(
-                                            format!("__{}.{}", module_name, enumeration.0),
+                                        import.add_enum(
+                                            format!("__{}_{}", module_name, enumeration.0),
                                             enumeration.1.datatype
                                         );
                                     }
@@ -1118,6 +1119,50 @@ impl Analyzer {
                                         });
                                     };
                                 },
+                                Type::ImportObject(imp) => {
+                                    let import = self.imports.get(&imp).unwrap().clone();
+
+                                    let name = format!("__{}_{}", imp, name);
+                                    if let Some(Type::Function(args, datatype)) = import.functions.get(&name) {
+                                        prev_type = self.unwrap_alias(datatype).unwrap_or_else(|err| {
+                                            self.error(err, *span);
+                                            Type::Void
+                                        });
+
+                                        if arguments.len() != args.len() {
+                                            self.error(
+                                                format!("Function `{}` has {} arguments, but found {}", name, args.len(), arguments.len()),
+                                                *span
+                                            );
+                                            return;
+                                        }
+
+                                        arguments.iter().enumerate().zip(args).for_each(|((index, expr), expected)| {
+                                            let raw_expr_type = self.visit_expression(expr, Some(expected.clone()));
+                                            let expr_type = self.unwrap_alias(&raw_expr_type).unwrap_or_else(|err| {
+                                                    self.error(err, *span);
+                                                    Type::Void
+                                            });
+                                            let expected = self.unwrap_alias(expected).unwrap_or_else(|err| {
+                                                self.error(err, *span);
+                                                Type::Void
+                                            });
+
+                                            if expected == Type::Void || raw_expr_type == Type::Void { return };
+                                            if expr_type != expected {
+                                                self.error(
+                                                    format!("Argument #{} has type `{}`, but found `{}`", index + 1, expected, expr_type),
+                                                    *span
+                                                );
+                                            }
+                                        });                                       
+                                    } else {
+                                        self.error(
+                                            format!("Import {} has no functions named `{}`", imp, name),
+                                            *span
+                                        );
+                                    };
+                                }
                                 // Type::Enum(_, functions) => {},
                                 _ => {
                                     self.error(
@@ -1127,6 +1172,65 @@ impl Analyzer {
                                 }
                             }
                         },
+                        Expressions::Struct { name, fields, span } => {
+                            match prev_type.clone() {
+                                Type::ImportObject(imp) => {
+                                    let import = self.imports.get(&imp).unwrap().clone();
+
+                                    let name = format!("__{}_{}", imp, name); 
+                                    if let Some(Type::Struct(struct_fields, _)) = import.structs.get(&name) {
+
+                                        let mut assigned_fields = HashMap::new();
+                                        struct_fields.iter().for_each(|x| {
+                                            assigned_fields.insert(x.0, false);
+                                        });
+
+                                        fields.iter().for_each(|field| {
+                                            let struct_field = struct_fields.get(field.0);
+                                            if let Some(field_type) = struct_field {
+                                                let field_type = self.unwrap_alias(&field_type).unwrap_or_else(|err| {
+                                                    self.error(err, *span);
+                                                    Type::Void
+                                                });
+                                                let provided_type = self.visit_expression(field.1, Some(field_type.clone()));
+
+                                                if field_type != provided_type {
+                                                    self.error(
+                                                        format!("Field `{}` expected to be type `{}`, but found `{}`", field.0, field_type, provided_type),
+                                                        *span
+                                                    );
+                                                    return;
+                                                }
+
+                                                let _ = assigned_fields.insert(field.0, true);
+                                            } else {
+                                                self.error(
+                                                    format!("Field `{}` doesn't exist in struct `{}`", field.0, name),
+                                                    *span
+                                                );
+                                            }
+                                        });
+
+                                        let unassigned = assigned_fields.iter().filter(|x| !x.1).map(|x| x.0.to_owned().to_owned()).collect::<Vec<String>>();
+                                        if !unassigned.is_empty() {
+                                            let fmt = format!("`{}`", unassigned.join("` , `"));
+                                            self.error(
+                                                format!("Missing structure fields: {}", fmt),
+                                                *span
+                                            );
+                                        }
+
+                                        prev_type = import.structs.get(&name).unwrap().clone();
+                                    }
+                                }
+                                _ => {
+                                    self.error(
+                                        String::from("Unsupported structure init found"),
+                                        *span
+                                    );
+                                }
+                            }
+                        }
                         _ => {
                             self.error(
                                 String::from("Unsupported subelement expression found"),
@@ -1433,6 +1537,7 @@ impl Analyzer {
             },
             Value::Identifier(id) => {
                 // if let Some(structure) = self.scope.get_struct(&id) { return Ok(structure) }
+                if self.imports.contains_key(&id) { return Ok(Type::ImportObject(id)) }
                 if let Some(typedef) = self.scope.get_typedef(&id) { return Ok(typedef) }
                 if let Some(enumeration) = self.scope.get_enum(&id) { return Ok(enumeration) }
 
