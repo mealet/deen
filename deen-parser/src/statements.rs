@@ -50,6 +50,7 @@ pub enum Statements {
         datatype: Type,
         arguments: Vec<(String, Type)>,
         block: Vec<Statements>,
+        public: bool,
         span: (usize, usize)
     },
     FunctionCallStatement {
@@ -62,6 +63,7 @@ pub enum Statements {
         name: String,
         fields: HashMap<String, Type>,
         functions: HashMap<String, Statements>,
+        public: bool,
         span: (usize, usize)
     },
 
@@ -69,6 +71,7 @@ pub enum Statements {
         name: String,
         fields: Vec<String>,
         functions: HashMap<String, Statements>,
+        public: bool,
         span: (usize, usize)
     },
     TypedefStatement {
@@ -459,7 +462,7 @@ impl Parser {
         }
 
         self.skip_eos();
-        Statements::FunctionDefineStatement { name: identifier, datatype, arguments: arguments_tuples, block, span: (span_start, span_end) }
+        Statements::FunctionDefineStatement { name: identifier, datatype, arguments: arguments_tuples, block, public: false, span: (span_start, span_end) }
     }
 
     pub fn return_statement(&mut self) -> Statements {
@@ -606,7 +609,7 @@ impl Parser {
 
                     let stmt = self.fn_statement();
 
-                    if let Statements::FunctionDefineStatement { name, datatype: _, arguments: _, block: _, span: _ } = &stmt {
+                    if let Statements::FunctionDefineStatement { name, datatype: _, arguments: _, public: _, block: _, span: _ } = &stmt {
                         functions.insert(name.to_owned(), stmt);
                     } else { unreachable!() }
 
@@ -662,7 +665,7 @@ impl Parser {
         }
         self.skip_eos();
 
-        Statements::StructDefineStatement { name, fields, functions, span: (span_start, self.current().span.1) }
+        Statements::StructDefineStatement { name, fields, functions, public: false, span: (span_start, self.current().span.1) }
     }
 
    pub fn enum_statement(&mut self) -> Statements {
@@ -708,7 +711,7 @@ impl Parser {
 
                     let stmt = self.fn_statement();
 
-                    if let Statements::FunctionDefineStatement { name, datatype: _, arguments: _, block: _, span: _ } = &stmt {
+                    if let Statements::FunctionDefineStatement { name, datatype: _, arguments: _, public: _, block: _, span: _ } = &stmt {
                         functions.insert(name.to_owned(), stmt);
                     } else { unreachable!() }
 
@@ -749,7 +752,7 @@ impl Parser {
         }
         self.skip_eos();
 
-        Statements::EnumDefineStatement { name, fields, functions, span: (span_start, self.current().span.1) }
+        Statements::EnumDefineStatement { name, fields, functions, public: false, span: (span_start, self.current().span.1) }
     }
 
     pub fn typedef_statement(&mut self) -> Statements {

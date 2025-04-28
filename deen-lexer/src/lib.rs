@@ -77,6 +77,7 @@ impl Lexer {
                 // Tech
 
                 std_keyword!("let"),
+                std_keyword!("pub"),
                 std_keyword!("fn"),
                 std_keyword!("import"),
                 std_keyword!("return"),

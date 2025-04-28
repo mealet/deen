@@ -482,6 +482,50 @@ impl Parser {
                     "struct" => self.struct_statement(),
                     "enum" => self.enum_statement(),
                     
+                    "pub" => {
+                        let _ = self.next();
+                        let stmt = self.statement();
+
+                        match stmt {
+                            Statements::FunctionDefineStatement { name, datatype, arguments, block, public: _, span } => {
+                                Statements::FunctionDefineStatement {
+                                    name,
+                                    datatype,
+                                    arguments,
+                                    block,
+                                    public: true,
+                                    span
+                                }
+                            }
+                            Statements::StructDefineStatement { name, fields, functions, public: _, span } => {
+                                Statements::StructDefineStatement {
+                                    name,
+                                    fields,
+                                    functions,
+                                    public: true,
+                                    span
+                                }
+                            }
+                            Statements::EnumDefineStatement { name, fields, functions, public: _, span } => {
+                                Statements::EnumDefineStatement {
+                                    name,
+                                    fields,
+                                    functions,
+                                    public: true,
+                                    span
+                                }
+                            },
+
+                            _ => {
+                                self.error(
+                                    String::from("Visibility is not followed by provided item"),
+                                    current.span
+                                );
+                                Statements::None
+                            }
+
+                        }
+                    }
                     "fn" => self.fn_statement(),
                     "return" => self.return_statement(),
                     "break" => self.break_statement(),

@@ -239,7 +239,7 @@ impl<'ctx> CodeGen<'ctx> {
                 }
             },
 
-            Statements::FunctionDefineStatement { name, datatype, arguments, block, span } => {
+            Statements::FunctionDefineStatement { name, datatype, arguments, block, public, span } => {
                 let name = format!("{}{}", prefix.unwrap_or_default(), name);
 
                 let mut args: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
@@ -301,7 +301,7 @@ impl<'ctx> CodeGen<'ctx> {
                 self.builder.build_call(function.value, &basic_args, "");
             },
 
-            Statements::StructDefineStatement { name, fields, functions, span } => {
+            Statements::StructDefineStatement { name, fields, functions, public, span } => {
                 let struct_type = self.context.opaque_struct_type(&name);
                 let mut compiled_fields = Vec::new();
 
@@ -330,7 +330,7 @@ impl<'ctx> CodeGen<'ctx> {
                     self.compile_statement(function_statement.to_owned(), Some(format!("struct_{}__", name)));
                 });
             },
-            Statements::EnumDefineStatement { name, fields, functions, span } => {
+            Statements::EnumDefineStatement { name, fields, functions, public, span } => {
                 self.enumerations.insert(name.clone(), Enumeration { name: name.clone(), fields, llvm_type: self.context.i8_type().into() });
 
                 functions.iter().for_each(|(_, function_statement)| {

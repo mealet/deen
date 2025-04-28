@@ -110,11 +110,11 @@ impl Analyzer {
         // checking for allowed global scope statements
         if self.scope.parent.is_none() {
             match statement {
-                Statements::FunctionDefineStatement { name: _, datatype: _, arguments: _, block: _, span: _ } => {},
+                Statements::FunctionDefineStatement { name: _, datatype: _, arguments: _, block: _, public: _, span: _ } => {},
                 Statements::ImportStatement { path: _, span: _ } => {},
-                Statements::StructDefineStatement { name: _, fields: _, functions: _, span: _ } => {},
+                Statements::StructDefineStatement { name: _, fields: _, functions: _, public: _, span: _ } => {},
                 Statements::TypedefStatement { alias: _, datatype: _, span: _ } => {},
-                Statements::EnumDefineStatement { name: _, fields: _, functions: _, span: _ } => {},
+                Statements::EnumDefineStatement { name: _, fields: _, functions: _, public: _, span: _ } => {},
                 _ => {
                     if let Some(err) = self.errors.last() {
                         if err.span == (255, 0).into() { return };
@@ -347,7 +347,7 @@ impl Analyzer {
                     }
                 }
             }
-            Statements::FunctionDefineStatement { name, datatype, arguments, block, span } => {
+            Statements::FunctionDefineStatement { name, datatype, arguments, block, public, span } => {
                 if self.scope.get_fn(name).is_some() {
                     self.error(
                         format!("Function `{}` already declared!", name),
@@ -446,7 +446,7 @@ impl Analyzer {
                 }
             },
 
-            Statements::StructDefineStatement { name, functions, fields, span } => {
+            Statements::StructDefineStatement { name, functions, fields, public, span } => {
                 let pre_type = Type::Struct(fields.clone(), HashMap::new());
                 self.scope.structures.insert(name.clone(), pre_type);
 
@@ -474,7 +474,7 @@ impl Analyzer {
                     self.error(err, *span);
                 })
             },
-            Statements::EnumDefineStatement { name, fields, functions, span } => {
+            Statements::EnumDefineStatement { name, fields, functions, public, span } => {
                 let pre_type = Type::Enum(fields.clone(), HashMap::new());
                 self.scope.structures.insert(name.clone(), pre_type);
 
