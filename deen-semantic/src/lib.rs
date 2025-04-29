@@ -316,7 +316,7 @@ impl Analyzer {
                             if Self::is_integer(&value_type) && Self::is_integer(&datatype) {
                                 if Self::integer_order(&value_type) > Self::integer_order(&datatype) {
                                     self.error(
-                                        format!("Expected integer type `{}` (or lower), but found `{}`", datatype, value_type),
+                                        format!("Expected integer type `{}`, but found `{}`", datatype, value_type),
                                         *span
                                     );
                                     return;
@@ -566,6 +566,7 @@ impl Analyzer {
                     return;
                 }
 
+                self.scope.returned = then_block_type.clone();
                 if let Some(else_block) = else_block {
                     let mut new_scope = Scope::new();
                     new_scope.parent = Some(Box::new(self.scope.clone()));
@@ -589,15 +590,12 @@ impl Analyzer {
                     self.scope = *self.scope.parent.clone().unwrap();
 
                     if then_block_type != else_block_type {
-                        self.scope.returned = then_block_type.clone();
                         self.error(
                             format!("Scopes has incompatible types: `{}` and `{}`", then_block_type, else_block_type),
                             *span
                         );
                         return;
                     }
-
-                    self.scope.returned = then_block_type;
                 }
             },
             Statements::WhileStatement { condition, block, span } => {
@@ -897,10 +895,13 @@ impl Analyzer {
         match expr {
             Expressions::Binary { operand, lhs, rhs, span } => {
                 let left = self.visit_expression(lhs, expected.clone());
-                let right = self.visit_expression(rhs, expected);
+                let right = self.visit_expression(rhs, Some(left.clone()));
 
                 match (left.clone(), right.clone()) {
                     (l, r) if Self::is_integer(&l) && Self::is_integer(&r) => {
+                        if Self::is_unsigned_integer(&l) && !Self::is_unsigned_integer(&r) { return r };
+                        if Self::is_unsigned_integer(&r) && !Self::is_unsigned_integer(&l) { return l };
+
                         if Self::integer_order(&l) > Self::integer_order(&r) { l } else { r }
                     }
 
@@ -913,7 +914,7 @@ impl Analyzer {
                             format!("Cannot apply binary \"{}\" to `{}` and `{}`", operand, left, right),
                             *span
                         );
-                        Type::Void
+                        left
                     }
                 }
             },
@@ -936,7 +937,7 @@ impl Analyzer {
                             format!("Cannot apply unary \"{}\" to `{}`", operand, obj),
                             *span
                         );
-                        Type::Void
+                        obj
                     }
                 }
             },
@@ -944,7 +945,7 @@ impl Analyzer {
                 const SUPPORTED_EXTRA_TYPES: [Type; 3] = [Type::String, Type::Bool, Type::Char];
 
                 let left = self.visit_expression(lhs, expected.clone());
-                let right = self.visit_expression(rhs, expected);
+                let right = self.visit_expression(rhs, Some(left.clone()));
 
                 match (left.clone(), right.clone()) {
                     (l, r) if Self::is_integer(&l) && Self::is_integer(&r) => Type::Bool,
@@ -957,7 +958,7 @@ impl Analyzer {
                             format!("Cannot apply boolean \"{}\" to `{}` and `{}`", operand, left, right),
                             *span
                         );
-                        Type::Void
+                        left
                     }
                 }
             },
@@ -970,7 +971,7 @@ impl Analyzer {
                         format!("Cannot apply bitwise operations to `{}` and `{}`", &left, &right),
                         *span
                     );
-                    return Type::Void;
+                    return left;
                 };
 
                 if [">>", "<<"].contains(&operand.as_ref()) && !Self::is_unsigned_integer(&right) {
@@ -978,7 +979,7 @@ impl Analyzer {
                         "Shift index must be unsigned integer".to_string(),
                         *span
                     );
-                    return Type::Void;
+                    return left;
                 }
 
                 if Self::integer_order(&left) > Self::integer_order(&right) { left } else { right }
@@ -1254,7 +1255,7 @@ impl Analyzer {
 
                 if func == Type::Void { return func };
                 if let Type::Function(func_args, func_type) = func {
-                    let call_args = arguments.iter().map(|arg| self.visit_expression(arg, None)).collect::<Vec<Type>>();
+                    let call_args = arguments.iter().zip(func_args.clone()).map(|(arg, exp)| self.visit_expression(arg, Some(exp))).collect::<Vec<Type>>();
 
                     if call_args.len() != func_args.len() {
                         self.error(
@@ -1565,7 +1566,9 @@ impl Analyzer {
             Type::I32, Type::I64,
             
             Type::U8, Type::U16,
-            Type::U32, Type::U64
+            Type::U32, Type::U64,
+
+            Type::USIZE
         ].contains(typ)
     }
 
