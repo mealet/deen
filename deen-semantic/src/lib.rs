@@ -837,7 +837,7 @@ impl Analyzer {
                 }
             },
             Statements::BreakStatements { span } => {
-                if !self.scope.is_loop {
+                if !self.scope.is_loop() {
                     self.error(
                         String::from("Used `break` keyword outside loop"),
                         *span

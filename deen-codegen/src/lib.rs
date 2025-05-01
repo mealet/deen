@@ -39,6 +39,7 @@ pub struct CodeGen<'ctx> {
     module: Module<'ctx>,
 
     function: Option<FunctionValue<'ctx>>,
+    breaks: Vec<BasicBlock<'ctx>>,
 
     variables: HashMap<String, Variable<'ctx>>,
     functions: HashMap<String, Function<'ctx>>,
@@ -85,6 +86,7 @@ impl<'ctx> CodeGen<'ctx> {
             module,
 
             function: None,
+            breaks: vec![],
 
             variables: HashMap::new(),
             functions: HashMap::new(),
@@ -106,7 +108,7 @@ impl<'ctx> CodeGen<'ctx> {
         if let Some(main_fn) = main_fn {
             let verified = main_fn.value.verify(false);
             if main_fn.datatype == Type::Void && !verified {
-                self.builder.position_at_end(main_fn.value.get_last_basic_block().unwrap());
+                // self.builder.position_at_end(main_fn.value.get_last_basic_block().unwrap());
                 self.builder.build_return(
                     Some(
                         &self.context.i8_type().const_int(0, false)
@@ -358,20 +360,47 @@ impl<'ctx> CodeGen<'ctx> {
                 self.builder.position_at_end(then_basic_block);
 
                 then_block.into_iter().for_each(|stmt| self.compile_statement(stmt, None));
-                self.builder.build_unconditional_branch(after_basic_block).unwrap();
+
+                self.build_branch(after_basic_block);
 
                 if let Some(else_basic_block) = else_basic_block {
                     self.builder.position_at_end(else_basic_block);
                     else_block.unwrap().into_iter().for_each(|stmt| self.compile_statement(stmt, None));
-                    self.builder.build_unconditional_branch(after_basic_block).unwrap();
+                    self.build_branch(after_basic_block);
                 }
 
                 self.builder.position_at_end(after_basic_block);
             },
-            Statements::WhileStatement { condition, block, span } => todo!(),
+            Statements::WhileStatement { condition, block, span } => {
+                let condition_block = self.context.append_basic_block(self.function.unwrap(), "__while_condition");
+                let statements_block = self.context.append_basic_block(self.function.unwrap(), "__while_block");
+                let after_block = self.context.append_basic_block(self.function.unwrap(), "__while_after");
+
+                let _ = self.builder.build_unconditional_branch(condition_block).unwrap();
+                self.builder.position_at_end(condition_block);
+                self.breaks.push(after_block);
+
+                let compiled_condition = self.compile_expression(condition, None);
+
+                let _ = self.builder.build_conditional_branch(
+                    compiled_condition.1.into_int_value(),
+                    statements_block,
+                    after_block
+                );
+
+                self.builder.position_at_end(statements_block);
+                block.into_iter().for_each(|statement| self.compile_statement(statement, prefix.clone()));
+
+                let _ = self.builder.build_unconditional_branch(condition_block).unwrap();
+                self.builder.position_at_end(after_block);
+                let _ = self.breaks.pop();
+            },
             Statements::ForStatement { binding, iterator, block, span } => todo!(),
 
-            Statements::BreakStatements { span } => todo!(),
+            Statements::BreakStatements { span } => {
+                let break_block = self.breaks.last().unwrap();
+                let _ = self.builder.build_unconditional_branch(*break_block).unwrap();
+            },
             Statements::ReturnStatement { value, span } => {
                 let compiled_value = self.compile_expression(value, None);
                 self.builder.build_return(Some(&compiled_value.1)).unwrap();
@@ -1109,5 +1138,11 @@ impl<'ctx> CodeGen<'ctx> {
 
     fn is_main(&self) -> bool {
         self.module.get_function("main").is_some()
+    }
+
+    fn build_branch(&mut self, block: BasicBlock<'ctx>) {
+        if self.builder.get_insert_block().unwrap().get_terminator().is_none() {
+            self.builder.build_unconditional_branch(block);
+        }
     }
 }

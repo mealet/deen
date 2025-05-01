@@ -165,4 +165,14 @@ impl Scope {
             self.parent.as_ref().and_then(|parent| parent.get_typedef(name))
         })
     }
+
+    #[inline]
+    pub fn is_loop(&self) -> bool {
+        let mut cursor = self;
+        while !cursor.is_loop && cursor.parent.is_some() {
+            cursor = cursor.parent.as_ref().unwrap();
+        }
+
+        cursor.is_loop
+    }
 }
