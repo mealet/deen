@@ -359,19 +359,16 @@ impl Parser {
         Expressions::Struct { name, fields, span }
     }
 
-    #[allow(unused)]
     pub fn expressions_enum(&mut self, start: TokenType, end: TokenType, separator: TokenType) -> Vec<Expressions> {
         let mut current = self.current();
 
-        match current.token_type {
-            start => current = self.next(),
-            end => {
-                self.error(
-                    String::from("Unexpected enumeration end found"),
-                    current.span
-                );
-                return Vec::new();
-            }
+        if self.expect(start) { current = self.next() }
+        else if self.expect(end.clone()) {
+            self.error(
+                String::from("Unexpected enumeration end found"),
+                current.span
+            );
+            return Vec::new();
         }
 
         let mut output = Vec::new();
