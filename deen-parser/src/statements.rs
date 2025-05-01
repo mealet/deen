@@ -471,7 +471,13 @@ impl Parser {
             let _ = self.next();
         }
 
-        let return_expr = self.expression();
+        let return_expr = if self.expect(TokenType::Semicolon) {
+            let _ = self.next();
+            Expressions::Value(Value::Void, self.current().span)
+        } else {
+            self.expression()
+        };
+
         Statements::ReturnStatement { value: return_expr.clone(), span: (span_start, self.span_expression(return_expr).1) }
     }
 

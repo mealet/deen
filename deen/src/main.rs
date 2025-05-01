@@ -183,7 +183,7 @@ fn main() {
         .unwrap_or(fname.replace(".dn", ""));
 
     let ctx = deen_codegen::CodeGen::create_context();
-    let mut codegen = deen_codegen::CodeGen::new(&ctx, &module_name, imports);
+    let mut codegen = deen_codegen::CodeGen::new(&ctx, &module_name, imports, true);
     
     let module_ref = codegen.compile(ast, None);
 

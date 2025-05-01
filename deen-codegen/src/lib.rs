@@ -47,7 +47,9 @@ pub struct CodeGen<'ctx> {
     enumerations: HashMap<String, Enumeration<'ctx>>,
     typedefs: HashMap<String, Type>,
 
-    imports: HashMap<String, Import>
+    imports: HashMap<String, Import>,
+    main_latest_block: Option<BasicBlock<'ctx>>,
+    is_main: bool
 }
 
 impl<'ctx> CodeGen<'ctx> {
@@ -61,7 +63,8 @@ impl<'ctx> CodeGen<'ctx> {
     pub fn new(
         context: &'ctx Context,
         module_name: &str,
-        imports: HashMap<String, Import>
+        imports: HashMap<String, Import>,
+        is_main: bool
     ) -> Self {
         let module = context.create_module(module_name);
         let builder = context.create_builder();
@@ -95,6 +98,8 @@ impl<'ctx> CodeGen<'ctx> {
             typedefs: HashMap::new(),
 
             imports,
+            main_latest_block: None,
+            is_main
         }
     }
 
@@ -103,19 +108,15 @@ impl<'ctx> CodeGen<'ctx> {
             self.compile_statement(statement, prefix.clone());
         }
 
-        let main_fn = self.functions.get("main");
-
-        if let Some(main_fn) = main_fn {
-            let verified = main_fn.value.verify(false);
-            if main_fn.datatype == Type::Void && !verified {
-                // self.builder.position_at_end(main_fn.value.get_last_basic_block().unwrap());
-                self.builder.build_return(
-                    Some(
-                        &self.context.i8_type().const_int(0, false)
-                    )
-                ).unwrap();
-            }
-        }
+        // let main_fn = self.functions.get("main");
+        //
+        // if let Some(main_fn) = main_fn {
+        //     let verified = main_fn.value.verify(false);
+        //     if main_fn.datatype == Type::Void && !verified {
+        //         self.builder.position_at_end(self.main_latest_block.unwrap());
+        //         self.builder.build_return(None).unwrap();
+        //     }
+        // }
 
         &self.module
     }
@@ -259,8 +260,8 @@ impl<'ctx> CodeGen<'ctx> {
                 let function = self.module.add_function(&name, fn_type, Some(inkwell::module::Linkage::External));
                 let entry = self.context.append_basic_block(function, "entry");
 
-                let old_function = self.function.clone();
                 let old_position = self.builder.get_insert_block();
+                let old_function = self.function.clone();
                 self.builder.position_at_end(entry);
                 self.function = Some(function);
 
@@ -280,13 +281,17 @@ impl<'ctx> CodeGen<'ctx> {
                 });
 
                 let typed_args = arguments.iter().map(|x| x.1.clone()).collect();
-                self.functions.insert(name.clone(), Function { name, datatype, value: function, arguments: typed_args });
+                self.functions.insert(name.clone(), Function { name: name.clone(), datatype: datatype.clone(), value: function, arguments: typed_args });
                 block.iter().for_each(|stmt| self.compile_statement(stmt.clone(), None));
+
+                if datatype == Type::Void {
+                    self.builder.build_return(None).unwrap();
+                }
 
                 if let Some(basic_block) = old_position {
                     self.builder.position_at_end(basic_block);
                 }
-                
+
                 self.function = old_function;
                 old_variables.iter().for_each(|var| {
                     if let Some(value) = var.1 {
@@ -403,7 +408,9 @@ impl<'ctx> CodeGen<'ctx> {
             },
             Statements::ReturnStatement { value, span } => {
                 let compiled_value = self.compile_expression(value, None);
-                self.builder.build_return(Some(&compiled_value.1)).unwrap();
+                if compiled_value.0 != Type::Void {
+                    self.builder.build_return(Some(&compiled_value.1)).unwrap();
+                }
             },
             Statements::ImportStatement { path, span } => {
                 let path = if let Expressions::Value(Value::String(path), _) = path { path } else { String::default() };
@@ -421,7 +428,7 @@ impl<'ctx> CodeGen<'ctx> {
                     .unwrap_or(fname.replace(".dn", ""));
 
                 let import = self.imports.get(&module_name).unwrap();
-                let mut codegen = Self::new(&self.context, &module_name, import.embedded_imports.clone());
+                let mut codegen = Self::new(&self.context, &module_name, import.embedded_imports.clone(), false);
 
                 let prefix = format!("__{}_", module_name);
                 let module = codegen.compile(import.ast.clone(), Some(prefix));
@@ -1003,7 +1010,10 @@ impl<'ctx> CodeGen<'ctx> {
                 (variable.datatype.clone(), value)
             },
 
-            Value::Keyword(key) => unreachable!()
+            Value::Void => {
+                (Type::Void, self.context.bool_type().const_zero().into())
+            },
+            Value::Keyword(key) => unreachable!(),
         }
     }
 }
@@ -1117,7 +1127,10 @@ impl<'ctx> CodeGen<'ctx> {
     }
 
     fn get_fn_type(&self, datatype: Type, arguments: &[BasicMetadataTypeEnum<'ctx>], is_var_args: bool) -> FunctionType<'ctx> {
-        self.get_basic_type(datatype).fn_type(arguments, false)
+        match datatype {
+            Type::Void => self.context.void_type().fn_type(arguments, false),
+            _ => self.get_basic_type(datatype).fn_type(arguments, false)
+        }
     }
 
     fn get_alias_type(&self, alias_type: Type) -> Option<&str> {
@@ -1137,7 +1150,7 @@ impl<'ctx> CodeGen<'ctx> {
     }
 
     fn is_main(&self) -> bool {
-        self.module.get_function("main").is_some()
+        self.is_main
     }
 
     fn build_branch(&mut self, block: BasicBlock<'ctx>) {

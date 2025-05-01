@@ -129,7 +129,7 @@ impl Scope {
 
     #[inline]
     pub fn get_struct(&self, name: &str) -> Option<Type> {
-        self.functions.get(name).map(|elem| elem.datatype.clone()).or_else(|| {
+        self.structures.get(name).map(|elem| elem.datatype.clone()).or_else(|| {
             self.parent.as_ref().and_then(|parent| parent.get_struct(name))
         })
     }
@@ -145,7 +145,7 @@ impl Scope {
 
     #[inline]
     pub fn get_enum(&self, name: &str) -> Option<Type> {
-        self.functions.get(name).map(|elem| elem.datatype.clone()).or_else(|| {
+        self.enums.get(name).map(|elem| elem.datatype.clone()).or_else(|| {
             self.parent.as_ref().and_then(|parent| parent.get_enum(name))
         })
     }

@@ -1554,6 +1554,7 @@ impl Analyzer {
             Value::Char(_) => Ok(Type::Char),
             Value::Boolean(_) => Ok(Type::Bool),
             Value::Keyword(_) => Ok(Type::Void),
+            Value::Void => Ok(Type::Void)
         }
     }
 }
