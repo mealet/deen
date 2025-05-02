@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use deen_parser::{
     statements::Statements,
     expressions::Expressions,
@@ -11,10 +9,9 @@ use inkwell::{
     builder::Builder,
     context::Context,
     module::Module,
-    passes::PassManager,
     types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType},
     values::{
-        BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, IntValue, PointerValue
+        BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue
     },
     AddressSpace
 };
@@ -48,7 +45,6 @@ pub struct CodeGen<'ctx> {
     typedefs: HashMap<String, Type>,
 
     imports: HashMap<String, Import>,
-    main_latest_block: Option<BasicBlock<'ctx>>,
     is_main: bool
 }
 
@@ -98,7 +94,6 @@ impl<'ctx> CodeGen<'ctx> {
             typedefs: HashMap::new(),
 
             imports,
-            main_latest_block: None,
             is_main
         }
     }
@@ -125,11 +120,11 @@ impl<'ctx> CodeGen<'ctx> {
 impl<'ctx> CodeGen<'ctx> {
     fn compile_statement(&mut self, statement: Statements, prefix: Option<String>) {
         match statement {
-            Statements::AssignStatement { identifier, value, span } => {
+            Statements::AssignStatement { identifier, value, span: _ } => {
                 let var = self.variables.get(&identifier).unwrap().clone();
                 let compiled_value = self.compile_expression(value, Some(var.datatype));
 
-                self.builder.build_store(var.ptr, compiled_value.1);
+                self.builder.build_store(var.ptr, compiled_value.1).unwrap();
             },
             Statements::BinaryAssignStatement { identifier, operand, value, span } => {
                 let stmt = Statements::AssignStatement {
@@ -151,16 +146,16 @@ impl<'ctx> CodeGen<'ctx> {
 
                 self.compile_statement(stmt, prefix);
             },
-            Statements::DerefAssignStatement { identifier, value, span } => {
+            Statements::DerefAssignStatement { identifier, value, span: _ } => {
                 let var = self.variables.get(&identifier).unwrap().clone();
                 let ptr_type = if let Type::Pointer(ptr) = var.datatype { *ptr } else { var.datatype };
 
                 let compiled_value = self.compile_expression(value, Some(ptr_type));
 
                 let dereferenced_ptr = self.builder.build_load(self.context.ptr_type(AddressSpace::default()), var.ptr, "").unwrap();
-                self.builder.build_store(dereferenced_ptr.into_pointer_value(), compiled_value.1);
+                self.builder.build_store(dereferenced_ptr.into_pointer_value(), compiled_value.1).unwrap();
             },
-            Statements::SliceAssignStatement { identifier, index, value, span } => {
+            Statements::SliceAssignStatement { identifier, index, value, span: _ } => {
                 let var = self.variables.get(&identifier).unwrap().clone();
                 let (item_type, len) = match var.datatype.clone() {
                     Type::Array(tty, len) => (*tty, len),
@@ -215,14 +210,14 @@ impl<'ctx> CodeGen<'ctx> {
                 // storing value
                 self.builder.build_store(ptr, compiled_value.1).unwrap();
             },
-            Statements::FieldAssignStatement { object, value, span } => {
+            Statements::FieldAssignStatement { object, value, span: _ } => {
                 let compiled_object = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
                 let compiled_value = self.compile_expression(value, Some(compiled_object.0));
 
                 self.builder.build_store(compiled_object.1.into_pointer_value(), compiled_value.1).unwrap();
             },
 
-            Statements::AnnotationStatement { identifier, datatype, value, span } => {
+            Statements::AnnotationStatement { identifier, datatype, value, span: _ } => {
                 match (datatype, value) {
                     (Some(datatype), Some(value)) => {
                         let value = self.compile_expression(value, Some(datatype));
@@ -248,7 +243,7 @@ impl<'ctx> CodeGen<'ctx> {
                 }
             },
 
-            Statements::FunctionDefineStatement { name, datatype, arguments, block, public, span } => {
+            Statements::FunctionDefineStatement { name, datatype, arguments, block, public: _, span: _ } => {
                 let name = format!("{}{}", prefix.unwrap_or_default(), name);
 
                 let mut args: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
@@ -283,7 +278,7 @@ impl<'ctx> CodeGen<'ctx> {
                 });
 
                 let typed_args = arguments.iter().map(|x| x.1.clone()).collect();
-                self.functions.insert(name.clone(), Function { name: name.clone(), datatype: datatype.clone(), value: function, arguments: typed_args });
+                self.functions.insert(name.clone(), Function { datatype: datatype.clone(), value: function, arguments: typed_args });
                 block.iter().for_each(|stmt| self.compile_statement(stmt.clone(), None));
 
                 if datatype == Type::Void {
@@ -301,7 +296,7 @@ impl<'ctx> CodeGen<'ctx> {
                     }
                 })
             }
-            Statements::FunctionCallStatement { name, arguments, span } => {
+            Statements::FunctionCallStatement { name, arguments, span: _ } => {
                 let function = self.functions.get(&name).unwrap().clone();
                 let mut basic_args: Vec<BasicMetadataValueEnum> = Vec::new();
 
@@ -311,10 +306,10 @@ impl<'ctx> CodeGen<'ctx> {
                     );
                 });
 
-                self.builder.build_call(function.value, &basic_args, "");
+                self.builder.build_call(function.value, &basic_args, "").unwrap();
             },
 
-            Statements::StructDefineStatement { name, fields, functions, public, span } => {
+            Statements::StructDefineStatement { name, fields, functions, public: _, span: _ } => {
                 let name = format!("{}{}", prefix.unwrap_or_default(), name);
                 let struct_type = self.context.opaque_struct_type(&name);
                 let mut compiled_fields = Vec::new();
@@ -338,25 +333,25 @@ impl<'ctx> CodeGen<'ctx> {
                     fields_hashmap.insert(field.name.clone(), field);
                 });
 
-                self.structures.insert(name.clone(), Structure { name: name.clone(), fields: fields_hashmap, llvm_type: struct_type.into() });
+                self.structures.insert(name.clone(), Structure { fields: fields_hashmap, llvm_type: struct_type.into() });
                 
                 functions.iter().for_each(|(_, function_statement)| {
                     self.compile_statement(function_statement.to_owned(), Some(format!("struct_{}__", name)));
                 });
             },
-            Statements::EnumDefineStatement { name, fields, functions, public, span } => {
+            Statements::EnumDefineStatement { name, fields, functions, public: _, span: _ } => {
                 let name = format!("{}{}", prefix.unwrap_or_default(), name);
-                self.enumerations.insert(name.clone(), Enumeration { name: name.clone(), fields, llvm_type: self.context.i8_type().into() });
+                self.enumerations.insert(name.clone(), Enumeration { fields, llvm_type: self.context.i8_type().into() });
 
                 functions.iter().for_each(|(_, function_statement)| {
                     self.compile_statement(function_statement.to_owned(), Some(format!("enum_{}__", name)))
                 });
             },
-            Statements::TypedefStatement { alias, datatype, span } => {
+            Statements::TypedefStatement { alias, datatype, span: _ } => {
                 self.typedefs.insert(alias, datatype);
             },
 
-            Statements::IfStatement { condition, then_block, else_block, span } => {
+            Statements::IfStatement { condition, then_block, else_block, span: _ } => {
                 let condition = self.compile_expression(condition, None);
 
                 let then_basic_block = self.context.append_basic_block(self.function.unwrap(), "__if_then");
@@ -378,7 +373,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 self.builder.position_at_end(after_basic_block);
             },
-            Statements::WhileStatement { condition, block, span } => {
+            Statements::WhileStatement { condition, block, span: _ } => {
                 let condition_block = self.context.append_basic_block(self.function.unwrap(), "__while_condition");
                 let statements_block = self.context.append_basic_block(self.function.unwrap(), "__while_block");
                 let after_block = self.context.append_basic_block(self.function.unwrap(), "__while_after");
@@ -402,19 +397,19 @@ impl<'ctx> CodeGen<'ctx> {
                 self.builder.position_at_end(after_block);
                 let _ = self.breaks.pop();
             },
-            Statements::ForStatement { binding, iterator, block, span } => todo!(),
+            Statements::ForStatement { binding: _, iterator: _, block: _, span: _ } => todo!(),
 
-            Statements::BreakStatements { span } => {
+            Statements::BreakStatements { span: _ } => {
                 let break_block = self.breaks.last().unwrap();
                 let _ = self.builder.build_unconditional_branch(*break_block).unwrap();
             },
-            Statements::ReturnStatement { value, span } => {
+            Statements::ReturnStatement { value, span: _ } => {
                 let compiled_value = self.compile_expression(value, None);
                 if compiled_value.0 != Type::Void {
                     self.builder.build_return(Some(&compiled_value.1)).unwrap();
                 }
             },
-            Statements::ImportStatement { path, span } => {
+            Statements::ImportStatement { path, span: _ } => {
                 let path = if let Expressions::Value(Value::String(path), _) = path { path } else { String::default() };
                 let fname = std::path::Path::new(&path)
                     .file_name()
@@ -435,9 +430,9 @@ impl<'ctx> CodeGen<'ctx> {
                 let prefix = format!("__{}_", module_name);
                 let module = codegen.compile(import.ast.clone(), Some(prefix));
 
-                self.module.link_in_module(module.to_owned());
+                self.module.link_in_module(module.to_owned()).unwrap();
             },
-            Statements::ScopeStatement { block, span } => {
+            Statements::ScopeStatement { block, span: _ } => {
                 block.iter().for_each(|stmt| self.compile_statement(stmt.clone(), None));
             }
 
@@ -451,7 +446,7 @@ impl<'ctx> CodeGen<'ctx> {
     fn compile_expression(&mut self, expression: Expressions, expected: Option<Type>) -> (Type, BasicValueEnum<'ctx>) {
         match expression {
             Expressions::Value(val, _) => self.compile_value(val, expected),
-            Expressions::FnCall { name, arguments, span } => {
+            Expressions::FnCall { name, arguments, span: _ } => {
                 let function = self.functions.get(&name).unwrap().clone();
                 let mut args: Vec<BasicMetadataValueEnum> = Vec::new();
                 arguments.iter().zip(function.arguments).for_each(|(arg, fn_expected)| {
@@ -461,7 +456,7 @@ impl<'ctx> CodeGen<'ctx> {
                 (function.datatype, self.builder.build_call(function.value, &args, "").unwrap().try_as_basic_value().left().unwrap())
             }
 
-            Expressions::Reference { object, span } => {
+            Expressions::Reference { object, span: _ } => {
                 match *object {
                     Expressions::Value(Value::Identifier(id), _) => {
                         let var = self.variables.get(&id).unwrap();
@@ -476,7 +471,7 @@ impl<'ctx> CodeGen<'ctx> {
                     }
                 }
             },
-            Expressions::Dereference { object, span } => {
+            Expressions::Dereference { object, span: _ } => {
                 let (ptr_type, ptr) = self.compile_expression(*object, expected);
                 let basic_type = self.get_basic_type(ptr_type.clone());
 
@@ -484,7 +479,7 @@ impl<'ctx> CodeGen<'ctx> {
                 (ptr_type, value)
             },
 
-            Expressions::Unary { operand, object, span } => {
+            Expressions::Unary { operand, object, span: _ } => {
                 let object_value = self.compile_expression(*object, expected);
                 
                 match operand.as_str() {
@@ -520,7 +515,7 @@ impl<'ctx> CodeGen<'ctx> {
                     _ => unreachable!()
                 }
             },
-            Expressions::Binary { operand, lhs, rhs, span } => {
+            Expressions::Binary { operand, lhs, rhs, span: _ } => {
                 let lhs_value = self.compile_expression(*lhs, expected.clone());
                 let rhs_value = self.compile_expression(*rhs, expected);
 
@@ -593,7 +588,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 (senior_type, output)
             },
-            Expressions::Boolean { operand, lhs, rhs, span } => {
+            Expressions::Boolean { operand, lhs, rhs, span: _ } => {
                 let lhs_value = self.compile_expression(*lhs, expected.clone());
                 let rhs_value = self.compile_expression(*rhs, expected);
 
@@ -655,7 +650,7 @@ impl<'ctx> CodeGen<'ctx> {
                     _ => unreachable!()
                 }
             },
-            Expressions::Bitwise { operand, lhs, rhs, span } => {
+            Expressions::Bitwise { operand, lhs, rhs, span: _ } => {
                 let left = self.compile_expression(*lhs, expected.clone());
                 let right = self.compile_expression(*rhs, expected.clone());
 
@@ -673,12 +668,11 @@ impl<'ctx> CodeGen<'ctx> {
                 (left.0, basic_value)
             },
 
-            Expressions::SubElement { head, subelements, span } => {
+            Expressions::SubElement { head, subelements, span: _ } => {
                 let compiled_head = self.compile_expression(*head, Some(Type::Pointer(Box::new(Type::Void))));
 
                 let mut prev_val = compiled_head.1;
                 let mut prev_type = compiled_head.0;
-                let mut prev_expr = Expressions::None;
 
                 subelements.iter().for_each(|sub| {
                     match sub {
@@ -788,7 +782,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 (prev_type, prev_val)
             },
-            Expressions::Scope { block, span } => {
+            Expressions::Scope { block, span: _ } => {
                 let fn_type = self.get_fn_type(expected.clone().unwrap_or(Type::Void), &[], false);
                 let scope_fn_value = self.module.add_function("__scope_wrap", fn_type, Some(inkwell::module::Linkage::Private));
                 let entry = self.context.append_basic_block(scope_fn_value, "entry");
@@ -803,7 +797,7 @@ impl<'ctx> CodeGen<'ctx> {
                 (expected.unwrap_or(Type::Void), scope_result)
             },
 
-            Expressions::Array { values, len, span } => {
+            Expressions::Array { values, len, span: _ } => {
                 let expected_items_type = match expected {
                     Some(Type::Array(typ, _)) => Some(*typ),
                     _ => None
@@ -832,7 +826,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 (Type::Array(Box::new(arr_type), len), arr_alloca.into())
             },
-            Expressions::Tuple { values, span } => {
+            Expressions::Tuple { values, span: _ } => {
                 let mut expected_types = values.iter().map(|_| None).collect::<Vec<Option<Type>>>();
                 if let Some(Type::Tuple(expectations)) = expected.clone() {
                     expected_types = expectations.into_iter().map(Some).collect();
@@ -855,7 +849,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 compiled_values.into_iter().enumerate().for_each(|(idx, (_, basic_val))| {
                     let ptr = self.builder.build_struct_gep(tuple_type, alloca, idx as u32, "").unwrap();
-                    self.builder.build_store(ptr, basic_val);
+                    self.builder.build_store(ptr, basic_val).unwrap();
                 });
 
                 let value = match expected {
@@ -866,7 +860,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 (tuple_datatype, value)
             },
-            Expressions::Slice { object, index, span } => {
+            Expressions::Slice { object, index, span: _ } => {
                 let obj = self.compile_expression(*object, None);
                 let idx = self.compile_expression(*index, Some(Type::USIZE));
 
@@ -921,7 +915,7 @@ impl<'ctx> CodeGen<'ctx> {
                     _ => unreachable!()
                 }
             },
-            Expressions::Struct { name, fields, span } => {
+            Expressions::Struct { name, fields, span: _ } => {
                 let name = if self.is_main() { name } else { format!("__{}_{}", self.module.get_name().to_str().unwrap(), name) };
                 let structure = self.structures.get(&name).unwrap().clone();
                 let struct_alloca = self.builder.build_alloca(structure.llvm_type, &format!("struct.{}.init", name)).unwrap();
@@ -946,7 +940,7 @@ impl<'ctx> CodeGen<'ctx> {
                 (Type::Alias(name), value)
             },
 
-            Expressions::Argument { name, r#type, span } => unreachable!(),
+            Expressions::Argument { name: _, r#type: _, span: _ } => unreachable!(),
             Expressions::None => unreachable!()
         }
     }
@@ -1001,7 +995,7 @@ impl<'ctx> CodeGen<'ctx> {
             Value::Identifier(id) => {
                 let externed_id = if self.is_main() { id.clone() } else { format!("__{}_{}", self.module.get_name().to_str().unwrap(), id) };
                 if let Some(typedef) = self.typedefs.get(&externed_id) { return (typedef.clone(), self.context.i8_type().const_zero().into()) }
-                if let Some(enumeration) = self.enumerations.get(&externed_id) { return (Type::Alias(externed_id), self.context.i8_type().const_zero().into()) }
+                if let Some(_) = self.enumerations.get(&externed_id) { return (Type::Alias(externed_id), self.context.i8_type().const_zero().into()) }
                 
                 let variable = self.variables.get(&id).unwrap(); // already checked by semantic analyzer
                 let value = match expected {
@@ -1015,7 +1009,7 @@ impl<'ctx> CodeGen<'ctx> {
             Value::Void => {
                 (Type::Void, self.context.bool_type().const_zero().into())
             },
-            Value::Keyword(key) => unreachable!(),
+            Value::Keyword(_) => unreachable!(),
         }
     }
 }
@@ -1026,8 +1020,8 @@ impl<'ctx> CodeGen<'ctx> {
             self.create_panic_function()
         });
 
-        let mut args: Vec<BasicMetadataValueEnum> = [vec![message.into()], specifiers].concat();
-        self.builder.build_call(panic_fn, &args, "");
+        let args: Vec<BasicMetadataValueEnum> = [vec![message.into()], specifiers].concat();
+        self.builder.build_call(panic_fn, &args, "").unwrap();
     }
 
     fn create_panic_function(&mut self) -> FunctionValue<'ctx> {
@@ -1060,9 +1054,9 @@ impl<'ctx> CodeGen<'ctx> {
 
         let args = fn_value.get_params().into_iter().map(|x| x.into()).collect::<Vec<BasicMetadataValueEnum>>();
 
-        self.builder.build_call(printf_fn, &args, "");
-        self.builder.build_call(exit_fn, &[self.context.i32_type().const_int(1, false).into()], "");
-        self.builder.build_return(None);
+        self.builder.build_call(printf_fn, &args, "").unwrap();
+        self.builder.build_call(exit_fn, &[self.context.i32_type().const_int(1, false).into()], "").unwrap();
+        self.builder.build_return(None).unwrap();
 
         self.builder.position_at_end(old_position);
 
@@ -1095,9 +1089,15 @@ impl<'ctx> CodeGen<'ctx> {
 
             Type::Pointer(_) => self.context.ptr_type(AddressSpace::default()).into(),
             Type::Array(datatype, len) => self.get_basic_type(*datatype).array_type(len as u32).into(),
-            Type::DynamicArray(datatype) => todo!(),
+            Type::DynamicArray(_) => todo!(),
             
-            Type::Tuple(types) => unreachable!(),
+            Type::Tuple(types) => {
+                let basic_types = types.into_iter().map(|typ| self.get_basic_type(typ)).collect::<Vec<BasicTypeEnum>>();
+                self.context.struct_type(
+                    &basic_types,
+                    false
+                ).as_basic_type_enum()
+            },
             Type::Alias(alias) => {
                 let alias = if self.is_main() { alias } else { format!("__{}_{}", self.module.get_name().to_str().unwrap(), alias) };
                 let struct_type = self.structures.get(&alias);
@@ -1119,7 +1119,7 @@ impl<'ctx> CodeGen<'ctx> {
                 ).collect::<Vec<BasicTypeEnum>>(),
                 false
             ).into(),
-            Type::Enum(fields, _) => self.context.i16_type().into(),
+            Type::Enum(_, _) => self.context.i16_type().into(),
 
             // Type::Function(args, datatype) => self.get_basic_type(*datatype).fn_type(
             //     &args.iter().map(|arg| self.get_basic_type(arg.clone()).into()).collect::<Vec<BasicMetadataTypeEnum>>(),
@@ -1130,8 +1130,8 @@ impl<'ctx> CodeGen<'ctx> {
 
     fn get_fn_type(&self, datatype: Type, arguments: &[BasicMetadataTypeEnum<'ctx>], is_var_args: bool) -> FunctionType<'ctx> {
         match datatype {
-            Type::Void => self.context.void_type().fn_type(arguments, false),
-            _ => self.get_basic_type(datatype).fn_type(arguments, false)
+            Type::Void => self.context.void_type().fn_type(arguments, is_var_args),
+            _ => self.get_basic_type(datatype).fn_type(arguments, is_var_args)
         }
     }
 
@@ -1141,9 +1141,9 @@ impl<'ctx> CodeGen<'ctx> {
             let enum_type = self.enumerations.get(&alias);
             let typedef_type = self.typedefs.get(&alias);
 
-            if let Some(struct_type) = struct_type { return Some("struct") };
-            if let Some(enum_type) = enum_type { return Some("enum") };
-            if let Some(typedef_type) = typedef_type { return Some("typedef") };
+            if let Some(_) = struct_type { return Some("struct") };
+            if let Some(_) = enum_type { return Some("enum") };
+            if let Some(_) = typedef_type { return Some("typedef") };
 
             unreachable!()
         } else {
@@ -1157,7 +1157,7 @@ impl<'ctx> CodeGen<'ctx> {
 
     fn build_branch(&mut self, block: BasicBlock<'ctx>) {
         if self.builder.get_insert_block().unwrap().get_terminator().is_none() {
-            self.builder.build_unconditional_branch(block);
+            self.builder.build_unconditional_branch(block).unwrap();
         }
     }
 }
