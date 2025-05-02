@@ -1,8 +1,12 @@
 [workspace]
 members = [
-  "deen", "deen-codegen",
+  "deen",
   "deen-lexer"
-, "deen-linker", "deen-parser", "deen-semantic"]
+  "deen-parser",
+  "deen-semantic"
+  "deen-codegen",
+  "deen-linker",
+]
 resolver = "2"
 
 [workspace.package]
