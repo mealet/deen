@@ -40,3 +40,10 @@ CLIPPY_ARGS = --fix --allow-dirty -- -D warnings
 
 clippy:
 	$(PACKAGE_MANAGER) $(CLIPPY_COMMAND) $(CLIPPY_ARGS)
+
+backtrace:
+	$(CODE_EDITOR) $(SRC_FILE)
+	RUST_BACKTRACE=1 $(PACKAGE_MANAGER) $(RUN_COMMAND) -- $(SRC_FILE) $(OUTPUT_FILE) $(DEEN_ARGS)
+
+clean:
+	rm -f $(OUTPUT_FILE) $(OUTPUT_FILE).ll
