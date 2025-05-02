@@ -995,7 +995,7 @@ impl<'ctx> CodeGen<'ctx> {
             Value::Identifier(id) => {
                 let externed_id = if self.is_main() { id.clone() } else { format!("__{}_{}", self.module.get_name().to_str().unwrap(), id) };
                 if let Some(typedef) = self.typedefs.get(&externed_id) { return (typedef.clone(), self.context.i8_type().const_zero().into()) }
-                if let Some(_) = self.enumerations.get(&externed_id) { return (Type::Alias(externed_id), self.context.i8_type().const_zero().into()) }
+                if self.enumerations.contains_key(&externed_id) { return (Type::Alias(externed_id), self.context.i8_type().const_zero().into()) }
                 
                 let variable = self.variables.get(&id).unwrap(); // already checked by semantic analyzer
                 let value = match expected {
@@ -1141,9 +1141,9 @@ impl<'ctx> CodeGen<'ctx> {
             let enum_type = self.enumerations.get(&alias);
             let typedef_type = self.typedefs.get(&alias);
 
-            if let Some(_) = struct_type { return Some("struct") };
-            if let Some(_) = enum_type { return Some("enum") };
-            if let Some(_) = typedef_type { return Some("typedef") };
+            if struct_type.is_some() { return Some("struct") };
+            if enum_type.is_some() { return Some("enum") };
+            if typedef_type.is_some() { return Some("typedef") };
 
             unreachable!()
         } else {
