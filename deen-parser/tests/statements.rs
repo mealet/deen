@@ -1,12 +1,7 @@
 use deen_lexer::Lexer;
 use deen_parser::{
-    Parser,
-    statements::Statements,
-    expressions::Expressions,
-    value::Value,
-    types::Type
+    Parser, expressions::Expressions, statements::Statements, types::Type, value::Value,
 };
-
 
 #[test]
 fn assign_statement_test() {
@@ -20,11 +15,18 @@ fn assign_statement_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::AssignStatement { identifier, value, span: _ }) => {
+        Some(Statements::AssignStatement {
+            identifier,
+            value,
+            span: _,
+        }) => {
             assert_eq!(identifier, "some_var");
-            if let Expressions::Value(Value::Integer(5), _) = value {} else { panic!("Wrong value expr found") };
+            if let Expressions::Value(Value::Integer(5), _) = value {
+            } else {
+                panic!("Wrong value expr found")
+            };
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -40,13 +42,21 @@ fn binary_assign_statement_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::BinaryAssignStatement { identifier, operand, value, span: _ }) => {
+        Some(Statements::BinaryAssignStatement {
+            identifier,
+            operand,
+            value,
+            span: _,
+        }) => {
             assert_eq!(identifier, "some_var");
             assert_eq!(operand, "+");
 
-            if let Expressions::Value(Value::Integer(5), _) = value {} else { panic!("Wrong value expr found") };
+            if let Expressions::Value(Value::Integer(5), _) = value {
+            } else {
+                panic!("Wrong value expr found")
+            };
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -62,12 +72,19 @@ fn deref_assign_statement_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::DerefAssignStatement { identifier, value, span: _ }) => {
+        Some(Statements::DerefAssignStatement {
+            identifier,
+            value,
+            span: _,
+        }) => {
             assert_eq!(identifier, "ptr");
 
-            if let Expressions::Value(Value::Integer(5), _) = value {} else { panic!("Wrong value expr found") };
+            if let Expressions::Value(Value::Integer(5), _) = value {
+            } else {
+                panic!("Wrong value expr found")
+            };
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -83,13 +100,24 @@ fn slice_assign_statement_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::SliceAssignStatement { identifier, index, value, span: _ }) => {
+        Some(Statements::SliceAssignStatement {
+            identifier,
+            index,
+            value,
+            span: _,
+        }) => {
             assert_eq!(identifier, "list");
 
-            if let Expressions::Value(Value::Integer(0), _) = index {} else { panic!("Wrong index expr parsed") }
-            if let Expressions::Value(Value::Integer(5), _) = value {} else { panic!("Wrong value expr parsed") };
+            if let Expressions::Value(Value::Integer(0), _) = index {
+            } else {
+                panic!("Wrong index expr parsed")
+            }
+            if let Expressions::Value(Value::Integer(5), _) = value {
+            } else {
+                panic!("Wrong value expr parsed")
+            };
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -105,16 +133,36 @@ fn field_assign_statement_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::FieldAssignStatement { object, value, span: _ }) => {
-            if let Expressions::SubElement { head, subelements, span: _ } = object {
-                if let Expressions::Value(Value::Identifier(id), _) = *head.clone() { assert_eq!(id, "some_struct") } else { panic!("Wrong head expr found") };
+        Some(Statements::FieldAssignStatement {
+            object,
+            value,
+            span: _,
+        }) => {
+            if let Expressions::SubElement {
+                head,
+                subelements,
+                span: _,
+            } = object
+            {
+                if let Expressions::Value(Value::Identifier(id), _) = *head.clone() {
+                    assert_eq!(id, "some_struct")
+                } else {
+                    panic!("Wrong head expr found")
+                };
                 if let Some(Expressions::Value(Value::Identifier(field), _)) = subelements.first() {
                     assert_eq!(field, "field");
-                } else { panic!("Wrong subelement expr found") }
-            } else { panic!("Wrong value expr parsed") };
-            if let Expressions::Value(Value::Integer(12), _) = value {} else { panic!("Wrong value expr parsed") };
+                } else {
+                    panic!("Wrong subelement expr found")
+                }
+            } else {
+                panic!("Wrong value expr parsed")
+            };
+            if let Expressions::Value(Value::Integer(12), _) = value {
+            } else {
+                panic!("Wrong value expr parsed")
+            };
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -130,12 +178,17 @@ fn annotation_statement_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::AnnotationStatement { identifier, datatype, value, span: _ }) => {
+        Some(Statements::AnnotationStatement {
+            identifier,
+            datatype,
+            value,
+            span: _,
+        }) => {
             assert_eq!(identifier, "var");
             assert!(datatype.is_none());
             assert!(value.is_none());
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -151,14 +204,19 @@ fn annotation_statement_with_type_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::AnnotationStatement { identifier, datatype, value, span: _ }) => {
+        Some(Statements::AnnotationStatement {
+            identifier,
+            datatype,
+            value,
+            span: _,
+        }) => {
             assert_eq!(identifier, "var");
             assert!(datatype.is_some());
             assert!(value.is_none());
 
             assert_eq!(datatype.clone().unwrap(), Type::I32);
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -174,14 +232,22 @@ fn annotation_statement_with_value_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::AnnotationStatement { identifier, datatype, value, span: _ }) => {
+        Some(Statements::AnnotationStatement {
+            identifier,
+            datatype,
+            value,
+            span: _,
+        }) => {
             assert_eq!(identifier, "var");
             assert!(datatype.is_none());
             assert!(value.is_some());
 
-            if let Some(Expressions::Value(Value::Integer(15), _)) = value {} else { panic!("Wrong value expr parsed") }
+            if let Some(Expressions::Value(Value::Integer(15), _)) = value {
+            } else {
+                panic!("Wrong value expr parsed")
+            }
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -197,15 +263,23 @@ fn annotation_statement_full_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::AnnotationStatement { identifier, datatype, value, span: _ }) => {
+        Some(Statements::AnnotationStatement {
+            identifier,
+            datatype,
+            value,
+            span: _,
+        }) => {
             assert_eq!(identifier, "var");
             assert!(datatype.is_some());
             assert!(value.is_some());
 
             assert_eq!(datatype.clone().unwrap(), Type::USIZE);
-            if let Some(Expressions::Value(Value::Integer(15), _)) = value {} else { panic!("Wrong value expr parsed") }
+            if let Some(Expressions::Value(Value::Integer(15), _)) = value {
+            } else {
+                panic!("Wrong value expr parsed")
+            }
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -221,14 +295,21 @@ fn function_define_statement_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::FunctionDefineStatement { name, datatype, arguments, block, public, span: _ }) => {
+        Some(Statements::FunctionDefineStatement {
+            name,
+            datatype,
+            arguments,
+            block,
+            public,
+            span: _,
+        }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::Void);
             assert!(arguments.is_empty());
             assert!(block.is_empty());
             assert!(!public);
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -244,14 +325,21 @@ fn function_define_statement_with_type_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::FunctionDefineStatement { name, datatype, arguments, block, public, span: _ }) => {
+        Some(Statements::FunctionDefineStatement {
+            name,
+            datatype,
+            arguments,
+            block,
+            public,
+            span: _,
+        }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::USIZE);
             assert!(arguments.is_empty());
             assert!(block.is_empty());
             assert!(!public);
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -267,7 +355,14 @@ fn function_define_statement_with_args_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::FunctionDefineStatement { name, datatype, arguments, block, public, span: _ }) => {
+        Some(Statements::FunctionDefineStatement {
+            name,
+            datatype,
+            arguments,
+            block,
+            public,
+            span: _,
+        }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::USIZE);
             assert!(block.is_empty());
@@ -277,14 +372,18 @@ fn function_define_statement_with_args_test() {
             if let Some((argname, argtype)) = arguments.first() {
                 assert_eq!(argname, "a");
                 assert_eq!(argtype, &Type::I32);
-            } else { panic!("Wrong argument expr parsed") }
+            } else {
+                panic!("Wrong argument expr parsed")
+            }
 
             if let Some((argname, argtype)) = arguments.get(1) {
                 assert_eq!(argname, "b");
                 assert_eq!(argtype, &Type::U64);
-            } else { panic!("Wrong argument expr parsed") }
+            } else {
+                panic!("Wrong argument expr parsed")
+            }
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -300,7 +399,14 @@ fn function_define_statement_with_block_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::FunctionDefineStatement { name, datatype, arguments, block, public, span: _ }) => {
+        Some(Statements::FunctionDefineStatement {
+            name,
+            datatype,
+            arguments,
+            block,
+            public,
+            span: _,
+        }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::Void);
             assert!(!block.is_empty());
@@ -310,18 +416,27 @@ fn function_define_statement_with_block_test() {
             if let Some((argname, argtype)) = arguments.first() {
                 assert_eq!(argname, "a");
                 assert_eq!(argtype, &Type::I32);
-            } else { panic!("Wrong argument expr parsed") }
+            } else {
+                panic!("Wrong argument expr parsed")
+            }
 
             if let Some((argname, argtype)) = arguments.get(1) {
                 assert_eq!(argname, "b");
                 assert_eq!(argtype, &Type::U64);
-            } else { panic!("Wrong argument expr parsed") }
+            } else {
+                panic!("Wrong argument expr parsed")
+            }
 
             if let Some(Statements::ReturnStatement { value, span: _ }) = block.first() {
-                if let Expressions::Value(Value::Integer(1), _) = value {} else { panic!("Wrong value in statement block parsed") }
-            } else { panic!("Wrong statement parsed") }
+                if let Expressions::Value(Value::Integer(1), _) = value {
+                } else {
+                    panic!("Wrong value in statement block parsed")
+                }
+            } else {
+                panic!("Wrong statement parsed")
+            }
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -337,7 +452,14 @@ fn function_define_statement_public_test() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::FunctionDefineStatement { name, datatype, arguments, block, public, span: _ }) => {
+        Some(Statements::FunctionDefineStatement {
+            name,
+            datatype,
+            arguments,
+            block,
+            public,
+            span: _,
+        }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::Void);
             assert!(!block.is_empty());
@@ -347,18 +469,27 @@ fn function_define_statement_public_test() {
             if let Some((argname, argtype)) = arguments.first() {
                 assert_eq!(argname, "a");
                 assert_eq!(argtype, &Type::I32);
-            } else { panic!("Wrong argument expr parsed") }
+            } else {
+                panic!("Wrong argument expr parsed")
+            }
 
             if let Some((argname, argtype)) = arguments.get(1) {
                 assert_eq!(argname, "b");
                 assert_eq!(argtype, &Type::U64);
-            } else { panic!("Wrong argument expr parsed") }
+            } else {
+                panic!("Wrong argument expr parsed")
+            }
 
             if let Some(Statements::ReturnStatement { value, span: _ }) = block.first() {
-                if let Expressions::Value(Value::Integer(1), _) = value {} else { panic!("Wrong value in statement block parsed") }
-            } else { panic!("Wrong statement parsed") }
+                if let Expressions::Value(Value::Integer(1), _) = value {
+                } else {
+                    panic!("Wrong value in statement block parsed")
+                }
+            } else {
+                panic!("Wrong statement parsed")
+            }
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -374,11 +505,15 @@ fn function_call_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::FunctionCallStatement { name, arguments, span: _ }) => {
+        Some(Statements::FunctionCallStatement {
+            name,
+            arguments,
+            span: _,
+        }) => {
             assert_eq!(name, "foo");
             assert!(arguments.is_empty());
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -394,14 +529,24 @@ fn function_call_advanced_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::FunctionCallStatement { name, arguments, span: _ }) => {
+        Some(Statements::FunctionCallStatement {
+            name,
+            arguments,
+            span: _,
+        }) => {
             assert_eq!(name, "foo");
             assert!(!arguments.is_empty());
 
-            if let Some(Expressions::Value(Value::Integer(1), _)) = arguments.first() {} else { panic!("Wrong #1 argument parsed") }
-            if let Some(Expressions::Value(Value::Integer(2), _)) = arguments.get(1) {} else { panic!("Wrong #2 argument parsed") }
+            if let Some(Expressions::Value(Value::Integer(1), _)) = arguments.first() {
+            } else {
+                panic!("Wrong #1 argument parsed")
+            }
+            if let Some(Expressions::Value(Value::Integer(2), _)) = arguments.get(1) {
+            } else {
+                panic!("Wrong #2 argument parsed")
+            }
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -417,16 +562,28 @@ fn struct_define_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::StructDefineStatement { name, fields, functions, public, span: _ }) => {
+        Some(Statements::StructDefineStatement {
+            name,
+            fields,
+            functions,
+            public,
+            span: _,
+        }) => {
             assert_eq!(name, "Person");
             assert!(!fields.is_empty());
             assert!(!public);
             assert!(functions.is_empty());
 
-            if let Some(Type::String) = fields.get("name") {} else { panic!("Wrong argument parsed") }
-            if let Some(Type::U8) = fields.get("age") {} else { panic!("Wrong argument parsed") }
+            if let Some(Type::String) = fields.get("name") {
+            } else {
+                panic!("Wrong argument parsed")
+            }
+            if let Some(Type::U8) = fields.get("age") {
+            } else {
+                panic!("Wrong argument parsed")
+            }
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -442,21 +599,41 @@ fn struct_define_with_fn_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::StructDefineStatement { name, fields, functions, public, span: _ }) => {
+        Some(Statements::StructDefineStatement {
+            name,
+            fields,
+            functions,
+            public,
+            span: _,
+        }) => {
             assert_eq!(name, "Person");
             assert!(!fields.is_empty());
             assert!(!public);
             assert!(!functions.is_empty());
 
-            if let Some(Type::String) = fields.get("name") {} else { panic!("Wrong argument parsed") }
-            if let Some(Type::U8) = fields.get("age") {} else { panic!("Wrong argument parsed") }
+            if let Some(Type::String) = fields.get("name") {
+            } else {
+                panic!("Wrong argument parsed")
+            }
+            if let Some(Type::U8) = fields.get("age") {
+            } else {
+                panic!("Wrong argument parsed")
+            }
 
-            if let Some(Statements::FunctionDefineStatement { name, datatype, arguments: _, block: _, public: _, span: _ }) = functions.get("foo") {
+            if let Some(Statements::FunctionDefineStatement {
+                name,
+                datatype,
+                arguments: _,
+                block: _,
+                public: _,
+                span: _,
+            }) = functions.get("foo")
+            {
                 assert_eq!(name, "foo");
                 assert_eq!(datatype, &Type::Void);
             }
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }
 
@@ -472,20 +649,40 @@ fn struct_define_public_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::StructDefineStatement { name, fields, functions, public, span: _ }) => {
+        Some(Statements::StructDefineStatement {
+            name,
+            fields,
+            functions,
+            public,
+            span: _,
+        }) => {
             assert_eq!(name, "Person");
             assert!(!fields.is_empty());
             assert!(!functions.is_empty());
             assert!(public);
 
-            if let Some(Type::String) = fields.get("name") {} else { panic!("Wrong argument parsed") }
-            if let Some(Type::U8) = fields.get("age") {} else { panic!("Wrong argument parsed") }
+            if let Some(Type::String) = fields.get("name") {
+            } else {
+                panic!("Wrong argument parsed")
+            }
+            if let Some(Type::U8) = fields.get("age") {
+            } else {
+                panic!("Wrong argument parsed")
+            }
 
-            if let Some(Statements::FunctionDefineStatement { name, datatype, arguments: _, block: _, public: _, span: _ }) = functions.get("foo") {
+            if let Some(Statements::FunctionDefineStatement {
+                name,
+                datatype,
+                arguments: _,
+                block: _,
+                public: _,
+                span: _,
+            }) = functions.get("foo")
+            {
                 assert_eq!(name, "foo");
                 assert_eq!(datatype, &Type::Void);
             }
         }
-        _ => panic!("Wrong statement parsed")
+        _ => panic!("Wrong statement parsed"),
     }
 }

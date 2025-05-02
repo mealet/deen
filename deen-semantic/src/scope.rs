@@ -1,6 +1,6 @@
 use crate::element::ScopeElement;
-use std::collections::HashMap;
 use deen_parser::types::Type;
+use std::collections::HashMap;
 
 type UnusedVariable = (String, (usize, usize));
 
@@ -17,7 +17,7 @@ pub struct Scope {
     pub functions: HashMap<String, ScopeElement>,
     pub structures: HashMap<String, ScopeElement>,
     pub enums: HashMap<String, ScopeElement>,
-    pub typedefs: HashMap<String, Type>
+    pub typedefs: HashMap<String, Type>,
 }
 
 #[derive(Debug, Clone)]
@@ -25,7 +25,7 @@ pub struct Variable {
     pub datatype: Type,
     pub initialized: bool,
     pub span: (usize, usize),
-    pub used: bool
+    pub used: bool,
 }
 
 impl Scope {
@@ -48,9 +48,25 @@ impl Scope {
     }
 
     #[inline]
-    pub fn add_var(&mut self, name: String, datatype: Type, initialized: bool, span: (usize, usize)) {
-        if name == "_" { return };
-        self.variables.insert(name, Variable { datatype, initialized, used: false, span });
+    pub fn add_var(
+        &mut self,
+        name: String,
+        datatype: Type,
+        initialized: bool,
+        span: (usize, usize),
+    ) {
+        if name == "_" {
+            return;
+        };
+        self.variables.insert(
+            name,
+            Variable {
+                datatype,
+                initialized,
+                used: false,
+                span,
+            },
+        );
     }
 
     #[inline]
@@ -60,17 +76,19 @@ impl Scope {
                 datatype: Type::Void,
                 initialized: true,
                 span: (0, 0),
-                used: true
-            })
+                used: true,
+            });
         }
 
-        self.variables.get(name).cloned().or_else(|| {
-            self.parent.as_mut().and_then(|parent| parent.get_var(name))
-        }).map(|mut var| {
-            var.used = true;
-            self.variables.insert(name.to_owned(), var.clone());
-            var
-        })
+        self.variables
+            .get(name)
+            .cloned()
+            .or_else(|| self.parent.as_mut().and_then(|parent| parent.get_var(name)))
+            .map(|mut var| {
+                var.used = true;
+                self.variables.insert(name.to_owned(), var.clone());
+                var
+            })
     }
 
     #[inline]
@@ -84,7 +102,7 @@ impl Scope {
         });
 
         if unused.is_empty() {
-            return None
+            return None;
         }
         Some(unused)
     }
@@ -97,8 +115,8 @@ impl Scope {
                 self.add_var(name.to_owned(), var.datatype, var.initialized, var.span);
 
                 Ok(())
-            },
-            None => Err(format!("Variable \"{}\" is not defined her", name))
+            }
+            None => Err(format!("Variable \"{}\" is not defined her", name)),
         }
     }
 
@@ -107,31 +125,54 @@ impl Scope {
         if self.functions.contains_key(&name) {
             return Err(format!("Function `{}` already declared", name));
         }
-        self.functions.insert(name.clone(), ScopeElement { datatype: return_type, public });
+        self.functions.insert(
+            name.clone(),
+            ScopeElement {
+                datatype: return_type,
+                public,
+            },
+        );
         Ok(())
     }
 
     #[inline]
     pub fn get_fn(&self, name: &str) -> Option<Type> {
-        self.functions.get(name).map(|elem| elem.datatype.clone()).or_else(|| {
-            self.parent.as_ref().and_then(|parent| parent.get_fn(name))
-        })
+        self.functions
+            .get(name)
+            .map(|elem| elem.datatype.clone())
+            .or_else(|| self.parent.as_ref().and_then(|parent| parent.get_fn(name)))
     }
 
     #[inline]
-    pub fn add_struct(&mut self, name: String, struct_type: Type, public: bool) -> Result<(), String> {
+    pub fn add_struct(
+        &mut self,
+        name: String,
+        struct_type: Type,
+        public: bool,
+    ) -> Result<(), String> {
         if self.structures.contains_key(&name) {
             return Err(format!("Structure `{}` already declared", name));
         }
-        self.structures.insert(name.clone(), ScopeElement { datatype: struct_type, public });
+        self.structures.insert(
+            name.clone(),
+            ScopeElement {
+                datatype: struct_type,
+                public,
+            },
+        );
         Ok(())
     }
 
     #[inline]
     pub fn get_struct(&self, name: &str) -> Option<Type> {
-        self.structures.get(name).map(|elem| elem.datatype.clone()).or_else(|| {
-            self.parent.as_ref().and_then(|parent| parent.get_struct(name))
-        })
+        self.structures
+            .get(name)
+            .map(|elem| elem.datatype.clone())
+            .or_else(|| {
+                self.parent
+                    .as_ref()
+                    .and_then(|parent| parent.get_struct(name))
+            })
     }
 
     #[inline]
@@ -139,15 +180,26 @@ impl Scope {
         if self.enums.contains_key(&name) {
             return Err(format!("Enum `{}` already declared", name));
         }
-        self.structures.insert(name.clone(), ScopeElement { datatype: enum_type, public });
+        self.structures.insert(
+            name.clone(),
+            ScopeElement {
+                datatype: enum_type,
+                public,
+            },
+        );
         Ok(())
     }
 
     #[inline]
     pub fn get_enum(&self, name: &str) -> Option<Type> {
-        self.enums.get(name).map(|elem| elem.datatype.clone()).or_else(|| {
-            self.parent.as_ref().and_then(|parent| parent.get_enum(name))
-        })
+        self.enums
+            .get(name)
+            .map(|elem| elem.datatype.clone())
+            .or_else(|| {
+                self.parent
+                    .as_ref()
+                    .and_then(|parent| parent.get_enum(name))
+            })
     }
 
     #[inline]
@@ -162,7 +214,9 @@ impl Scope {
     #[inline]
     pub fn get_typedef(&self, name: &str) -> Option<Type> {
         self.typedefs.get(name).cloned().or_else(|| {
-            self.parent.as_ref().and_then(|parent| parent.get_typedef(name))
+            self.parent
+                .as_ref()
+                .and_then(|parent| parent.get_typedef(name))
         })
     }
 

@@ -18,26 +18,34 @@ fn main() {
             std::process::exit(1);
         });
 
-    cli::info("Reading", &format!(
-        "`{}` ({})",
+    cli::info(
+        "Reading",
+        &format!(
+            "`{}` ({})",
             &fname,
-            std::fs::canonicalize(&args.path).unwrap_or_else(|_| {
-                cli::error(&format!("File `{}` does not exist", &fname));
-                std::process::exit(1);
-            }).display()
-        )
+            std::fs::canonicalize(&args.path)
+                .unwrap_or_else(|_| {
+                    cli::error(&format!("File `{}` does not exist", &fname));
+                    std::process::exit(1);
+                })
+                .display()
+        ),
     );
 
     let src = std::fs::read_to_string(&args.path).unwrap_or_else(|_| {
-        eprintln!("Unable to open path: {}", std::path::Path::new(&args.path).display());
+        eprintln!(
+            "Unable to open path: {}",
+            std::path::Path::new(&args.path).display()
+        );
         std::process::exit(1);
     });
 
-    cli::info("Processing", &format!("tokens ({} lines of code)", src.lines().count()));
-
-    let mut lexer = deen_lexer::Lexer::new(
-        &src, fname
+    cli::info(
+        "Processing",
+        &format!("tokens ({} lines of code)", src.lines().count()),
     );
+
+    let mut lexer = deen_lexer::Lexer::new(&src, fname);
 
     let handler = miette::GraphicalReportHandler::new();
     let mut total_warns = 0;
@@ -63,7 +71,9 @@ fn main() {
             }
 
             cli::error(&format!("`{}` returned {} errors", &fname, errors.len()));
-            if !warns.is_empty() && !no_warns { cli::warn(&format!("`{}` generated {} warnings", &fname, warns.len())) }
+            if !warns.is_empty() && !no_warns {
+                cli::warn(&format!("`{}` generated {} warnings", &fname, warns.len()))
+            }
 
             std::process::exit(1);
         }
@@ -106,7 +116,11 @@ fn main() {
 
             cli::error(&format!("`{}` returned {} errors", &fname, errors.len()));
             if (!warns.is_empty() || total_warns > 0) && !no_warns {
-                cli::warn(&format!("`{}` generated {} warnings", &fname, warns.len() + total_warns));
+                cli::warn(&format!(
+                    "`{}` generated {} warnings",
+                    &fname,
+                    warns.len() + total_warns
+                ));
             }
 
             std::process::exit(1);
@@ -124,7 +138,10 @@ fn main() {
 
     total_warns += warns.len();
 
-    cli::info("Analyzing", &format!("processed code ({} global statements)", ast.len()));
+    cli::info(
+        "Analyzing",
+        &format!("processed code ({} global statements)", ast.len()),
+    );
 
     let mut analyzer = deen_semantic::Analyzer::new(&src, fname, true);
     let (imports, warns) = match analyzer.analyze(&ast) {
@@ -148,9 +165,12 @@ fn main() {
 
             cli::error(&format!("`{}` returned {} errors", &fname, errors.len()));
             if (!warns.is_empty() || total_warns > 0) && !no_warns {
-                cli::warn(&format!("`{}` generated {} warnings", &fname, warns.len() + total_warns));
+                cli::warn(&format!(
+                    "`{}` generated {} warnings",
+                    &fname,
+                    warns.len() + total_warns
+                ));
             }
-
 
             std::process::exit(1);
         }
@@ -171,31 +191,31 @@ fn main() {
         cli::warn(&format!("`{}` generated {} warnings", &fname, total_warns));
     }
 
-    cli::info("Compiling", &format!(
-            "`{}` to binary",
-            &fname,
-        )
-    );
+    cli::info("Compiling", &format!("`{}` to binary", &fname,));
 
     let module_name = fname
-        .split(".").next()
+        .split(".")
+        .next()
         .map(|n| n.to_string())
         .unwrap_or(fname.replace(".dn", ""));
 
     let ctx = deen_codegen::CodeGen::create_context();
     let mut codegen = deen_codegen::CodeGen::new(&ctx, &module_name, imports, true);
-    
+
     let module_ref = codegen.compile(ast, None);
 
     if args.llvm {
-        module_ref.print_to_file(
-            format!("{}.ll", args.output)
-        ).unwrap_or_else(|_| {
-            cli::error("Unable to write LLVM IR file!");
-            std::process::exit(1);
-        });
+        module_ref
+            .print_to_file(format!("{}.ll", args.output))
+            .unwrap_or_else(|_| {
+                cli::error("Unable to write LLVM IR file!");
+                std::process::exit(1);
+            });
 
-        cli::info("Successfully", &format!("compiled to LLVM IR: `{}.ll`", args.output))
+        cli::info(
+            "Successfully",
+            &format!("compiled to LLVM IR: `{}.ll`", args.output),
+        )
     } else {
         deen_linker::compiler::ObjectCompiler::compile_module(module_ref, &module_name);
         deen_linker::linker::ObjectLinker::link(&module_name, &args.output).unwrap_or_else(|err| {
@@ -204,6 +224,9 @@ fn main() {
             std::process::exit(1);
         });
 
-        cli::info("Successfully", &format!("compiled to binary: `{}`", args.output))
+        cli::info(
+            "Successfully",
+            &format!("compiled to binary: `{}`", args.output),
+        )
     };
 }

@@ -1,47 +1,46 @@
-
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum TokenType {
     Identifier, // abc
-    Keyword, // let
-    Type, // i32
+    Keyword,    // let
+    Type,       // i32
 
-    Number, // 123
+    Number,      // 123
     FloatNumber, // 1.23
-    String, // "hello"
-    Char, // 'c'
-    Boolean, // true/false
+    String,      // "hello"
+    Char,        // 'c'
+    Boolean,     // true/false
 
-    Equal, // =
-    Plus, // +
-    Minus, // -
+    Equal,    // =
+    Plus,     // +
+    Minus,    // -
     Multiply, // *
-    Divide, // /
+    Divide,   // /
 
-    Lt, // <
-    Bt, // >
-    Eq, // ==
-    Ne, // !=
-    Or, // ||
+    Lt,  // <
+    Bt,  // >
+    Eq,  // ==
+    Ne,  // !=
+    Or,  // ||
     And, // &&
     Not, // !
 
-    DoubleDots, // :
-    Semicolon, // ;
-    Ampersand, // &
-    Ref, // &abc
-    Verbar, // |
-    Underscore, // _
-    Dot, // .
-    Comma, // ,
+    DoubleDots,  // :
+    Semicolon,   // ;
+    Ampersand,   // &
+    Ref,         // &abc
+    Verbar,      // |
+    Underscore,  // _
+    Dot,         // .
+    Comma,       // ,
     DoubleQuote, // "
     SingleQuote, // '
-    
+
     LShift, // <<
     RShift, // >>
-    Xor, // ^
+    Xor,    // ^
 
     ArrowRight, // ->
-    ArrowLeft, // <-
+    ArrowLeft,  // <-
 
     LParen, // (
     RParen, // )
@@ -52,7 +51,7 @@ pub enum TokenType {
     LBrack, // [
     RBrack, // ]
 
-    EOF // \0
+    EOF, // \0
 }
 
 impl std::fmt::Display for TokenType {

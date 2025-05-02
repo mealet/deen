@@ -1,4 +1,4 @@
-use deen_lexer::{Lexer, token_type::TokenType, token::Token};
+use deen_lexer::{Lexer, token::Token, token_type::TokenType};
 
 #[test]
 fn basic_string_test() {
@@ -16,13 +16,22 @@ fn basic_string_test() {
 
 #[test]
 fn big_string_test() {
-    let mut lexer = Lexer::new("\"Hello, World! Here's an interesting thing: first LLVM initial release was in 2003 year. The original authors of core was Chris Lattner and Vikram Adve\"", "test.dn");
+    let mut lexer = Lexer::new(
+        "\"Hello, World! Here's an interesting thing: first LLVM initial release was in 2003 year. The original authors of core was Chris Lattner and Vikram Adve\"",
+        "test.dn",
+    );
     let tokens = lexer.tokenize().unwrap().0;
 
     assert_eq!(
         tokens,
         vec![
-            Token::new(String::from("Hello, World! Here's an interesting thing: first LLVM initial release was in 2003 year. The original authors of core was Chris Lattner and Vikram Adve"), TokenType::String, (0, 151)),
+            Token::new(
+                String::from(
+                    "Hello, World! Here's an interesting thing: first LLVM initial release was in 2003 year. The original authors of core was Chris Lattner and Vikram Adve"
+                ),
+                TokenType::String,
+                (0, 151)
+            ),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]
     )

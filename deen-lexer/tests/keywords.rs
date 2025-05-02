@@ -1,7 +1,4 @@
-use deen_lexer::{
-    Lexer,
-    token_type::TokenType
-};
+use deen_lexer::{Lexer, token_type::TokenType};
 
 #[test]
 fn basic_types_test() {

@@ -8,9 +8,8 @@ pub struct Import {
     pub enums: HashMap<String, Type>,
 
     pub embedded_imports: HashMap<String, Import>,
-    pub ast: Vec<Statements>
+    pub ast: Vec<Statements>,
 }
-
 
 impl Import {
     pub fn new(ast: Vec<Statements>) -> Self {
@@ -20,7 +19,7 @@ impl Import {
             enums: HashMap::new(),
 
             embedded_imports: HashMap::new(),
-            ast
+            ast,
         }
     }
 

@@ -3,30 +3,24 @@ use thiserror::Error;
 
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 #[error("Error: {message}")]
-#[diagnostic(
-    code(deen::semantic),
-    severity(Error)
-)]
+#[diagnostic(code(deen::semantic), severity(Error))]
 pub struct SemanticError {
     pub message: String,
     #[source_code]
     pub src: NamedSource<String>,
     #[label("here")]
-    pub span: SourceSpan
+    pub span: SourceSpan,
 }
 
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 #[error("Warning: {message}")]
-#[diagnostic(
-    code(deen::semantic),
-    severity(Warning)
-)]
+#[diagnostic(code(deen::semantic), severity(Warning))]
 pub struct SemanticWarning {
     pub message: String,
     #[source_code]
     pub src: NamedSource<String>,
     #[label("here")]
-    pub span: SourceSpan
+    pub span: SourceSpan,
 }
 
 impl From<deen_lexer::error::LexerError> for SemanticError {
@@ -34,7 +28,7 @@ impl From<deen_lexer::error::LexerError> for SemanticError {
         Self {
             message: value.message,
             src: value.src,
-            span: value.span
+            span: value.span,
         }
     }
 }
@@ -44,7 +38,7 @@ impl From<deen_lexer::error::LexerWarning> for SemanticWarning {
         Self {
             message: value.message,
             src: value.src,
-            span: value.span
+            span: value.span,
         }
     }
 }
@@ -54,7 +48,7 @@ impl From<deen_parser::error::ParserError> for SemanticError {
         Self {
             message: value.message,
             src: value.src,
-            span: value.span
+            span: value.span,
         }
     }
 }
@@ -64,7 +58,7 @@ impl From<deen_parser::error::ParserWarning> for SemanticWarning {
         Self {
             message: value.message,
             src: value.src,
-            span: value.span
+            span: value.span,
         }
     }
 }

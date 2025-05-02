@@ -1,10 +1,4 @@
-use crate::{
-    expressions::Expressions,
-    value::Value,
-    types::Type,
-    END_STATEMENT,
-    Parser
-};
+use crate::{END_STATEMENT, Parser, expressions::Expressions, types::Type, value::Value};
 use deen_lexer::token_type::TokenType;
 use std::collections::HashMap;
 
@@ -13,36 +7,36 @@ pub enum Statements {
     AssignStatement {
         identifier: String,
         value: Expressions,
-        span: (usize, usize)
+        span: (usize, usize),
     },
     BinaryAssignStatement {
         identifier: String,
         operand: String,
         value: Expressions,
-        span: (usize, usize)
+        span: (usize, usize),
     },
     DerefAssignStatement {
         identifier: String,
         value: Expressions,
-        span: (usize, usize)
+        span: (usize, usize),
     },
     SliceAssignStatement {
         identifier: String,
         index: Expressions,
         value: Expressions,
-        span: (usize, usize)
+        span: (usize, usize),
     },
     FieldAssignStatement {
         object: Expressions,
         value: Expressions,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     AnnotationStatement {
         identifier: String,
         datatype: Option<Type>,
         value: Option<Expressions>,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     FunctionDefineStatement {
@@ -51,12 +45,12 @@ pub enum Statements {
         arguments: Vec<(String, Type)>,
         block: Vec<Statements>,
         public: bool,
-        span: (usize, usize)
+        span: (usize, usize),
     },
     FunctionCallStatement {
         name: String,
         arguments: Vec<Expressions>,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     StructDefineStatement {
@@ -64,7 +58,7 @@ pub enum Statements {
         fields: HashMap<String, Type>,
         functions: HashMap<String, Statements>,
         public: bool,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     EnumDefineStatement {
@@ -72,57 +66,57 @@ pub enum Statements {
         fields: Vec<String>,
         functions: HashMap<String, Statements>,
         public: bool,
-        span: (usize, usize)
+        span: (usize, usize),
     },
     TypedefStatement {
         alias: String,
         datatype: Type,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     IfStatement {
         condition: Expressions,
         then_block: Vec<Statements>,
         else_block: Option<Vec<Statements>>,
-        span: (usize, usize)
+        span: (usize, usize),
     },
     WhileStatement {
         condition: Expressions,
         block: Vec<Statements>,
-        span: (usize, usize)
+        span: (usize, usize),
     },
     ForStatement {
         binding: String,
         iterator: Expressions,
         block: Vec<Statements>,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     ImportStatement {
         path: Expressions,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     BreakStatements {
-        span: (usize, usize)
+        span: (usize, usize),
     },
     ReturnStatement {
         value: Expressions,
-        span: (usize, usize)
+        span: (usize, usize),
     },
     ScopeStatement {
         block: Vec<Statements>,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     Expression(Expressions),
-    None
+    None,
 }
 
 impl Parser {
     pub fn annotation_statement(&mut self) -> Statements {
         let span_start = self.current().span.0;
-        
+
         if self.current().value == *"let" {
             let _ = self.next();
         }
@@ -130,7 +124,7 @@ impl Parser {
         if !self.expect(TokenType::Identifier) {
             self.error(
                 String::from("Identifier expected after `let` keyword"),
-                (span_start, self.current().span.1 - span_start)
+                (span_start, self.current().span.1 - span_start),
             );
             return Statements::None;
         }
@@ -149,24 +143,34 @@ impl Parser {
                 let value = self.expression();
 
                 self.skip_eos();
-                Statements::AnnotationStatement { identifier: id, datatype, value: Some(value.clone()), span: (span_start, self.span_expression(value).1) }
-            },
+                Statements::AnnotationStatement {
+                    identifier: id,
+                    datatype,
+                    value: Some(value.clone()),
+                    span: (span_start, self.span_expression(value).1),
+                }
+            }
             END_STATEMENT => {
                 let span_end = self.current().span.1;
                 self.skip_eos();
 
-                Statements::AnnotationStatement { identifier: id, datatype, value: None, span: (span_start, span_end) }
+                Statements::AnnotationStatement {
+                    identifier: id,
+                    datatype,
+                    value: None,
+                    span: (span_start, span_end),
+                }
             }
             _ => {
                 self.error(
                     String::from("Expected `=` or `;` after variable declaration"),
-                    (span_start, self.current().span.1 - span_start)
+                    (span_start, self.current().span.1 - span_start),
                 );
                 Statements::None
             }
         }
     }
-    
+
     pub fn import_statement(&mut self) -> Statements {
         let span_start = self.current().span.0;
         if self.current().token_type == TokenType::Keyword {
@@ -181,18 +185,21 @@ impl Parser {
         self.skip_eos();
 
         if let Expressions::Value(Value::String(_), _) = path {
-            Statements::ImportStatement { path, span: (span_start, span_end) }
+            Statements::ImportStatement {
+                path,
+                span: (span_start, span_end),
+            }
         } else {
             self.error(
                 String::from("Unexpected import syntax found"),
-                (span_start, span_end)
+                (span_start, span_end),
             );
             Statements::None
         }
     }
 
     pub fn if_statement(&mut self) -> Statements {
-        let span_start = self.current().span.0;       
+        let span_start = self.current().span.0;
         if self.current().token_type == TokenType::Keyword {
             let _ = self.next();
         }
@@ -202,7 +209,7 @@ impl Parser {
         if self.current().token_type != TokenType::LBrace {
             self.error(
                 String::from("Expected new block after condition"),
-                (span_start, self.current().span.1)
+                (span_start, self.current().span.1),
             );
             return Statements::None;
         }
@@ -215,7 +222,7 @@ impl Parser {
             if self.current().token_type == TokenType::EOF {
                 self.error(
                     String::from("Expected block end, but found EOF"),
-                    (span_block_start, self.current().span.1)
+                    (span_block_start, self.current().span.1),
                 );
                 return Statements::None;
             }
@@ -237,7 +244,7 @@ impl Parser {
                         condition,
                         then_block,
                         else_block: None,
-                        span: (span_start, span_end)
+                        span: (span_start, span_end),
                     };
                 }
 
@@ -249,7 +256,7 @@ impl Parser {
                         if self.current().value != *"if" {
                             self.error(
                                 String::from("Unexpected keyword found after `else`"),
-                                (else_span_start, self.current().span.1)
+                                (else_span_start, self.current().span.1),
                             );
                             return Statements::None;
                         }
@@ -260,19 +267,19 @@ impl Parser {
                             condition,
                             then_block,
                             else_block: Some(vec![stmt]),
-                            span: (span_start, span_end)
-                        }
-                    },
-                    TokenType::LBrace => {},
+                            span: (span_start, span_end),
+                        };
+                    }
+                    TokenType::LBrace => {}
                     _ => {
                         self.error(
                             String::from("New block expected after `else` keyword"),
-                            (else_span_start, self.current().span.1)
+                            (else_span_start, self.current().span.1),
                         );
-                        return Statements::None
+                        return Statements::None;
                     }
                 }
-                
+
                 let _ = self.next();
 
                 let mut else_block = Vec::new();
@@ -282,7 +289,7 @@ impl Parser {
                     if self.current().token_type == TokenType::EOF {
                         self.error(
                             String::from("Expected block end, but found EOF"),
-                            (else_span_start, self.current().span.1)
+                            (else_span_start, self.current().span.1),
                         );
                         return Statements::None;
                     }
@@ -301,9 +308,9 @@ impl Parser {
                     condition,
                     then_block,
                     else_block: Some(else_block),
-                    span: (span_start, span_end)
+                    span: (span_start, span_end),
                 }
-            },
+            }
             _ => {
                 let span_end = self.current().span.1;
                 self.skip_eos();
@@ -311,7 +318,7 @@ impl Parser {
                     condition,
                     then_block,
                     else_block: None,
-                    span: (span_start, span_end)
+                    span: (span_start, span_end),
                 }
             }
         }
@@ -328,11 +335,11 @@ impl Parser {
         if self.current().token_type != TokenType::LBrace {
             self.error(
                 String::from("Expected new block after condition"),
-                (span_start, self.current().span.1)
+                (span_start, self.current().span.1),
             );
             return Statements::None;
         }
-    
+
         let _ = self.next();
         let mut span_block_start = self.current().span.0;
         let mut block = Vec::new();
@@ -341,7 +348,7 @@ impl Parser {
             if self.current().token_type == TokenType::EOF {
                 self.error(
                     String::from("Expected block end, but found EOF"),
-                    (span_block_start, self.current().span.1)
+                    (span_block_start, self.current().span.1),
                 );
                 return Statements::None;
             }
@@ -355,7 +362,11 @@ impl Parser {
         }
 
         self.skip_eos();
-        Statements::WhileStatement { condition, block, span: (span_start, self.current().span.1) }
+        Statements::WhileStatement {
+            condition,
+            block,
+            span: (span_start, self.current().span.1),
+        }
     }
 
     pub fn for_statement(&mut self) -> Statements {
@@ -368,8 +379,10 @@ impl Parser {
 
         if !self.expect(TokenType::Equal) {
             self.error(
-                String::from("Expected binding for iterator in loop: \"for binding = iterator {}\""),
-                (span_start, self.current().span.1)
+                String::from(
+                    "Expected binding for iterator in loop: \"for binding = iterator {}\"",
+                ),
+                (span_start, self.current().span.1),
             );
             return Statements::None;
         }
@@ -380,11 +393,11 @@ impl Parser {
         if self.current().token_type != TokenType::LBrace {
             self.error(
                 String::from("Expected new block after condition"),
-                (span_start, self.current().span.1)
+                (span_start, self.current().span.1),
             );
             return Statements::None;
         }
-    
+
         let _ = self.next();
         let mut span_block_start = self.current().span.0;
         let mut block = Vec::new();
@@ -393,7 +406,7 @@ impl Parser {
             if self.current().token_type == TokenType::EOF {
                 self.error(
                     String::from("Expected block end, but found EOF"),
-                    (span_block_start, self.current().span.1)
+                    (span_block_start, self.current().span.1),
                 );
                 return Statements::None;
             }
@@ -408,7 +421,12 @@ impl Parser {
         }
 
         self.skip_eos();
-        Statements::ForStatement { binding, iterator, block, span: (span_start, span_end) }
+        Statements::ForStatement {
+            binding,
+            iterator,
+            block,
+            span: (span_start, span_end),
+        }
     }
 
     pub fn fn_statement(&mut self) -> Statements {
@@ -418,22 +436,31 @@ impl Parser {
         }
 
         let identifier = self.current().value;
-        
-        let _ = self.next();
-        let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
 
-        let arguments_tuples = arguments.iter().map(|arg| {
-            if let Expressions::Argument { name, r#type, span: _ } = arg {
-                (name.clone(), r#type.clone())
-            } else {
-                self.error(
-                    String::from("Unexpected argument declaration found"),
-                    self.span_expression(arg.clone())
-                );
-                (String::new(), Type::Void)
-            }
-        }).collect();
-        
+        let _ = self.next();
+        let arguments =
+            self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+
+        let arguments_tuples = arguments
+            .iter()
+            .map(|arg| {
+                if let Expressions::Argument {
+                    name,
+                    r#type,
+                    span: _,
+                } = arg
+                {
+                    (name.clone(), r#type.clone())
+                } else {
+                    self.error(
+                        String::from("Unexpected argument declaration found"),
+                        self.span_expression(arg.clone()),
+                    );
+                    (String::new(), Type::Void)
+                }
+            })
+            .collect();
+
         let mut datatype = Type::Void;
         if !self.expect(TokenType::LBrace) {
             datatype = self.parse_type();
@@ -447,7 +474,7 @@ impl Parser {
             if self.current().token_type == TokenType::EOF {
                 self.error(
                     String::from("Expected block end, but found EOF"),
-                    (span_block_start, self.current().span.1)
+                    (span_block_start, self.current().span.1),
                 );
                 return Statements::None;
             }
@@ -462,7 +489,14 @@ impl Parser {
         }
 
         self.skip_eos();
-        Statements::FunctionDefineStatement { name: identifier, datatype, arguments: arguments_tuples, block, public: false, span: (span_start, span_end) }
+        Statements::FunctionDefineStatement {
+            name: identifier,
+            datatype,
+            arguments: arguments_tuples,
+            block,
+            public: false,
+            span: (span_start, span_end),
+        }
     }
 
     pub fn return_statement(&mut self) -> Statements {
@@ -478,7 +512,10 @@ impl Parser {
             self.expression()
         };
 
-        Statements::ReturnStatement { value: return_expr.clone(), span: (span_start, self.span_expression(return_expr).1) }
+        Statements::ReturnStatement {
+            value: return_expr.clone(),
+            span: (span_start, self.span_expression(return_expr).1),
+        }
     }
 
     pub fn break_statement(&mut self) -> Statements {
@@ -500,10 +537,19 @@ impl Parser {
         let value = self.expression();
         let span_end = self.current().span.1;
 
-        Statements::AssignStatement { identifier: id, value, span: (span.0, span_end - 3) }
+        Statements::AssignStatement {
+            identifier: id,
+            value,
+            span: (span.0, span_end - 3),
+        }
     }
 
-    pub fn binary_assign_statement(&mut self, id: String, op: String, span: (usize, usize)) -> Statements {
+    pub fn binary_assign_statement(
+        &mut self,
+        id: String,
+        op: String,
+        span: (usize, usize),
+    ) -> Statements {
         if self.expect(TokenType::Equal) {
             let _ = self.next();
         }
@@ -512,7 +558,12 @@ impl Parser {
         let span_end = self.current().span.1;
         self.skip_eos();
 
-        Statements::BinaryAssignStatement { operand: op, identifier: id, value, span: (span.0, span_end - 3) }
+        Statements::BinaryAssignStatement {
+            operand: op,
+            identifier: id,
+            value,
+            span: (span.0, span_end - 3),
+        }
     }
 
     pub fn slice_assign_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
@@ -521,13 +572,13 @@ impl Parser {
             let _ = self.next();
         }
 
-        let ind =  self.expression();
+        let ind = self.expression();
         let brackets_span_end = self.current().span.1;
 
         if !self.expect(TokenType::RBrack) {
             self.error(
                 String::from("Brackets close expected in slice"),
-                (brackets_span_start, brackets_span_end)
+                (brackets_span_start, brackets_span_end),
             );
             return Statements::None;
         }
@@ -536,7 +587,7 @@ impl Parser {
         if !self.expect(TokenType::Equal) {
             self.error(
                 String::from("Expected `=` in slice assign"),
-                (span.0, self.current().span.1)
+                (span.0, self.current().span.1),
             );
             return Statements::None;
         }
@@ -547,7 +598,12 @@ impl Parser {
 
         let span_end = self.current().span.1;
 
-        Statements::SliceAssignStatement { identifier: id, index: ind, value: val, span: (span.0, span_end) }
+        Statements::SliceAssignStatement {
+            identifier: id,
+            index: ind,
+            value: val,
+            span: (span.0, span_end),
+        }
     }
 
     pub fn call_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
@@ -555,21 +611,26 @@ impl Parser {
             TokenType::Identifier => {
                 let _ = self.next();
             }
-            TokenType::LParen => {},
+            TokenType::LParen => {}
             _ => {
                 self.error(
                     String::from("Unexpected variation of call statement"),
-                    (span.0, self.current().span.1)
+                    (span.0, self.current().span.1),
                 );
                 return Statements::None;
             }
         };
 
-        let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+        let arguments =
+            self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
         let span_end = self.current().span.1;
         self.skip_eos();
 
-        Statements::FunctionCallStatement { name: id, arguments, span: (span.0, span_end) }
+        Statements::FunctionCallStatement {
+            name: id,
+            arguments,
+            span: (span.0, span_end),
+        }
     }
 
     pub fn struct_statement(&mut self) -> Statements {
@@ -581,7 +642,7 @@ impl Parser {
         if !self.expect(TokenType::Identifier) {
             self.error(
                 String::from("Identifier for structure expected"),
-                (span_start, self.current().span.1)
+                (span_start, self.current().span.1),
             );
             return Statements::None;
         }
@@ -592,7 +653,7 @@ impl Parser {
         if !self.expect(TokenType::LBrace) {
             self.error(
                 String::from("Expected new block after struct definition"),
-                (span_start, self.current().span.1)
+                (span_start, self.current().span.1),
             );
             return Statements::None;
         }
@@ -608,16 +669,26 @@ impl Parser {
                     if self.current().value != "fn" {
                         self.error(
                             String::from("Undefined keyword found at the struct declaration"),
-                            self.current().span
+                            self.current().span,
                         );
                         return Statements::None;
                     }
 
                     let stmt = self.fn_statement();
 
-                    if let Statements::FunctionDefineStatement { name, datatype: _, arguments: _, public: _, block: _, span: _ } = &stmt {
+                    if let Statements::FunctionDefineStatement {
+                        name,
+                        datatype: _,
+                        arguments: _,
+                        public: _,
+                        block: _,
+                        span: _,
+                    } = &stmt
+                    {
                         functions.insert(name.to_owned(), stmt);
-                    } else { unreachable!() }
+                    } else {
+                        unreachable!()
+                    }
 
                     if self.expect(TokenType::Comma) {
                         let _ = self.next();
@@ -631,7 +702,7 @@ impl Parser {
                     if !self.expect(TokenType::DoubleDots) {
                         self.error(
                             String::from("Unexpected field declaration"),
-                            (span.0, self.current().span.1)
+                            (span.0, self.current().span.1),
                         );
                         return Statements::None;
                     }
@@ -644,10 +715,7 @@ impl Parser {
                     self.position += 1;
 
                     if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
-                        self.error(
-                            String::from("Expected COMMA"),
-                            (extra_span.1, extra_span.1)
-                        );
+                        self.error(String::from("Expected COMMA"), (extra_span.1, extra_span.1));
                     }
 
                     if self.expect(TokenType::Comma) {
@@ -659,9 +727,9 @@ impl Parser {
                 _ => {
                     self.error(
                         String::from("Undefined term found at the struct declaration"),
-                        self.current().span
+                        self.current().span,
                     );
-                    return Statements::None
+                    return Statements::None;
                 }
             }
         }
@@ -671,10 +739,16 @@ impl Parser {
         }
         self.skip_eos();
 
-        Statements::StructDefineStatement { name, fields, functions, public: false, span: (span_start, self.current().span.1) }
+        Statements::StructDefineStatement {
+            name,
+            fields,
+            functions,
+            public: false,
+            span: (span_start, self.current().span.1),
+        }
     }
 
-   pub fn enum_statement(&mut self) -> Statements {
+    pub fn enum_statement(&mut self) -> Statements {
         let span_start = self.current().span.0;
         if let TokenType::Keyword = self.current().token_type {
             let _ = self.next();
@@ -683,7 +757,7 @@ impl Parser {
         if !self.expect(TokenType::Identifier) {
             self.error(
                 String::from("Identifier for enum expected"),
-                (span_start, self.current().span.1)
+                (span_start, self.current().span.1),
             );
             return Statements::None;
         }
@@ -694,7 +768,7 @@ impl Parser {
         if !self.expect(TokenType::LBrace) {
             self.error(
                 String::from("Expected new block after enum declaration"),
-                (span_start, self.current().span.1)
+                (span_start, self.current().span.1),
             );
             return Statements::None;
         }
@@ -710,16 +784,26 @@ impl Parser {
                     if self.current().value != "fn" {
                         self.error(
                             String::from("Undefined keyword found at the enum declaration"),
-                            self.current().span
+                            self.current().span,
                         );
                         return Statements::None;
                     }
 
                     let stmt = self.fn_statement();
 
-                    if let Statements::FunctionDefineStatement { name, datatype: _, arguments: _, public: _, block: _, span: _ } = &stmt {
+                    if let Statements::FunctionDefineStatement {
+                        name,
+                        datatype: _,
+                        arguments: _,
+                        public: _,
+                        block: _,
+                        span: _,
+                    } = &stmt
+                    {
                         functions.insert(name.to_owned(), stmt);
-                    } else { unreachable!() }
+                    } else {
+                        unreachable!()
+                    }
 
                     if self.expect(TokenType::Comma) {
                         let _ = self.next();
@@ -731,10 +815,7 @@ impl Parser {
                     let _ = self.next();
 
                     if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
-                        self.error(
-                            String::from("Expected COMMA"),
-                            (extra_span.1, extra_span.1)
-                        );
+                        self.error(String::from("Expected COMMA"), (extra_span.1, extra_span.1));
                     }
 
                     if self.expect(TokenType::Comma) {
@@ -746,19 +827,25 @@ impl Parser {
                 _ => {
                     self.error(
                         String::from("Unexpected term found at enum"),
-                        self.current().span
+                        self.current().span,
                     );
-                    return Statements::None
+                    return Statements::None;
                 }
             }
         }
-        
+
         if self.expect(TokenType::RBrace) {
             let _ = self.next();
         }
         self.skip_eos();
 
-        Statements::EnumDefineStatement { name, fields, functions, public: false, span: (span_start, self.current().span.1) }
+        Statements::EnumDefineStatement {
+            name,
+            fields,
+            functions,
+            public: false,
+            span: (span_start, self.current().span.1),
+        }
     }
 
     pub fn typedef_statement(&mut self) -> Statements {
@@ -770,7 +857,7 @@ impl Parser {
         if !self.expect(TokenType::Identifier) {
             self.error(
                 String::from("Expected alias for typedef"),
-                self.current().span
+                self.current().span,
             );
         };
 
@@ -781,6 +868,10 @@ impl Parser {
         let span_end = self.current().span.1;
         self.skip_eos();
 
-        Statements::TypedefStatement { alias, datatype, span: (span_start, span_end) }
+        Statements::TypedefStatement {
+            alias,
+            datatype,
+            span: (span_start, span_end),
+        }
     }
 }

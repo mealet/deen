@@ -11,7 +11,7 @@ pub struct Args {
     pub no_warns: bool,
 
     #[arg(short, long, action)]
-    pub llvm: bool
+    pub llvm: bool,
 }
 
 pub fn error(message: &str) {

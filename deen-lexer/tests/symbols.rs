@@ -1,4 +1,4 @@
-use deen_lexer::{Lexer, token_type::TokenType, token::Token};
+use deen_lexer::{Lexer, token::Token, token_type::TokenType};
 
 #[test]
 fn binary_symbols_test() {

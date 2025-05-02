@@ -1,4 +1,4 @@
-use deen_lexer::{Lexer, token_type::TokenType, token::Token};
+use deen_lexer::{Lexer, token::Token, token_type::TokenType};
 
 #[test]
 fn basic_number_test() {
@@ -79,7 +79,11 @@ fn big_float_number() {
     assert_eq!(
         tokens,
         vec![
-            Token::new(String::from("3.141592653589793"), TokenType::FloatNumber, (0, 16)),
+            Token::new(
+                String::from("3.141592653589793"),
+                TokenType::FloatNumber,
+                (0, 16)
+            ),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]
     )

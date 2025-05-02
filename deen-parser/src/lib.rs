@@ -1,21 +1,18 @@
-use miette::NamedSource;
-use deen_lexer::{
-    token::Token,
-    token_type::TokenType
-};
 use crate::{
     error::{ParserError, ParserWarning},
-    statements::Statements,
     expressions::Expressions,
+    statements::Statements,
+    types::Type,
     value::Value,
-    types::Type
 };
+use deen_lexer::{token::Token, token_type::TokenType};
+use miette::NamedSource;
 
 pub mod error;
-pub mod statements;
 pub mod expressions;
-pub mod value;
+pub mod statements;
 pub mod types;
+pub mod value;
 
 type ParserOk = (Vec<Statements>, Vec<ParserWarning>);
 type ParserErr = (Vec<ParserError>, Vec<ParserWarning>);
@@ -58,7 +55,7 @@ pub struct Parser {
 
     errors: Vec<ParserError>,
     warnings: Vec<ParserWarning>,
-    eof: bool
+    eof: bool,
 }
 
 impl Parser {
@@ -73,7 +70,7 @@ impl Parser {
 
             errors: Vec::new(),
             warnings: Vec::new(),
-            eof: false
+            eof: false,
         }
     }
 
@@ -83,7 +80,9 @@ impl Parser {
         while self.position < self.tokens.len() - 1 {
             output.push(self.statement());
 
-            if self.eof { break };
+            if self.eof {
+                break;
+            };
         }
 
         if !self.errors.is_empty() {
@@ -95,26 +94,22 @@ impl Parser {
     fn error(&mut self, message: String, span: (usize, usize)) {
         let span = (span.0, span.1.wrapping_sub(span.0));
 
-        self.errors.push(
-            error::ParserError {
-                message,
-                span: span.into(),
-                src: self.source.clone()
-            }
-        );
+        self.errors.push(error::ParserError {
+            message,
+            span: span.into(),
+            src: self.source.clone(),
+        });
     }
 
     #[allow(unused)]
     fn warning(&mut self, message: String, span: (usize, usize)) {
         let span = (span.0, span.1.wrapping_sub(span.0));
 
-        self.warnings.push(
-            error::ParserWarning {
-                message,
-                span: span.into(),
-                src: self.source.clone()
-            }
-        )
+        self.warnings.push(error::ParserWarning {
+            message,
+            span: span.into(),
+            src: self.source.clone(),
+        })
     }
 
     fn get_basic_type(&mut self, datatype: String, span: (usize, usize)) -> Type {
@@ -137,10 +132,7 @@ impl Parser {
             "void" => Type::Void,
 
             _ => {
-                self.error(
-                    String::from("Unable to parse datatype"),
-                    span
-                );
+                self.error(String::from("Unable to parse datatype"), span);
                 Type::Void
             }
         }
@@ -153,10 +145,10 @@ impl Parser {
             TokenType::Type => {
                 let _ = self.next();
                 self.get_basic_type(current.value, current.span)
-            },
+            }
             TokenType::LBrack => {
                 let _ = self.next();
-                
+
                 if self.current().token_type == TokenType::RBrack {
                     // dynamic array
                     let _ = self.next();
@@ -173,7 +165,7 @@ impl Parser {
                 if !self.expect(TokenType::Number) {
                     self.error(
                         String::from("Array size must be integer constant"),
-                        self.current().span
+                        self.current().span,
                     );
                     return Type::Void;
                 }
@@ -184,7 +176,7 @@ impl Parser {
                 if !self.expect(TokenType::RBrack) {
                     self.error(
                         String::from("Unclosed brackets at array type"),
-                        self.current().span
+                        self.current().span,
                     );
                     return Type::Void;
                 }
@@ -221,15 +213,15 @@ impl Parser {
                 let _ = self.next();
                 self.error(
                     String::from("Undefined type found"),
-                    (current.span.0 - 1, current.span.1 - 1)
+                    (current.span.0 - 1, current.span.1 - 1),
                 );
                 Type::Void
             }
         }
     }
-    
+
     // fundamental
-    
+
     fn next(&mut self) -> Token {
         self.position += 1;
 
@@ -267,17 +259,32 @@ impl Parser {
         let _ = self.next();
 
         match current.token_type {
-            TokenType::Number => Expressions::Value(Value::Integer(current.value.trim().parse().unwrap()), current.span),
-            TokenType::FloatNumber => Expressions::Value(Value::Float(current.value.trim().parse().unwrap()), current.span),
+            TokenType::Number => Expressions::Value(
+                Value::Integer(current.value.trim().parse().unwrap()),
+                current.span,
+            ),
+            TokenType::FloatNumber => Expressions::Value(
+                Value::Float(current.value.trim().parse().unwrap()),
+                current.span,
+            ),
             TokenType::String => Expressions::Value(Value::String(current.value), current.span),
-            TokenType::Char => Expressions::Value(Value::Char(current.value.chars().nth(0).unwrap()), current.span),
-            TokenType::Boolean => Expressions::Value(Value::Boolean(current.value == "true"), current.span),
+            TokenType::Char => Expressions::Value(
+                Value::Char(current.value.chars().nth(0).unwrap()),
+                current.span,
+            ),
+            TokenType::Boolean => {
+                Expressions::Value(Value::Boolean(current.value == "true"), current.span)
+            }
             TokenType::Keyword => Expressions::Value(Value::Keyword(current.value), current.span),
 
             TokenType::Minus | TokenType::Not => {
                 let object = self.term();
 
-                Expressions::Unary { operand: current.value, object: Box::new(object.clone()), span: (current.span.0, self.span_expression(object).1) }
+                Expressions::Unary {
+                    operand: current.value,
+                    object: Box::new(object.clone()),
+                    span: (current.span.0, self.span_expression(object).1),
+                }
             }
             TokenType::LParen => {
                 let span_start = self.current().span.0;
@@ -298,25 +305,29 @@ impl Parser {
                     }
 
                     let span_end = self.current().span.1;
-                    if self.expect(TokenType::RParen) { let _ = self.next(); }
+                    if self.expect(TokenType::RParen) {
+                        let _ = self.next();
+                    }
 
-                    return Expressions::Tuple { values, span: (span_start, span_end) }
+                    return Expressions::Tuple {
+                        values,
+                        span: (span_start, span_end),
+                    };
                 }
 
-                if self.expect(TokenType::RParen) { let _ = self.next(); }
+                if self.expect(TokenType::RParen) {
+                    let _ = self.next();
+                }
                 expr
             }
 
             TokenType::Identifier => {
-                let output = Expressions::Value(Value::Identifier(current.value.clone()), current.span);
+                let output =
+                    Expressions::Value(Value::Identifier(current.value.clone()), current.span);
 
                 match self.current().token_type {
-                    TokenType::LParen => {
-                        return self.call_expression(current.value, current.span)
-                    },
-                    TokenType::LBrack => {
-                        return self.slice_expression(output)
-                    }
+                    TokenType::LParen => return self.call_expression(current.value, current.span),
+                    TokenType::LBrack => return self.slice_expression(output),
                     TokenType::LBrace => {
                         self.position -= 1;
                         return self.struct_expression(current.value.clone());
@@ -325,7 +336,11 @@ impl Parser {
                         let _ = self.next();
 
                         let datatype = self.parse_type();
-                        return Expressions::Argument { name: current.value, r#type: datatype, span: (current.span.0, self.current().span.1) }
+                        return Expressions::Argument {
+                            name: current.value,
+                            r#type: datatype,
+                            span: (current.span.0, self.current().span.1),
+                        };
                     }
                     _ => {}
                 }
@@ -333,12 +348,14 @@ impl Parser {
                 output
             }
 
-            TokenType::Ref => {
-                Expressions::Reference { object: Box::new(self.term()), span: (current.span.0, self.current().span.1) }
-            }
-            TokenType::Multiply => {
-                Expressions::Dereference { object: Box::new(self.term()), span: (current.span.0, self.current().span.1) }
-            }
+            TokenType::Ref => Expressions::Reference {
+                object: Box::new(self.term()),
+                span: (current.span.0, self.current().span.1),
+            },
+            TokenType::Multiply => Expressions::Dereference {
+                object: Box::new(self.term()),
+                span: (current.span.0, self.current().span.1),
+            },
 
             // This case looks is for C-like syntax: `type name`,
             // but syntax must be like: `name: type`
@@ -360,17 +377,21 @@ impl Parser {
             //     }
             // }
             // *-----------------------*
-
             TokenType::LBrack => {
                 let span_start = current.span.0;
-                let values = self.expressions_enum(TokenType::LBrack, TokenType::RBrack, TokenType::Comma);
+                let values =
+                    self.expressions_enum(TokenType::LBrack, TokenType::RBrack, TokenType::Comma);
                 let len = values.len();
 
                 self.position -= 1;
                 let span_end = self.current().span.1;
                 let _ = self.next();
 
-                Expressions::Array { values, len, span: (span_start, span_end) }
+                Expressions::Array {
+                    values,
+                    len,
+                    span: (span_start, span_end),
+                }
             }
             TokenType::LBrace => {
                 let span_start = current.span.0;
@@ -385,13 +406,16 @@ impl Parser {
                     let _ = self.next();
                 }
 
-                Expressions::Scope { block, span: (span_start, span_end) }
+                Expressions::Scope {
+                    block,
+                    span: (span_start, span_end),
+                }
             }
 
             _ => {
                 self.error(
                     String::from("Undefined term found"),
-                    (current.span.0 - 1, current.span.1 - 1)
+                    (current.span.0 - 1, current.span.1 - 1),
                 );
                 Expressions::None
             }
@@ -403,15 +427,9 @@ impl Parser {
         let current = self.current();
 
         match current.token_type {
-            tty if BINARY_OPERATORS.contains(&tty) => {
-                self.binary_expression(node)
-            }
-            tty if BOOLEAN_OPERATORS.contains(&tty) => {
-                self.boolean_expression(node)
-            }
-            tty if BITWISE_OPERATORS.contains(&tty) => {
-                self.bitwise_expression(node)
-            }
+            tty if BINARY_OPERATORS.contains(&tty) => self.binary_expression(node),
+            tty if BOOLEAN_OPERATORS.contains(&tty) => self.boolean_expression(node),
+            tty if BITWISE_OPERATORS.contains(&tty) => self.bitwise_expression(node),
 
             TokenType::LBrack => {
                 let span = current.span;
@@ -424,10 +442,7 @@ impl Parser {
                 let slice_index = self.expression();
 
                 if !self.expect(TokenType::RBrack) {
-                    self.error(
-                        String::from("Unclosed brackets in expression found"),
-                        span
-                    );
+                    self.error(String::from("Unclosed brackets in expression found"), span);
                     return Expressions::None;
                 }
 
@@ -438,7 +453,7 @@ impl Parser {
                 Expressions::Slice {
                     object: Box::new(node),
                     index: Box::new(slice_index),
-                    span
+                    span,
                 }
             }
 
@@ -452,7 +467,7 @@ impl Parser {
                 node
             }
 
-            _ => node
+            _ => node,
         }
     }
 
@@ -460,80 +475,90 @@ impl Parser {
         let current = self.current();
 
         match current.token_type {
-            TokenType::Keyword => {
-                match current.value.as_str() {
-                    "let" => self.annotation_statement(),
-                    "import" => self.import_statement(),
-                    "if" => self.if_statement(),
-                    "else" => {
-                        self.error(
-                            String::from("Unexpected `else` outside construction usage"),
-                            current.span
-                        );
-                        Statements::None
-                    }
+            TokenType::Keyword => match current.value.as_str() {
+                "let" => self.annotation_statement(),
+                "import" => self.import_statement(),
+                "if" => self.if_statement(),
+                "else" => {
+                    self.error(
+                        String::from("Unexpected `else` outside construction usage"),
+                        current.span,
+                    );
+                    Statements::None
+                }
 
-                    "while" => self.while_statement(),
-                    "for" => self.for_statement(),
+                "while" => self.while_statement(),
+                "for" => self.for_statement(),
 
-                    "typedef" => self.typedef_statement(),
-                    "struct" => self.struct_statement(),
-                    "enum" => self.enum_statement(),
-                    
-                    "pub" => {
-                        let _ = self.next();
-                        let stmt = self.statement();
+                "typedef" => self.typedef_statement(),
+                "struct" => self.struct_statement(),
+                "enum" => self.enum_statement(),
 
-                        match stmt {
-                            Statements::FunctionDefineStatement { name, datatype, arguments, block, public: _, span } => {
-                                Statements::FunctionDefineStatement {
-                                    name,
-                                    datatype,
-                                    arguments,
-                                    block,
-                                    public: true,
-                                    span
-                                }
-                            }
-                            Statements::StructDefineStatement { name, fields, functions, public: _, span } => {
-                                Statements::StructDefineStatement {
-                                    name,
-                                    fields,
-                                    functions,
-                                    public: true,
-                                    span
-                                }
-                            }
-                            Statements::EnumDefineStatement { name, fields, functions, public: _, span } => {
-                                Statements::EnumDefineStatement {
-                                    name,
-                                    fields,
-                                    functions,
-                                    public: true,
-                                    span
-                                }
-                            },
+                "pub" => {
+                    let _ = self.next();
+                    let stmt = self.statement();
 
-                            _ => {
-                                self.error(
-                                    String::from("Visibility is not followed by provided item"),
-                                    current.span
-                                );
-                                Statements::None
-                            }
+                    match stmt {
+                        Statements::FunctionDefineStatement {
+                            name,
+                            datatype,
+                            arguments,
+                            block,
+                            public: _,
+                            span,
+                        } => Statements::FunctionDefineStatement {
+                            name,
+                            datatype,
+                            arguments,
+                            block,
+                            public: true,
+                            span,
+                        },
+                        Statements::StructDefineStatement {
+                            name,
+                            fields,
+                            functions,
+                            public: _,
+                            span,
+                        } => Statements::StructDefineStatement {
+                            name,
+                            fields,
+                            functions,
+                            public: true,
+                            span,
+                        },
+                        Statements::EnumDefineStatement {
+                            name,
+                            fields,
+                            functions,
+                            public: _,
+                            span,
+                        } => Statements::EnumDefineStatement {
+                            name,
+                            fields,
+                            functions,
+                            public: true,
+                            span,
+                        },
 
+                        _ => {
+                            self.error(
+                                String::from("Visibility is not followed by provided item"),
+                                current.span,
+                            );
+                            Statements::None
                         }
                     }
-                    "fn" => self.fn_statement(),
-                    "return" => self.return_statement(),
-                    "break" => self.break_statement(),
-                    _ => unreachable!()
                 }
+                "fn" => self.fn_statement(),
+                "return" => self.return_statement(),
+                "break" => self.break_statement(),
+                _ => unreachable!(),
             },
             TokenType::LBrace => {
                 let span_start = current.span.0;
                 let _ = self.next();
-                
+
                 let mut block = Vec::new();
                 while !self.expect(TokenType::RBrace) {
                     block.push(self.statement());
@@ -545,7 +570,7 @@ impl Parser {
                 }
                 self.skip_eos();
 
-                Statements::ScopeStatement { block, span, }
+                Statements::ScopeStatement { block, span }
             }
             TokenType::Multiply => {
                 let _ = self.next();
@@ -557,17 +582,19 @@ impl Parser {
                         let span_end = self.current().span.1 - 1;
 
                         match stmt {
-                            Statements::AssignStatement { identifier, value, span } => {
-                                Statements::DerefAssignStatement {
-                                    identifier,
-                                    value,
-                                    span
-                                }
-                            }
+                            Statements::AssignStatement {
+                                identifier,
+                                value,
+                                span,
+                            } => Statements::DerefAssignStatement {
+                                identifier,
+                                value,
+                                span,
+                            },
                             _ => {
                                 self.error(
                                     String::from("Unsupported for dereference statement found"),
-                                    (span_start, span_end)
+                                    (span_start, span_end),
                                 );
                                 Statements::None
                             }
@@ -576,7 +603,7 @@ impl Parser {
                     _ => {
                         self.error(
                             String::from("Unsupported for dereference statement found"),
-                            self.current().span
+                            self.current().span,
                         );
                         Statements::None
                     }
@@ -588,8 +615,11 @@ impl Parser {
                     TokenType::Equal => self.assign_statement(current.value, current.span),
                     TokenType::Dot => {
                         let sub_expr = self.subelement_expression(
-                            Expressions::Value(Value::Identifier(current.value), self.current().span),
-                            TokenType::Dot
+                            Expressions::Value(
+                                Value::Identifier(current.value),
+                                self.current().span,
+                            ),
+                            TokenType::Dot,
                         );
 
                         match self.current().token_type {
@@ -602,9 +632,9 @@ impl Parser {
                                 Statements::FieldAssignStatement {
                                     object: sub_expr,
                                     value,
-                                    span: (current.span.0, span_end)
+                                    span: (current.span.0, span_end),
                                 }
-                            },
+                            }
                             TokenType::Semicolon => {
                                 self.skip_eos();
                                 Statements::Expression(sub_expr)
@@ -612,60 +642,63 @@ impl Parser {
                             _ => {
                                 self.error(
                                     String::from("Unexpected subelement in statement found"),
-                                    (current.span.0, self.current().span.1)
+                                    (current.span.0, self.current().span.1),
                                 );
                                 Statements::None
                             }
                         }
-
                     }
                     TokenType::LParen => self.call_statement(current.value, current.span),
                     TokenType::LBrack => self.slice_assign_statement(current.value, current.span),
 
-                    tty if BINARY_OPERATORS.contains(&tty) => {
-                        match self.next().token_type {
-                            TokenType::Equal => {
-                                self.binary_assign_statement(current.value, next.value, current.span)
-                            }
-                            TokenType::Plus | TokenType::Minus => {
-                                let span_start = next.span.0;
-                                let span_end = self.current().span.1;
-                                let (op1, op2) = (next.value, self.current().value);
+                    tty if BINARY_OPERATORS.contains(&tty) => match self.next().token_type {
+                        TokenType::Equal => {
+                            self.binary_assign_statement(current.value, next.value, current.span)
+                        }
+                        TokenType::Plus | TokenType::Minus => {
+                            let span_start = next.span.0;
+                            let span_end = self.current().span.1;
+                            let (op1, op2) = (next.value, self.current().value);
 
-                                if op1 != op2 {
-                                    self.error(
-                                        String::from("Unexpected variation of increment/decrement found!"),
-                                        (span_start, span_end)
-                                    );
-                                    return Statements::None;
-                                }
-
-                                let _ = self.next();
-                                self.skip_eos();
-
-                                Statements::BinaryAssignStatement {
-                                    identifier: current.value,
-                                    operand: op1,
-                                    value: Expressions::Value(Value::Integer(1), (current.span.0, span_end)),
-                                    span: (current.span.0, span_end)
-                                }
-                            }
-                            _ => {
+                            if op1 != op2 {
                                 self.error(
-                                    String::from("Unexpected binary operation in statement found"),
-                                    (current.span.0, self.current().span.1)
+                                    String::from(
+                                        "Unexpected variation of increment/decrement found!",
+                                    ),
+                                    (span_start, span_end),
                                 );
-                                Statements::None
+                                return Statements::None;
+                            }
+
+                            let _ = self.next();
+                            self.skip_eos();
+
+                            Statements::BinaryAssignStatement {
+                                identifier: current.value,
+                                operand: op1,
+                                value: Expressions::Value(
+                                    Value::Integer(1),
+                                    (current.span.0, span_end),
+                                ),
+                                span: (current.span.0, span_end),
                             }
                         }
-                    }
-                    END_STATEMENT => {
-                        Statements::Expression(Expressions::Value(Value::Identifier(current.value), current.span))
-                    }
+                        _ => {
+                            self.error(
+                                String::from("Unexpected binary operation in statement found"),
+                                (current.span.0, self.current().span.1),
+                            );
+                            Statements::None
+                        }
+                    },
+                    END_STATEMENT => Statements::Expression(Expressions::Value(
+                        Value::Identifier(current.value),
+                        current.span,
+                    )),
                     _ => {
                         self.error(
                             String::from("Unexpected expression/statement found after identifier"),
-                            (current.span.0, next.span.1)
+                            (current.span.0, next.span.1),
                         );
                         Statements::None
                     }
@@ -675,7 +708,7 @@ impl Parser {
                 self.eof = true;
                 Statements::None
             }
-            _ => Statements::Expression(self.expression())
+            _ => Statements::Expression(self.expression()),
         }
     }
 }
