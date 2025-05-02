@@ -1,5 +1,3 @@
-// #![allow(unused)]
-
 use miette::NamedSource;
 use deen_lexer::{
     token::Token,

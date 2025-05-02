@@ -93,7 +93,7 @@ impl Scope {
     pub fn set_init_var(&mut self, name: &str, value: bool) -> Result<(), String> {
         match self.get_var(name) {
             Some(mut var) => {
-                var.initialized = true;
+                var.initialized = value;
                 self.add_var(name.to_owned(), var.datatype, var.initialized, var.span);
 
                 Ok(())
@@ -107,7 +107,7 @@ impl Scope {
         if self.functions.contains_key(&name) {
             return Err(format!("Function `{}` already declared", name));
         }
-        self.functions.insert(name.clone(), ScopeElement { name, datatype: return_type, public });
+        self.functions.insert(name.clone(), ScopeElement { datatype: return_type, public });
         Ok(())
     }
 
@@ -123,7 +123,7 @@ impl Scope {
         if self.structures.contains_key(&name) {
             return Err(format!("Structure `{}` already declared", name));
         }
-        self.structures.insert(name.clone(), ScopeElement { name, datatype: struct_type, public });
+        self.structures.insert(name.clone(), ScopeElement { datatype: struct_type, public });
         Ok(())
     }
 
@@ -139,7 +139,7 @@ impl Scope {
         if self.enums.contains_key(&name) {
             return Err(format!("Enum `{}` already declared", name));
         }
-        self.structures.insert(name.clone(), ScopeElement { name, datatype: enum_type, public });
+        self.structures.insert(name.clone(), ScopeElement { datatype: enum_type, public });
         Ok(())
     }
 

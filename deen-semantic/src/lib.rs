@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::{
     scope::Scope,
     import::Import,
@@ -201,7 +199,7 @@ impl Analyzer {
             Statements::SliceAssignStatement { identifier, index, value, span } => {
                 if let Some(variable) = self.scope.get_var(identifier) {
                     match variable.datatype {
-                        Type::Array(typ, len) => {
+                        Type::Array(typ, _) => {
                             // i could spent some time to implement evaluating expressions for
                             // checking index out of bounds, but it will be like in Rust: panics at
                             // the runtime
@@ -302,8 +300,16 @@ impl Analyzer {
 
                     let mut staged = false;
 
-                    if struct_type.is_some() && !staged { datatype = struct_type };
-                    if enum_type.is_some() && !staged { datatype = enum_type };
+                    if struct_type.is_some() && !staged {
+                        datatype = struct_type;
+                        staged = true;
+                    };
+
+                    if enum_type.is_some() && !staged {
+                        datatype = enum_type;
+                        staged = true;
+                    };
+
                     if typedef_type.is_some() && !staged { datatype = typedef_type };
                 }
 
@@ -463,7 +469,7 @@ impl Analyzer {
 
             Statements::StructDefineStatement { name, functions, fields, public, span } => {
                 let pre_type = Type::Struct(fields.clone(), HashMap::new());
-                self.scope.structures.insert(name.clone(), element::ScopeElement { name: name.clone(), datatype: pre_type, public: *public });
+                self.scope.structures.insert(name.clone(), element::ScopeElement { datatype: pre_type, public: *public });
 
                 let mut structure_scope = Scope::new();
                 structure_scope.parent = Some(Box::new(self.scope.clone()));
@@ -491,7 +497,7 @@ impl Analyzer {
             },
             Statements::EnumDefineStatement { name, fields, functions, public, span } => {
                 let pre_type = Type::Enum(fields.clone(), HashMap::new());
-                self.scope.enums.insert(name.clone(), element::ScopeElement { name: name.clone(), datatype: pre_type, public: *public });
+                self.scope.enums.insert(name.clone(), element::ScopeElement { datatype: pre_type, public: *public });
 
                 let mut enum_scope = Scope::new();
                 enum_scope.parent = Some(Box::new(self.scope.clone()));
@@ -504,10 +510,10 @@ impl Analyzer {
                 let functions_signatures = self.scope.functions.clone();
                 self.scope = *self.scope.parent.clone().unwrap();
 
-                let _ = self.scope.structures.remove(name);
+                let _ = self.scope.enums.remove(name);
 
                 let enum_type = Type::Enum(fields.clone(), functions_signatures.into_iter().map(|x| (x.0, x.1.datatype)).collect());
-                self.scope.add_struct(name.clone(), enum_type.clone(), *public).unwrap_or_else(|err| {
+                self.scope.add_enum(name.clone(), enum_type.clone(), *public).unwrap_or_else(|err| {
                     self.error(
                         err,
                         *span
@@ -842,7 +848,7 @@ impl Analyzer {
                     );
                 }
             },
-            Statements::ReturnStatement { value, span } => {
+            Statements::ReturnStatement { value, span: _ } => {
                 let value_type = self.visit_expression(value, Some(self.scope.expected.clone()));
                 
                 if Self::is_integer(&value_type) && Self::is_integer(&self.scope.expected) && Self::integer_order(&value_type) <= Self::integer_order(&self.scope.expected) {
@@ -857,7 +863,7 @@ impl Analyzer {
 
                 self.scope.returned = value_type;
             },
-            Statements::ScopeStatement { block, span } => {
+            Statements::ScopeStatement { block, span: _ } => {
                 let mut new_scope = Scope::new();
                 new_scope.parent = Some(Box::new(self.scope.clone()));
                 self.scope = new_scope;
@@ -983,7 +989,7 @@ impl Analyzer {
                 if Self::integer_order(&left) > Self::integer_order(&right) { left } else { right }
             },
 
-            Expressions::Argument { name, r#type, span } => unreachable!(),
+            Expressions::Argument { name: _, r#type: _, span: _ } => unreachable!(),
             Expressions::SubElement { head, subelements, span } => {
                 let head_type = self.visit_expression(head, expected);
 
@@ -1277,7 +1283,7 @@ impl Analyzer {
                     unreachable!()
                 }
             },
-            Expressions::Reference { object, span } => {
+            Expressions::Reference { object, span: _ } => {
                 let obj = self.visit_expression(object, expected);
 
                 Type::Pointer(Box::new(obj))
@@ -1419,7 +1425,7 @@ impl Analyzer {
                     structure
                 } else { unreachable!() }
             },
-            Expressions::Scope { block, span } => {
+            Expressions::Scope { block, span: _ } => {
                 let mut new_scope = Scope::new();
                 new_scope.parent = Some(Box::new(self.scope.clone()));
                 new_scope.expected = expected.unwrap_or(Type::Void);
