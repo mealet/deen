@@ -263,7 +263,7 @@ impl<'ctx> CodeGen<'ctx> {
                 let entry = self.context.append_basic_block(function, "entry");
 
                 let old_position = self.builder.get_insert_block();
-                let old_function = self.function.clone();
+                let old_function = self.function;
                 self.builder.position_at_end(entry);
                 self.function = Some(function);
 
@@ -430,7 +430,7 @@ impl<'ctx> CodeGen<'ctx> {
                     .unwrap_or(fname.replace(".dn", ""));
 
                 let import = self.imports.get(&module_name).unwrap();
-                let mut codegen = Self::new(&self.context, &module_name, import.embedded_imports.clone(), false);
+                let mut codegen = Self::new(self.context, &module_name, import.embedded_imports.clone(), false);
 
                 let prefix = format!("__{}_", module_name);
                 let module = codegen.compile(import.ast.clone(), Some(prefix));
@@ -718,7 +718,7 @@ impl<'ctx> CodeGen<'ctx> {
                         Expressions::Value(Value::Integer(idx), _) => {
                             match prev_type.clone() {
                                 Type::Tuple(types) => {
-                                    let field_type = types[idx.clone() as usize].clone();
+                                    let field_type = types[*idx as usize].clone();
                                     let field_basic_type = self.get_basic_type(field_type.clone());
 
                                     let tuple_type = self.context.struct_type(
@@ -726,7 +726,7 @@ impl<'ctx> CodeGen<'ctx> {
                                         false
                                     );
 
-                                    let ptr = self.builder.build_struct_gep(tuple_type, prev_val.into_pointer_value(), idx.clone() as u32, "").unwrap();
+                                    let ptr = self.builder.build_struct_gep(tuple_type, prev_val.into_pointer_value(), *idx as u32, "").unwrap();
 
 
                                     let value = if let Some(Type::Pointer(_)) = expected {
@@ -751,12 +751,12 @@ impl<'ctx> CodeGen<'ctx> {
                                         "struct" | "enum" => {
                                             let function = self.functions.get(&format!("{}_{}__{}", alias_type, alias, name)).unwrap().clone();
                                             let mut arguments = arguments
-                                                .into_iter()
+                                                .iter()
                                                 .zip(function.arguments.clone())
                                                 .map(|(arg, exp)| self.compile_expression(arg.clone(), Some(exp)).1.into())
                                                 .collect::<Vec<BasicMetadataValueEnum>>();
                                             
-                                            if let Some(Type::Alias(first_arg)) = function.arguments.get(0) {
+                                            if let Some(Type::Alias(first_arg)) = function.arguments.first() {
                                                 if *first_arg == alias {
                                                     let self_val: BasicMetadataValueEnum = if prev_val.is_pointer_value() {
                                                         self.builder.build_load(
@@ -835,7 +835,7 @@ impl<'ctx> CodeGen<'ctx> {
             Expressions::Tuple { values, span } => {
                 let mut expected_types = values.iter().map(|_| None).collect::<Vec<Option<Type>>>();
                 if let Some(Type::Tuple(expectations)) = expected.clone() {
-                    expected_types = expectations.into_iter().map(|exp| Some(exp)).collect();
+                    expected_types = expectations.into_iter().map(Some).collect();
                 }
 
                 let compiled_values = values.into_iter().zip(expected_types).map(|(val, exp)| self.compile_expression(val, exp)).collect::<Vec<(Type, BasicValueEnum)>>();
@@ -916,7 +916,7 @@ impl<'ctx> CodeGen<'ctx> {
                         };
 
                         let ret_value = self.builder.build_load(basic_ret_type, ptr, "").unwrap();
-                        return (*ret_type, ret_value);
+                        (*ret_type, ret_value)
                     }
                     _ => unreachable!()
                 }

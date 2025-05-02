@@ -18,7 +18,7 @@ fn binary_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Binary { operand, lhs, rhs, span: _ } => {
                 assert_eq!(operand, "+");
@@ -44,7 +44,7 @@ fn binary_advanced_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Binary { operand, lhs, rhs, span: _ } => {
                 assert_eq!(operand, "+");
@@ -75,7 +75,7 @@ fn unary_negative_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Unary { operand, object, span: _ } => {
                 assert_eq!(operand, "-");
@@ -100,7 +100,7 @@ fn unary_not_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Unary { operand, object, span: _ } => {
                 assert_eq!(operand, "!");
@@ -125,7 +125,7 @@ fn boolean_eq_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Boolean { operand, lhs, rhs, span: _ } => {
                 assert_eq!(operand, "==");
@@ -151,7 +151,7 @@ fn boolean_ne_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Boolean { operand, lhs, rhs, span: _ } => {
                 assert_eq!(operand, "!=");
@@ -177,7 +177,7 @@ fn boolean_bt_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Boolean { operand, lhs, rhs, span: _ } => {
                 assert_eq!(operand, ">");
@@ -203,7 +203,7 @@ fn boolean_lt_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Boolean { operand, lhs, rhs, span: _ } => {
                 assert_eq!(operand, "<");
@@ -229,7 +229,7 @@ fn boolean_advanced_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Boolean { operand, lhs, rhs, span: _ } => {
                 assert_eq!(operand, "&&");
@@ -270,7 +270,7 @@ fn bitwise_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Bitwise { operand, lhs, rhs, span: _ } => {
                 assert_eq!(operand, "<<");
@@ -296,7 +296,7 @@ fn argument_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Argument { name, r#type, span: _ } => {
                 assert_eq!(name, "some_arg");
@@ -320,7 +320,7 @@ fn argument_advanced_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Argument { name, r#type, span: _ } => {
                 assert_eq!(name, "some_arg");
@@ -351,7 +351,7 @@ fn subelement_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::SubElement { head, subelements, span: _ } => {
                 if let Expressions::Value(Value::Identifier(id), _) = *head {
@@ -385,7 +385,7 @@ fn subelement_advanced_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::SubElement { head, subelements, span: _ } => {
                 if let Expressions::Value(Value::Identifier(id), _) = *head {
@@ -427,7 +427,7 @@ fn fncall_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::FnCall { name, arguments, span: _ } => {
                 assert_eq!(name, "call_me");
@@ -451,7 +451,7 @@ fn fncall_advanced_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::FnCall { name, arguments, span: _ } => {
                 assert_eq!(name, "call_me");
@@ -480,7 +480,7 @@ fn reference_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Reference { object, span: _ } => {
                 if let Expressions::Value(Value::Identifier(id), _) = *object { assert_eq!(id, "b") } else { panic!("Ref object doesn't matches expected") }
@@ -503,7 +503,7 @@ fn reference_advanced_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Reference { object, span: _ } => {
                 if let Expressions::Value(Value::Identifier(id), _) = *object { assert_eq!(id, "b") } else { panic!("Ref object doesn't matches expected") }
@@ -526,7 +526,7 @@ fn dereference_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Dereference { object, span: _ } => {
                 if let Expressions::Value(Value::Identifier(id), _) = *object { assert_eq!(id, "b") } else { panic!("Ref object doesn't matches expected") }
@@ -549,7 +549,7 @@ fn dereference_advanced_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Dereference { object, span: _ } => {
                 if let Expressions::Dereference { object, span: _ } = *object {
@@ -580,7 +580,7 @@ fn array_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Array { values, len, span: _ } => {
                 assert_eq!(len, 3);
@@ -608,7 +608,7 @@ fn tuple_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Tuple { values, span: _ } => {
                 assert_eq!(values.len(), 3);
@@ -636,7 +636,7 @@ fn tuple_advanced_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Tuple { values, span: _ } => {
                 assert_eq!(values.len(), 3);
@@ -664,7 +664,7 @@ fn slice_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Slice { object, index, span: _ } => {
                 if let Expressions::Value(Value::Identifier(id), _) = *object {
@@ -690,7 +690,7 @@ fn struct_expression_test() {
     let mut parser = Parser::new(tokens, SRC, FILENAME);
     let (ast, _) = parser.parse().unwrap();
 
-    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.get(0) {
+    if let Some(Statements::AnnotationStatement { identifier: _, value, span: _, datatype: _ }) = ast.first() {
         match value.clone().unwrap() {
             Expressions::Struct { name, fields, span: _ } => {
                 assert_eq!(name, "Person");

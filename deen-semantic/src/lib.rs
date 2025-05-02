@@ -269,7 +269,7 @@ impl Analyzer {
                 let object_type = self.visit_expression(object, None);
                 let unwrapped_object_type = self.unwrap_alias(&object_type).unwrap_or_else(|err| {
                     self.error(err, *span);
-                    return Type::Void;
+                    Type::Void
                 });
 
                 if unwrapped_object_type == Type::Void { return };
@@ -280,7 +280,6 @@ impl Analyzer {
                         format!("Field has type `{}`, but found `{}`", object_type, value_type),
                         *span
                     );
-                    return;
                 }
             },
 
@@ -594,7 +593,6 @@ impl Analyzer {
                             format!("Scopes has incompatible types: `{}` and `{}`", then_block_type, else_block_type),
                             *span
                         );
-                        return;
                     }
                 }
             },
@@ -1044,7 +1042,7 @@ impl Analyzer {
                                         return;
                                     }
 
-                                    let typ = types[idx.clone() as usize].clone();
+                                    let typ = types[*idx as usize].clone();
                                     prev_type = self.unwrap_alias(&typ).unwrap_or_else(|err| {
                                         self.error(err, *idx_span);
                                         Type::Void
@@ -1076,7 +1074,7 @@ impl Analyzer {
                                         if let Some(first_arg) = args.first() {
                                             let unwrapped_arg = self.unwrap_alias(first_arg).unwrap_or_else(|err| {
                                                 self.error(err, *span);
-                                                return Type::Void
+                                                Type::Void
                                             });
 
                                             if unwrapped_arg == prev_type {
@@ -1189,7 +1187,7 @@ impl Analyzer {
                                         fields.iter().for_each(|field| {
                                             let struct_field = struct_fields.get(field.0);
                                             if let Some(field_type) = struct_field {
-                                                let field_type = self.unwrap_alias(&field_type).unwrap_or_else(|err| {
+                                                let field_type = self.unwrap_alias(field_type).unwrap_or_else(|err| {
                                                     self.error(err, *span);
                                                     Type::Void
                                                 });
@@ -1318,17 +1316,17 @@ impl Analyzer {
                 Type::Array(Box::new(arr_type), *len)
             },
             Expressions::Tuple { values, span } => {
-                if values.len() < 1 {
+                if values.is_empty() {
                     self.error("Unknown by compilation time tuple found".to_string(), *span);
                     return Type::Void;
                 }
 
                 let mut expected_types = values.iter().map(|_| None).collect::<Vec<Option<Type>>>();
                 if let Some(Type::Tuple(expectations)) = expected.clone() {
-                    expected_types = expectations.into_iter().map(|exp| Some(exp)).collect();
+                    expected_types = expectations.into_iter().map(Some).collect();
                 }
 
-                let types = values.into_iter().zip(expected_types).map(|(val, exp)| self.visit_expression(val, exp)).collect::<Vec<Type>>();
+                let types = values.iter().zip(expected_types).map(|(val, exp)| self.visit_expression(val, exp)).collect::<Vec<Type>>();
 
                 Type::Tuple(types)
             }
@@ -1386,7 +1384,7 @@ impl Analyzer {
                     fields.iter().for_each(|field| {
                         let struct_field = struct_fields.get(field.0);
                         if let Some(field_type) = struct_field {
-                            let field_type = self.unwrap_alias(&field_type).unwrap_or_else(|err| {
+                            let field_type = self.unwrap_alias(field_type).unwrap_or_else(|err| {
                                 self.error(err, *span);
                                 Type::Void
                             });

@@ -22,7 +22,7 @@ fn basic_values_test() {
     if let Some(
         Statements::Expression(Expressions::Value(Value::Integer(_), _))
     ) = ast_iter.next() {} else {
-        panic!("Test failure for: {:?}", ast_iter.nth(0).unwrap())
+        panic!("Test failure for: {:?}", ast_iter.next().unwrap())
     }
 
     if let Some(

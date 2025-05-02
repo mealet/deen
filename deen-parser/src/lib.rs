@@ -601,22 +601,22 @@ impl Parser {
                                 let span_end = self.current().span.1;
                                 self.skip_eos();
 
-                                return Statements::FieldAssignStatement {
+                                Statements::FieldAssignStatement {
                                     object: sub_expr,
                                     value,
                                     span: (current.span.0, span_end)
-                                };
+                                }
                             },
                             TokenType::Semicolon => {
                                 self.skip_eos();
-                                return Statements::Expression(sub_expr);
+                                Statements::Expression(sub_expr)
                             }
                             _ => {
                                 self.error(
                                     String::from("Unexpected subelement in statement found"),
                                     (current.span.0, self.current().span.1)
                                 );
-                                return Statements::None;
+                                Statements::None
                             }
                         }
 
