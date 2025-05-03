@@ -1,7 +1,7 @@
 [workspace]
 members = [
   "deen",
-  "deen-lexer"
+  "deen-lexer",
   "deen-parser",
   "deen-semantic"
   "deen-codegen",
