@@ -60,9 +60,9 @@ impl std::fmt::Display for Type {
             Type::Bool => write!(f, "bool"),
             Type::Void => write!(f, "void"),
 
-            Type::Pointer(inner) => write!(f, "*{}", inner),
-            Type::Array(inner, size) => write!(f, "[{}; {}]", inner, size),
-            Type::DynamicArray(inner) => write!(f, "[]{}", inner),
+            Type::Pointer(inner) => write!(f, "*{inner}"),
+            Type::Array(inner, size) => write!(f, "[{inner}; {size}]"),
+            Type::DynamicArray(inner) => write!(f, "[]{inner}"),
 
             Type::Tuple(elements) => {
                 write!(f, "(")?;
@@ -70,7 +70,7 @@ impl std::fmt::Display for Type {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", ty)?;
+                    write!(f, "{ty}")?;
                 }
                 write!(f, ")")
             }
@@ -101,7 +101,7 @@ impl std::fmt::Display for Type {
                     .join(", ")
             ),
 
-            Type::ImportObject(imp) => write!(f, "<{}>", imp),
+            Type::ImportObject(imp) => write!(f, "<{imp}>"),
         }
     }
 }
