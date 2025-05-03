@@ -1,0 +1,41 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  tests:
+    permissions:
+      contents: read
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@5aa646dfb739dff33bfae50a6193d9673a68e344
+      with:
+        components: "clippy"
+
+    - name: 🖱️ LLVM Install
+      uses: ZhongRuoyu/setup-llvm@405ac952f13f3ee4d376adc2b7a96e5f48d1f73f
+      with:
+        llvm-version: 18
+
+    - name: 🔧 Packages test
+      run: |
+        cargo test -- --show-output
+
+    - name: 🌐 Cargo check
+      run: |
+        cargo check --workspace --all
+
+    - name: 📎 Clippy check
+      continue-on-error: true
+      run: |
+        cargo clippy --workspace -- -D warnings
