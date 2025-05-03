@@ -80,7 +80,7 @@ impl std::fmt::Display for Type {
                 f,
                 "{functype} ({})",
                 args.iter()
-                    .map(|a| format!("{}", a))
+                    .map(|a| format!("{a}"))
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
