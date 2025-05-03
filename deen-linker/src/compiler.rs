@@ -20,7 +20,7 @@ impl ObjectCompiler {
             )
             .unwrap();
 
-        let output_name = format!("{}.o", name);
+        let output_name = format!("{name}.o");
         let output_path = std::path::Path::new(&output_name);
         target_machine
             .write_to_file(module, FileType::Object, output_path)
