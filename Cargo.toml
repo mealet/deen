@@ -3,7 +3,7 @@ members = [
   "deen",
   "deen-lexer",
   "deen-parser",
-  "deen-semantic"
+  "deen-semantic",
   "deen-codegen",
   "deen-linker",
 ]
