@@ -326,6 +326,7 @@ impl<'ctx> CodeGen<'ctx> {
                 block,
                 public: _,
                 span: _,
+                header_span: _
             } => {
                 let name = format!("{}{}", prefix.unwrap_or_default(), name);
 

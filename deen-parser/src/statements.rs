@@ -46,6 +46,7 @@ pub enum Statements {
         block: Vec<Statements>,
         public: bool,
         span: (usize, usize),
+        header_span: (usize, usize),
     },
     FunctionCallStatement {
         name: String,
@@ -466,6 +467,8 @@ impl Parser {
             datatype = self.parse_type();
         }
 
+        let header_span = (span_start, self.current().span.1);
+
         let _ = self.next();
         let mut span_block_start = self.current().span.0;
         let mut block = Vec::new();
@@ -483,7 +486,7 @@ impl Parser {
             span_block_start = self.current().span.0;
         }
 
-        let span_end = self.current().span.0;
+        let span_end = self.current().span.0 + 1;
         if self.expect(TokenType::RBrace) {
             let _ = self.next();
         }
@@ -496,6 +499,7 @@ impl Parser {
             block,
             public: false,
             span: (span_start, span_end),
+            header_span,
         }
     }
 
@@ -683,6 +687,7 @@ impl Parser {
                         public: _,
                         block: _,
                         span: _,
+                        header_span: _,
                     } = &stmt
                     {
                         functions.insert(name.to_owned(), stmt);
@@ -798,6 +803,7 @@ impl Parser {
                         public: _,
                         block: _,
                         span: _,
+                        header_span: _
                     } = &stmt
                     {
                         functions.insert(name.to_owned(), stmt);

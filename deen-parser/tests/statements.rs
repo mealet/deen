@@ -302,6 +302,7 @@ fn function_define_statement() {
             block,
             public,
             span: _,
+            header_span: _
         }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::Void);
@@ -332,6 +333,7 @@ fn function_define_statement_with_type() {
             block,
             public,
             span: _,
+            header_span: _
         }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::USIZE);
@@ -362,6 +364,7 @@ fn function_define_statement_with_args() {
             block,
             public,
             span: _,
+            header_span: _
         }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::USIZE);
@@ -406,6 +409,7 @@ fn function_define_statement_with_block() {
             block,
             public,
             span: _,
+            header_span: _
         }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::Void);
@@ -459,6 +463,7 @@ fn function_define_statement_public() {
             block,
             public,
             span: _,
+            header_span: _
         }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::Void);
@@ -627,6 +632,7 @@ fn struct_define_with_fn_statement() {
                 block: _,
                 public: _,
                 span: _,
+                header_span: _
             }) = functions.get("foo")
             {
                 assert_eq!(name, "foo");
@@ -677,6 +683,7 @@ fn struct_define_public_statement() {
                 block: _,
                 public: _,
                 span: _,
+                header_span: _
             }) = functions.get("foo")
             {
                 assert_eq!(name, "foo");

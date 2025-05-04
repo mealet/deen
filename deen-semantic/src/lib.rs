@@ -109,6 +109,7 @@ impl Analyzer {
                     block: _,
                     public: _,
                     span: _,
+                    header_span: _
                 } => {}
                 Statements::ImportStatement { path: _, span: _ } => {}
                 Statements::StructDefineStatement {
@@ -439,6 +440,7 @@ impl Analyzer {
                 block,
                 public,
                 span,
+                header_span
             } => {
                 if !self.scope.is_main && name == "main" {
                     self.error(
@@ -449,7 +451,7 @@ impl Analyzer {
                 }
 
                 if self.scope.get_fn(name).is_some() {
-                    self.error(format!("Function `{}` already declared!", name), *span);
+                    self.error(format!("Function `{}` already declared!", name), *header_span);
                     return;
                 }
 
@@ -477,7 +479,7 @@ impl Analyzer {
                 function_scope.expected = datatype.clone();
 
                 arguments.iter().for_each(|arg| {
-                    function_scope.add_var(arg.0.clone(), arg.1.clone(), true, *span)
+                    function_scope.add_var(arg.0.clone(), arg.1.clone(), true, *header_span)
                 });
                 self.scope = function_scope;
 
@@ -501,7 +503,7 @@ impl Analyzer {
                             "Function `{}` returns type `{}`, but found `{}`",
                             name, exp, ret
                         ),
-                        *span,
+                        *header_span,
                     );
                 }
 
@@ -516,7 +518,7 @@ impl Analyzer {
                 if *public && name == "main" {
                     self.error(
                         String::from("Function `main()` is not allowed to be public"),
-                        *span,
+                        *header_span,
                     );
                 }
             }
