@@ -2,7 +2,7 @@ use deen_lexer::Lexer;
 use deen_parser::{Parser, expressions::Expressions, statements::Statements, value::Value};
 
 #[test]
-fn basic_values_test() {
+fn basic_values() {
     const SRC: &str = "123; 5.0; 'a'; \"some\"; true";
     const FILENAME: &str = "test.dn";
 

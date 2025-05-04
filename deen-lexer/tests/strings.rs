@@ -1,7 +1,7 @@
 use deen_lexer::{Lexer, token::Token, token_type::TokenType};
 
 #[test]
-fn basic_string_test() {
+fn basic_string() {
     let mut lexer = Lexer::new("\"hello\"", "test.dn");
     let tokens = lexer.tokenize().unwrap().0;
 
@@ -15,7 +15,7 @@ fn basic_string_test() {
 }
 
 #[test]
-fn big_string_test() {
+fn big_string() {
     let mut lexer = Lexer::new(
         "\"Hello, World! Here's an interesting thing: first LLVM initial release was in 2003 year. The original authors of core was Chris Lattner and Vikram Adve\"",
         "test.dn",
@@ -38,7 +38,7 @@ fn big_string_test() {
 }
 
 #[test]
-fn advanced_string_test() {
+fn advanced_string() {
     let mut lexer = Lexer::new("\"¿?👉👈🤠👀\"", "test.dn");
     let tokens = lexer.tokenize().unwrap().0;
 
@@ -52,7 +52,7 @@ fn advanced_string_test() {
 }
 
 #[test]
-fn basic_char_test() {
+fn basic_char() {
     let mut lexer = Lexer::new("'a'", "test.dn");
     let tokens = lexer.tokenize().unwrap().0;
 
@@ -66,7 +66,7 @@ fn basic_char_test() {
 }
 
 #[test]
-fn advanced_char_test() {
+fn advanced_char() {
     let mut lexer = Lexer::new("'👀'", "test.dn");
     let tokens = lexer.tokenize().unwrap().0;
 

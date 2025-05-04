@@ -4,7 +4,7 @@ use deen_parser::{
 };
 
 #[test]
-fn assign_statement_test() {
+fn assign_statement() {
     const SRC: &str = "some_var = 5;";
     const FILENAME: &str = "test.dn";
 
@@ -31,7 +31,7 @@ fn assign_statement_test() {
 }
 
 #[test]
-fn binary_assign_statement_test() {
+fn binary_assign_statement() {
     const SRC: &str = "some_var += 5;";
     const FILENAME: &str = "test.dn";
 
@@ -61,7 +61,7 @@ fn binary_assign_statement_test() {
 }
 
 #[test]
-fn deref_assign_statement_test() {
+fn deref_assign_statement() {
     const SRC: &str = "*ptr = 5;";
     const FILENAME: &str = "test.dn";
 
@@ -89,7 +89,7 @@ fn deref_assign_statement_test() {
 }
 
 #[test]
-fn slice_assign_statement_test() {
+fn slice_assign_statement() {
     const SRC: &str = "list[0] = 5;";
     const FILENAME: &str = "test.dn";
 
@@ -122,7 +122,7 @@ fn slice_assign_statement_test() {
 }
 
 #[test]
-fn field_assign_statement_test() {
+fn field_assign_statement() {
     const SRC: &str = "some_struct.field = 12";
     const FILENAME: &str = "test.dn";
 
@@ -167,7 +167,7 @@ fn field_assign_statement_test() {
 }
 
 #[test]
-fn annotation_statement_test() {
+fn annotation_statement() {
     const SRC: &str = "let var;";
     const FILENAME: &str = "test.dn";
 
@@ -193,7 +193,7 @@ fn annotation_statement_test() {
 }
 
 #[test]
-fn annotation_statement_with_type_test() {
+fn annotation_statement_with_type() {
     const SRC: &str = "let var: i32;";
     const FILENAME: &str = "test.dn";
 
@@ -221,7 +221,7 @@ fn annotation_statement_with_type_test() {
 }
 
 #[test]
-fn annotation_statement_with_value_test() {
+fn annotation_statement_with_value() {
     const SRC: &str = "let var = 15;";
     const FILENAME: &str = "test.dn";
 
@@ -252,7 +252,7 @@ fn annotation_statement_with_value_test() {
 }
 
 #[test]
-fn annotation_statement_full_test() {
+fn annotation_statement_full() {
     const SRC: &str = "let var: usize = 15;";
     const FILENAME: &str = "test.dn";
 
@@ -284,7 +284,7 @@ fn annotation_statement_full_test() {
 }
 
 #[test]
-fn function_define_statement_test() {
+fn function_define_statement() {
     const SRC: &str = "fn foo() {}";
     const FILENAME: &str = "test.dn";
 
@@ -314,7 +314,7 @@ fn function_define_statement_test() {
 }
 
 #[test]
-fn function_define_statement_with_type_test() {
+fn function_define_statement_with_type() {
     const SRC: &str = "fn foo() usize {}";
     const FILENAME: &str = "test.dn";
 
@@ -344,7 +344,7 @@ fn function_define_statement_with_type_test() {
 }
 
 #[test]
-fn function_define_statement_with_args_test() {
+fn function_define_statement_with_args() {
     const SRC: &str = "fn foo(a: i32, b: u64) usize {}";
     const FILENAME: &str = "test.dn";
 
@@ -388,7 +388,7 @@ fn function_define_statement_with_args_test() {
 }
 
 #[test]
-fn function_define_statement_with_block_test() {
+fn function_define_statement_with_block() {
     const SRC: &str = "fn foo(a: i32, b: u64) { return 1; }";
     const FILENAME: &str = "test.dn";
 
@@ -441,7 +441,7 @@ fn function_define_statement_with_block_test() {
 }
 
 #[test]
-fn function_define_statement_public_test() {
+fn function_define_statement_public() {
     const SRC: &str = "pub fn foo(a: i32, b: u64) { return 1; }";
     const FILENAME: &str = "test.dn";
 
@@ -682,6 +682,58 @@ fn struct_define_public_statement() {
                 assert_eq!(name, "foo");
                 assert_eq!(datatype, &Type::Void);
             }
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn enum_define_statement() {
+    const SRC: &str = "enum ABC { A, B, C }";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::EnumDefineStatement { name, fields, functions, public, span: _ }) => {
+            assert_eq!(name, "ABC");
+            assert!(!fields.is_empty());
+            assert!(!public);
+            assert!(functions.is_empty());
+
+            if let Some("A") = fields.get(0).map(|x| x.as_str()){} else { panic!("Wrong field parsed") };
+            if let Some("B") = fields.get(1).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
+            if let Some("C") = fields.get(2).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn enum_define_with_fn_statement() {
+    const SRC: &str = "enum ABC { A, B, C }";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::EnumDefineStatement { name, fields, functions, public, span: _ }) => {
+            assert_eq!(name, "ABC");
+            assert!(!fields.is_empty());
+            assert!(!public);
+            assert!(functions.is_empty());
+
+            if let Some("A") = fields.get(0).map(|x| x.as_str()){} else { panic!("Wrong field parsed") };
+            if let Some("B") = fields.get(1).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
+            if let Some("C") = fields.get(2).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
         }
         _ => panic!("Wrong statement parsed"),
     }

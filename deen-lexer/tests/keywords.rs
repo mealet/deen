@@ -1,7 +1,7 @@
 use deen_lexer::{Lexer, token_type::TokenType};
 
 #[test]
-fn basic_types_test() {
+fn basic_types() {
     let input = String::from("i8 i16 i32 i64 u8 u16 u32 u64 usize string char bool void");
     let mut lexer = Lexer::new(&input, "tests.dn");
 
@@ -29,7 +29,7 @@ fn basic_types_test() {
 }
 
 #[test]
-fn boolean_keywords_test() {
+fn boolean_keywords() {
     let input = String::from("true false");
     let mut lexer = Lexer::new(&input, "tests.dn");
 
@@ -46,7 +46,7 @@ fn boolean_keywords_test() {
 }
 
 #[test]
-fn main_keywords_test() {
+fn main_keywords() {
     let input = String::from("let fn import return struct enum typedef");
     let mut lexer = Lexer::new(&input, "tests.dn");
 
@@ -68,7 +68,7 @@ fn main_keywords_test() {
 }
 
 #[test]
-fn constructions_keywords_test() {
+fn constructions_keywords() {
     let input = String::from("if else while for break");
     let mut lexer = Lexer::new(&input, "tests.dn");
 

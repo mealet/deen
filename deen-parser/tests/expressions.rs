@@ -4,7 +4,7 @@ use deen_parser::{
 };
 
 #[test]
-fn binary_expression_test() {
+fn binary_expression() {
     const SRC: &str = "let a = 5 + 2;";
     const FILENAME: &str = "test.dn";
 
@@ -47,7 +47,7 @@ fn binary_expression_test() {
 }
 
 #[test]
-fn binary_advanced_expression_test() {
+fn binary_advanced_expression() {
     const SRC: &str = "let a = 2 + 2 * 2;";
     const FILENAME: &str = "test.dn";
 
@@ -106,7 +106,7 @@ fn binary_advanced_expression_test() {
 }
 
 #[test]
-fn unary_negative_expression_test() {
+fn unary_negative_expression() {
     const SRC: &str = "let a = -2;";
     const FILENAME: &str = "test.dn";
 
@@ -144,7 +144,7 @@ fn unary_negative_expression_test() {
 }
 
 #[test]
-fn unary_not_expression_test() {
+fn unary_not_expression() {
     const SRC: &str = "let a = !2;";
     const FILENAME: &str = "test.dn";
 
@@ -182,7 +182,7 @@ fn unary_not_expression_test() {
 }
 
 #[test]
-fn boolean_eq_expression_test() {
+fn boolean_eq_expression() {
     const SRC: &str = "let a = 1 == 1;";
     const FILENAME: &str = "test.dn";
 
@@ -225,7 +225,7 @@ fn boolean_eq_expression_test() {
 }
 
 #[test]
-fn boolean_ne_expression_test() {
+fn boolean_ne_expression() {
     const SRC: &str = "let a = 1 != 1;";
     const FILENAME: &str = "test.dn";
 
@@ -268,7 +268,7 @@ fn boolean_ne_expression_test() {
 }
 
 #[test]
-fn boolean_bt_expression_test() {
+fn boolean_bt_expression() {
     const SRC: &str = "let a = 1 > 1;";
     const FILENAME: &str = "test.dn";
 
@@ -311,7 +311,7 @@ fn boolean_bt_expression_test() {
 }
 
 #[test]
-fn boolean_lt_expression_test() {
+fn boolean_lt_expression() {
     const SRC: &str = "let a = 1 < 1;";
     const FILENAME: &str = "test.dn";
 
@@ -354,7 +354,7 @@ fn boolean_lt_expression_test() {
 }
 
 #[test]
-fn boolean_advanced_expression_test() {
+fn boolean_advanced_expression() {
     const SRC: &str = "let a = 1 == 1 && 0 != 5;";
     const FILENAME: &str = "test.dn";
 
@@ -430,7 +430,7 @@ fn boolean_advanced_expression_test() {
 }
 
 #[test]
-fn bitwise_expression_test() {
+fn bitwise_expression() {
     const SRC: &str = "let a = 5 << 2;";
     const FILENAME: &str = "test.dn";
 
@@ -473,7 +473,7 @@ fn bitwise_expression_test() {
 }
 
 #[test]
-fn argument_expression_test() {
+fn argument_expression() {
     const SRC: &str = "let a = some_arg: i32";
     const FILENAME: &str = "test.dn";
 
@@ -507,7 +507,7 @@ fn argument_expression_test() {
 }
 
 #[test]
-fn argument_advanced_expression_test() {
+fn argument_advanced_expression() {
     const SRC: &str = "let a = some_arg: *[i32; 5]";
     const FILENAME: &str = "test.dn";
 
@@ -544,7 +544,7 @@ fn argument_advanced_expression_test() {
 }
 
 #[test]
-fn subelement_expression_test() {
+fn subelement_expression() {
     const SRC: &str = "let a = some_struct.field";
     const FILENAME: &str = "test.dn";
 
@@ -588,7 +588,7 @@ fn subelement_expression_test() {
 }
 
 #[test]
-fn subelement_advanced_expression_test() {
+fn subelement_advanced_expression() {
     const SRC: &str = "let a = some_struct.field.method()";
     const FILENAME: &str = "test.dn";
 
@@ -645,7 +645,7 @@ fn subelement_advanced_expression_test() {
 }
 
 #[test]
-fn fncall_expression_test() {
+fn fncall_expression() {
     const SRC: &str = "let a = call_me()";
     const FILENAME: &str = "test.dn";
 
@@ -679,7 +679,7 @@ fn fncall_expression_test() {
 }
 
 #[test]
-fn fncall_advanced_expression_test() {
+fn fncall_advanced_expression() {
     const SRC: &str = "let a = call_me(1, id, 1.0)";
     const FILENAME: &str = "test.dn";
 
@@ -730,7 +730,7 @@ fn fncall_advanced_expression_test() {
 }
 
 #[test]
-fn reference_expression_test() {
+fn reference_expression() {
     const SRC: &str = "let a = &b";
     const FILENAME: &str = "test.dn";
 
@@ -763,7 +763,7 @@ fn reference_expression_test() {
 }
 
 #[test]
-fn reference_advanced_expression_test() {
+fn reference_advanced_expression() {
     const SRC: &str = "let a = &(b)";
     const FILENAME: &str = "test.dn";
 
@@ -796,7 +796,7 @@ fn reference_advanced_expression_test() {
 }
 
 #[test]
-fn dereference_expression_test() {
+fn dereference_expression() {
     const SRC: &str = "let a = *b";
     const FILENAME: &str = "test.dn";
 
@@ -829,7 +829,7 @@ fn dereference_expression_test() {
 }
 
 #[test]
-fn dereference_advanced_expression_test() {
+fn dereference_advanced_expression() {
     const SRC: &str = "let a = **b";
     const FILENAME: &str = "test.dn";
 
@@ -866,7 +866,7 @@ fn dereference_advanced_expression_test() {
 }
 
 #[test]
-fn array_expression_test() {
+fn array_expression() {
     const SRC: &str = "let a = [1, 2, 3]";
     const FILENAME: &str = "test.dn";
 
@@ -913,7 +913,7 @@ fn array_expression_test() {
 }
 
 #[test]
-fn tuple_expression_test() {
+fn tuple_expression() {
     const SRC: &str = "let a = (1, 5, 4)";
     const FILENAME: &str = "test.dn";
 
@@ -956,7 +956,7 @@ fn tuple_expression_test() {
 }
 
 #[test]
-fn tuple_advanced_expression_test() {
+fn tuple_advanced_expression() {
     const SRC: &str = "let a = (1, 2.0, \"hello\")";
     const FILENAME: &str = "test.dn";
 
@@ -1000,7 +1000,7 @@ fn tuple_advanced_expression_test() {
 }
 
 #[test]
-fn slice_expression_test() {
+fn slice_expression() {
     const SRC: &str = "let a = b[0]";
     const FILENAME: &str = "test.dn";
 
@@ -1039,7 +1039,7 @@ fn slice_expression_test() {
 }
 
 #[test]
-fn struct_expression_test() {
+fn struct_expression() {
     const SRC: &str = "let a = Person { .age = 32, .name = \"John\", .money = 333.12 };";
     const FILENAME: &str = "test.dn";
 
