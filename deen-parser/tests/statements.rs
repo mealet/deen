@@ -302,7 +302,7 @@ fn function_define_statement() {
             block,
             public,
             span: _,
-            header_span: _
+            header_span: _,
         }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::Void);
@@ -333,7 +333,7 @@ fn function_define_statement_with_type() {
             block,
             public,
             span: _,
-            header_span: _
+            header_span: _,
         }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::USIZE);
@@ -364,7 +364,7 @@ fn function_define_statement_with_args() {
             block,
             public,
             span: _,
-            header_span: _
+            header_span: _,
         }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::USIZE);
@@ -409,7 +409,7 @@ fn function_define_statement_with_block() {
             block,
             public,
             span: _,
-            header_span: _
+            header_span: _,
         }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::Void);
@@ -463,7 +463,7 @@ fn function_define_statement_public() {
             block,
             public,
             span: _,
-            header_span: _
+            header_span: _,
         }) => {
             assert_eq!(name, "foo");
             assert_eq!(datatype, &Type::Void);
@@ -632,7 +632,7 @@ fn struct_define_with_fn_statement() {
                 block: _,
                 public: _,
                 span: _,
-                header_span: _
+                header_span: _,
             }) = functions.get("foo")
             {
                 assert_eq!(name, "foo");
@@ -683,7 +683,7 @@ fn struct_define_public_statement() {
                 block: _,
                 public: _,
                 span: _,
-                header_span: _
+                header_span: _,
             }) = functions.get("foo")
             {
                 assert_eq!(name, "foo");
@@ -708,15 +708,30 @@ fn enum_define_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::EnumDefineStatement { name, fields, functions, public, span: _ }) => {
+        Some(Statements::EnumDefineStatement {
+            name,
+            fields,
+            functions,
+            public,
+            span: _,
+        }) => {
             assert_eq!(name, "ABC");
             assert!(!fields.is_empty());
             assert!(!public);
             assert!(functions.is_empty());
 
-            if let Some("A") = fields.get(0).map(|x| x.as_str()){} else { panic!("Wrong field parsed") };
-            if let Some("B") = fields.get(1).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
-            if let Some("C") = fields.get(2).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
+            if let Some("A") = fields.first().map(|x| x.as_str()) {
+            } else {
+                panic!("Wrong field parsed")
+            };
+            if let Some("B") = fields.get(1).map(|x| x.as_str()) {
+            } else {
+                panic!("Wrong field parsed")
+            };
+            if let Some("C") = fields.get(2).map(|x| x.as_str()) {
+            } else {
+                panic!("Wrong field parsed")
+            };
         }
         _ => panic!("Wrong statement parsed"),
     }
@@ -734,20 +749,46 @@ fn enum_define_with_fn_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::EnumDefineStatement { name, fields, functions, public, span: _ }) => {
+        Some(Statements::EnumDefineStatement {
+            name,
+            fields,
+            functions,
+            public,
+            span: _,
+        }) => {
             assert_eq!(name, "ABC");
             assert!(!fields.is_empty());
             assert!(!public);
             assert!(!functions.is_empty());
 
-            if let Some("A") = fields.get(0).map(|x| x.as_str()){} else { panic!("Wrong field parsed") };
-            if let Some("B") = fields.get(1).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
-            if let Some("C") = fields.get(2).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
+            if let Some("A") = fields.first().map(|x| x.as_str()) {
+            } else {
+                panic!("Wrong field parsed")
+            };
+            if let Some("B") = fields.get(1).map(|x| x.as_str()) {
+            } else {
+                panic!("Wrong field parsed")
+            };
+            if let Some("C") = fields.get(2).map(|x| x.as_str()) {
+            } else {
+                panic!("Wrong field parsed")
+            };
 
-            if let Some(Statements::FunctionDefineStatement { name, datatype, arguments: _, block: _, public: _, span: _, header_span: _ }) = functions.get("foo") {
+            if let Some(Statements::FunctionDefineStatement {
+                name,
+                datatype,
+                arguments: _,
+                block: _,
+                public: _,
+                span: _,
+                header_span: _,
+            }) = functions.get("foo")
+            {
                 assert_eq!(name, "foo");
                 assert_eq!(datatype, &Type::Void);
-            } else { panic!("Wrong function define stmt parsed") }
+            } else {
+                panic!("Wrong function define stmt parsed")
+            }
         }
         _ => panic!("Wrong statement parsed"),
     }
@@ -765,15 +806,30 @@ fn enum_define_pub_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::EnumDefineStatement { name, fields, functions, public, span: _ }) => {
+        Some(Statements::EnumDefineStatement {
+            name,
+            fields,
+            functions,
+            public,
+            span: _,
+        }) => {
             assert_eq!(name, "ABC");
             assert!(!fields.is_empty());
             assert!(public);
             assert!(functions.is_empty());
 
-            if let Some("A") = fields.get(0).map(|x| x.as_str()){} else { panic!("Wrong field parsed") };
-            if let Some("B") = fields.get(1).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
-            if let Some("C") = fields.get(2).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
+            if let Some("A") = fields.first().map(|x| x.as_str()) {
+            } else {
+                panic!("Wrong field parsed")
+            };
+            if let Some("B") = fields.get(1).map(|x| x.as_str()) {
+            } else {
+                panic!("Wrong field parsed")
+            };
+            if let Some("C") = fields.get(2).map(|x| x.as_str()) {
+            } else {
+                panic!("Wrong field parsed")
+            };
         }
         _ => panic!("Wrong statement parsed"),
     }
@@ -791,7 +847,11 @@ fn typedef_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::TypedefStatement { alias, datatype, span: _ }) => {
+        Some(Statements::TypedefStatement {
+            alias,
+            datatype,
+            span: _,
+        }) => {
             assert_eq!(alias, "int");
             assert_eq!(datatype, &Type::I32);
         }
@@ -811,13 +871,16 @@ fn typedef_advanced_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::TypedefStatement { alias, datatype, span: _ }) => {
+        Some(Statements::TypedefStatement {
+            alias,
+            datatype,
+            span: _,
+        }) => {
             assert_eq!(alias, "array_ptr");
-            assert_eq!(datatype, &Type::Pointer(
-                Box::new(
-                    Type::Array(Box::new(Type::I32), 5)
-                )
-            ));
+            assert_eq!(
+                datatype,
+                &Type::Pointer(Box::new(Type::Array(Box::new(Type::I32), 5)))
+            );
         }
         _ => panic!("Wrong statement parsed"),
     }
@@ -835,11 +898,19 @@ fn if_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::IfStatement { condition, then_block, else_block, span: _ }) => {
+        Some(Statements::IfStatement {
+            condition,
+            then_block,
+            else_block,
+            span: _,
+        }) => {
             assert!(else_block.is_none());
             assert!(then_block.is_empty());
 
-            if let Expressions::Value(Value::Boolean(true), _) = condition {} else { panic!("Wrong condition expr parsed") }
+            if let Expressions::Value(Value::Boolean(true), _) = condition {
+            } else {
+                panic!("Wrong condition expr parsed")
+            }
         }
         _ => panic!("Wrong statement parsed"),
     }
@@ -857,11 +928,19 @@ fn if_else_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::IfStatement { condition, then_block, else_block, span: _ }) => {
+        Some(Statements::IfStatement {
+            condition,
+            then_block,
+            else_block,
+            span: _,
+        }) => {
             assert!(else_block.is_some());
             assert!(then_block.is_empty());
 
-            if let Expressions::Value(Value::Boolean(true), _) = condition {} else { panic!("Wrong condition expr parsed") }
+            if let Expressions::Value(Value::Boolean(true), _) = condition {
+            } else {
+                panic!("Wrong condition expr parsed")
+            }
         }
         _ => panic!("Wrong statement parsed"),
     }
@@ -879,8 +958,15 @@ fn while_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::WhileStatement { condition, block: _, span: _ }) => {
-            if let Expressions::Value(Value::Boolean(true), _) = condition {} else { panic!("Wrong condition expr parsed") }
+        Some(Statements::WhileStatement {
+            condition,
+            block: _,
+            span: _,
+        }) => {
+            if let Expressions::Value(Value::Boolean(true), _) = condition {
+            } else {
+                panic!("Wrong condition expr parsed")
+            }
         }
         _ => panic!("Wrong statement parsed"),
     }
@@ -898,9 +984,17 @@ fn for_statement() {
     let (ast, _) = parser.parse().unwrap();
 
     match ast.first() {
-        Some(Statements::ForStatement { binding, iterator, block: _, span: _ }) => {
+        Some(Statements::ForStatement {
+            binding,
+            iterator,
+            block: _,
+            span: _,
+        }) => {
             assert_eq!(binding, "i");
-            if let Expressions::Value(Value::Integer(5), _) = iterator {} else { panic!("Wrong iterator obj parsed") }
+            if let Expressions::Value(Value::Integer(5), _) = iterator {
+            } else {
+                panic!("Wrong iterator obj parsed")
+            }
         }
         _ => panic!("Wrong statement parsed"),
     }
@@ -919,7 +1013,11 @@ fn import_statement() {
 
     match ast.first() {
         Some(Statements::ImportStatement { path, span: _ }) => {
-            if let Expressions::Value(Value::String(str), _) = path { assert_eq!(str, "module.dn") } else { panic!("Wrong import object expr parsed") };
+            if let Expressions::Value(Value::String(str), _) = path {
+                assert_eq!(str, "module.dn")
+            } else {
+                panic!("Wrong import object expr parsed")
+            };
         }
         _ => panic!("Wrong statement parsed"),
     }
@@ -955,7 +1053,10 @@ fn return_statement() {
 
     match ast.first() {
         Some(Statements::ReturnStatement { value, span: _ }) => {
-            if let Expressions::Value(Value::Integer(15), _) = value {} else { panic!("Wrong return expr parsed") }
+            if let Expressions::Value(Value::Integer(15), _) = value {
+            } else {
+                panic!("Wrong return expr parsed")
+            }
         }
         _ => panic!("Wrong statement parsed"),
     }

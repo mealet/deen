@@ -506,7 +506,7 @@ impl Parser {
                             block,
                             public: _,
                             span,
-                            header_span
+                            header_span,
                         } => Statements::FunctionDefineStatement {
                             name,
                             datatype,

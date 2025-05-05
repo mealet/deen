@@ -109,7 +109,7 @@ impl Analyzer {
                     block: _,
                     public: _,
                     span: _,
-                    header_span: _
+                    header_span: _,
                 } => {}
                 Statements::ImportStatement { path: _, span: _ } => {}
                 Statements::StructDefineStatement {
@@ -400,7 +400,8 @@ impl Analyzer {
                                     self.error(
                                         format!(
                                             "Expected integer type `{}`, but found `{}`",
-                                            display_type.unwrap(), value_type
+                                            display_type.unwrap(),
+                                            value_type
                                         ),
                                         *span,
                                     );
@@ -411,7 +412,11 @@ impl Analyzer {
                             }
 
                             self.error(
-                                format!("Expected type `{}` but found `{}`", display_type.unwrap(), value_type),
+                                format!(
+                                    "Expected type `{}` but found `{}`",
+                                    display_type.unwrap(),
+                                    value_type
+                                ),
                                 *span,
                             );
                             return;
@@ -441,7 +446,7 @@ impl Analyzer {
                 block,
                 public,
                 span,
-                header_span
+                header_span,
             } => {
                 if !self.scope.is_main && name == "main" {
                     self.error(
@@ -452,7 +457,10 @@ impl Analyzer {
                 }
 
                 if self.scope.get_fn(name).is_some() {
-                    self.error(format!("Function `{}` already declared!", name), *header_span);
+                    self.error(
+                        format!("Function `{}` already declared!", name),
+                        *header_span,
+                    );
                     return;
                 }
 
@@ -1262,7 +1270,7 @@ impl Analyzer {
                                         );
                                         &Type::Void
                                     });
-                                    
+
                                     prev_type_display = field_type.clone();
                                     prev_type = self.unwrap_alias(field_type).unwrap_or_else(|err| {
                                         self.error(err, *field_span);

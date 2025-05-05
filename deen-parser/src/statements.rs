@@ -470,7 +470,7 @@ impl Parser {
         if !self.expect(TokenType::LBrace) {
             self.error(
                 String::from("Expected new block after function declaration"),
-                (span_start, self.current().span.1)
+                (span_start, self.current().span.1),
             );
             return Statements::None;
         }
@@ -811,7 +811,7 @@ impl Parser {
                         public: _,
                         block: _,
                         span: _,
-                        header_span: _
+                        header_span: _,
                     } = &stmt
                     {
                         functions.insert(name.to_owned(), stmt);
