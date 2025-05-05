@@ -1190,7 +1190,7 @@ impl Analyzer {
                             ),
                             *span,
                         );
-                        left
+                        Type::Bool
                     }
                 }
             }
@@ -1244,7 +1244,7 @@ impl Analyzer {
                 });
                 let mut prev_expr = Expressions::None;
                 if prev_type == Type::Void {
-                    return Type::Void;
+                    return head_type;
                 };
 
                 subelements.iter().for_each(|sub| {
@@ -1446,7 +1446,7 @@ impl Analyzer {
                                                 });
                                                 let provided_type = self.visit_expression(field.1, Some(field_type.clone()));
 
-                                                if field_type != provided_type {
+                                                if field_type != provided_type && field_type != Type::Void {
                                                     self.error(
                                                         format!("Field `{}` expected to be type `{}`, but found `{}`", field.0, field_type, provided_type),
                                                         *span
@@ -1525,7 +1525,7 @@ impl Analyzer {
                             ),
                             *span,
                         );
-                        return Type::Void;
+                        return *func_type;
                     }
 
                     call_args.iter().enumerate().zip(func_args).for_each(
@@ -1560,13 +1560,13 @@ impl Analyzer {
                     *ptr_type
                 } else {
                     self.error(format!("Type {} cannot be dereferenced!", obj), *span);
-                    Type::Void
+                    obj
                 }
             }
 
             Expressions::Array { values, len, span } => {
                 if *len < 1 {
-                    self.error("Empty array type is unkown".to_string(), *span);
+                    self.error("Empty array type is unknown".to_string(), *span);
                     return Type::Void;
                 }
 
@@ -1664,7 +1664,7 @@ impl Analyzer {
                             let provided_type =
                                 self.visit_expression(field.1, Some(field_type.clone()));
 
-                            if field_type != provided_type {
+                            if field_type != provided_type && field_type != Type::Void {
                                 self.error(
                                     format!(
                                         "Field `{}` expected to be type `{}`, but found `{}`",
@@ -1734,7 +1734,7 @@ impl Analyzer {
     fn visit_value(&mut self, value: Value, expected: Option<Type>) -> Result<Type, String> {
         match value {
             Value::Integer(int) => {
-                if expected.is_some() && expected.clone().unwrap() != Type::Void {
+                if expected.is_some() && Self::is_integer(&expected.clone().unwrap()) {
                     let exp = expected.unwrap();
                     match exp {
                         Type::I8 => {
