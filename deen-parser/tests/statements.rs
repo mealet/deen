@@ -822,3 +822,141 @@ fn typedef_advanced_statement() {
         _ => panic!("Wrong statement parsed"),
     }
 }
+
+#[test]
+fn if_statement() {
+    const SRC: &str = "if true {};";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::IfStatement { condition, then_block, else_block, span: _ }) => {
+            assert!(else_block.is_none());
+            assert!(then_block.is_empty());
+
+            if let Expressions::Value(Value::Boolean(true), _) = condition {} else { panic!("Wrong condition expr parsed") }
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn if_else_statement() {
+    const SRC: &str = "if true {} else {};";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::IfStatement { condition, then_block, else_block, span: _ }) => {
+            assert!(else_block.is_some());
+            assert!(then_block.is_empty());
+
+            if let Expressions::Value(Value::Boolean(true), _) = condition {} else { panic!("Wrong condition expr parsed") }
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn while_statement() {
+    const SRC: &str = "while true {}";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::WhileStatement { condition, block: _, span: _ }) => {
+            if let Expressions::Value(Value::Boolean(true), _) = condition {} else { panic!("Wrong condition expr parsed") }
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn for_statement() {
+    const SRC: &str = "for i = 5 {}";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::ForStatement { binding, iterator, block: _, span: _ }) => {
+            assert_eq!(binding, "i");
+            if let Expressions::Value(Value::Integer(5), _) = iterator {} else { panic!("Wrong iterator obj parsed") }
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn import_statement() {
+    const SRC: &str = "import \"module.dn\"";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::ImportStatement { path, span: _ }) => {
+            if let Expressions::Value(Value::String(str), _) = path { assert_eq!(str, "module.dn") } else { panic!("Wrong import object expr parsed") };
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn break_statement() {
+    const SRC: &str = "break";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::BreakStatements { span: _ }) => {}
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn return_statement() {
+    const SRC: &str = "return 15;";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::ReturnStatement { value, span: _ }) => {
+            if let Expressions::Value(Value::Integer(15), _) = value {} else { panic!("Wrong return expr parsed") }
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
