@@ -688,6 +688,8 @@ fn struct_define_public_statement() {
             {
                 assert_eq!(name, "foo");
                 assert_eq!(datatype, &Type::Void);
+            } else {
+                panic!("Wrong function define stmt parsed!")
             }
         }
         _ => panic!("Wrong statement parsed"),
@@ -722,7 +724,7 @@ fn enum_define_statement() {
 
 #[test]
 fn enum_define_with_fn_statement() {
-    const SRC: &str = "enum ABC { A, B, C }";
+    const SRC: &str = "enum ABC { A, B, C, fn foo() {} }";
     const FILENAME: &str = "test.dn";
 
     let mut lexer = Lexer::new(SRC, "test.dn");
@@ -736,11 +738,86 @@ fn enum_define_with_fn_statement() {
             assert_eq!(name, "ABC");
             assert!(!fields.is_empty());
             assert!(!public);
+            assert!(!functions.is_empty());
+
+            if let Some("A") = fields.get(0).map(|x| x.as_str()){} else { panic!("Wrong field parsed") };
+            if let Some("B") = fields.get(1).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
+            if let Some("C") = fields.get(2).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
+
+            if let Some(Statements::FunctionDefineStatement { name, datatype, arguments: _, block: _, public: _, span: _, header_span: _ }) = functions.get("foo") {
+                assert_eq!(name, "foo");
+                assert_eq!(datatype, &Type::Void);
+            } else { panic!("Wrong function define stmt parsed") }
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn enum_define_pub_statement() {
+    const SRC: &str = "pub enum ABC { A, B, C }";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::EnumDefineStatement { name, fields, functions, public, span: _ }) => {
+            assert_eq!(name, "ABC");
+            assert!(!fields.is_empty());
+            assert!(public);
             assert!(functions.is_empty());
 
             if let Some("A") = fields.get(0).map(|x| x.as_str()){} else { panic!("Wrong field parsed") };
             if let Some("B") = fields.get(1).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
             if let Some("C") = fields.get(2).map(|x| x.as_str()) {} else { panic!("Wrong field parsed") };
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn typedef_statement() {
+    const SRC: &str = "typedef int i32";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::TypedefStatement { alias, datatype, span: _ }) => {
+            assert_eq!(alias, "int");
+            assert_eq!(datatype, &Type::I32);
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn typedef_advanced_statement() {
+    const SRC: &str = "typedef array_ptr *[i32; 5]";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::TypedefStatement { alias, datatype, span: _ }) => {
+            assert_eq!(alias, "array_ptr");
+            assert_eq!(datatype, &Type::Pointer(
+                Box::new(
+                    Type::Array(Box::new(Type::I32), 5)
+                )
+            ));
         }
         _ => panic!("Wrong statement parsed"),
     }

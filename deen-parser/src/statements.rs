@@ -467,6 +467,14 @@ impl Parser {
             datatype = self.parse_type();
         }
 
+        if !self.expect(TokenType::LBrace) {
+            self.error(
+                String::from("Expected new block after function declaration"),
+                (span_start, self.current().span.1)
+            );
+            return Statements::None;
+        }
+
         let header_span = (span_start, self.current().span.1);
 
         let _ = self.next();

@@ -359,6 +359,7 @@ impl Analyzer {
                 span,
             } => {
                 // unwrapping type
+                let display_type = datatype.clone();
                 let mut datatype = datatype.clone().map(|tty| {
                     self.unwrap_alias(&tty).unwrap_or_else(|err| {
                         self.error(err, *span);
@@ -399,7 +400,7 @@ impl Analyzer {
                                     self.error(
                                         format!(
                                             "Expected integer type `{}`, but found `{}`",
-                                            datatype, value_type
+                                            display_type.unwrap(), value_type
                                         ),
                                         *span,
                                     );
@@ -410,7 +411,7 @@ impl Analyzer {
                             }
 
                             self.error(
-                                format!("Expected type `{}` but found `{}`", datatype, value_type),
+                                format!("Expected type `{}` but found `{}`", display_type.unwrap(), value_type),
                                 *span,
                             );
                             return;
@@ -455,6 +456,7 @@ impl Analyzer {
                     return;
                 }
 
+                let display_datatype = datatype;
                 let datatype = self.unwrap_alias(datatype).unwrap_or_else(|err| {
                     self.error(err, *span);
                     Type::Void
@@ -501,7 +503,7 @@ impl Analyzer {
                     self.error(
                         format!(
                             "Function `{}` returns type `{}`, but found `{}`",
-                            name, exp, ret
+                            name, display_datatype, ret
                         ),
                         *header_span,
                     );
@@ -1238,6 +1240,7 @@ impl Analyzer {
             } => {
                 let head_type = self.visit_expression(head, expected);
 
+                let mut prev_type_display = head_type.clone();
                 let mut prev_type = self.unwrap_alias(&head_type).unwrap_or_else(|err| {
                     self.error(err, *span);
                     Type::Void
@@ -1254,11 +1257,13 @@ impl Analyzer {
                                 Type::Struct(fields, _) => {
                                     let field_type = fields.get(&field.clone()).unwrap_or_else(|| {
                                         self.error(
-                                            format!("Type `{}` has no field named `{}`", prev_type, field),
+                                            format!("Type `{}` has no field named `{}`", prev_type_display, field),
                                             *field_span
                                         );
                                         &Type::Void
                                     });
+                                    
+                                    prev_type_display = field_type.clone();
                                     prev_type = self.unwrap_alias(field_type).unwrap_or_else(|err| {
                                         self.error(err, *field_span);
                                         Type::Void
@@ -1269,7 +1274,7 @@ impl Analyzer {
                                     let opt = fields.iter().find(|&x| x == field);
                                     if opt.is_none() {
                                         self.error(
-                                            format!("Type `{}` has no choice named `{}`", prev_type, field),
+                                            format!("Type `{}` has no choice named `{}`", prev_type_display, field),
                                             *field_span
                                         );
                                     }
@@ -1278,7 +1283,7 @@ impl Analyzer {
                                 },
                                 _ => {
                                     self.error(
-                                        format!("Type `{}` has no accessible fields", prev_type),
+                                        format!("Type `{}` has no accessible fields", prev_type_display),
                                         *field_span
                                     );
                                 }
@@ -1289,13 +1294,14 @@ impl Analyzer {
                                 Type::Tuple(types) => {
                                     if idx >= &(types.len() as i64) {
                                         self.error(
-                                            format!("Type `{}` has {} fields, but index is {}", prev_type, types.len(), idx),
+                                            format!("Type `{}` has {} fields, but index is {}", prev_type_display, types.len(), idx),
                                             *idx_span
                                         );
                                         return;
                                     }
 
                                     let typ = types[*idx as usize].clone();
+                                    prev_type_display = typ.clone();
                                     prev_type = self.unwrap_alias(&typ).unwrap_or_else(|err| {
                                         self.error(err, *idx_span);
                                         Type::Void
@@ -1304,7 +1310,7 @@ impl Analyzer {
                                 },
                                 _ => {
                                     self.error(
-                                        format!("Type `{}` has no numbered fields", prev_type),
+                                        format!("Type `{}` has no numbered fields", prev_type_display),
                                         *idx_span
                                     )
                                 }
@@ -1315,7 +1321,7 @@ impl Analyzer {
                                 Type::Struct(_, functions) | Type::Enum(_, functions) => {
                                     let function_type = functions.get(name).unwrap_or_else(|| {
                                         self.error(
-                                            format!("Type `{}` has no function named `{}`", prev_type, name),
+                                            format!("Type `{}` has no function named `{}`", prev_type_display, name),
                                             *span
                                         );
                                         &Type::Void
@@ -1337,6 +1343,7 @@ impl Analyzer {
                                             }
                                         }
 
+                                        prev_type_display = *datatype.clone();
                                         prev_type = self.unwrap_alias(datatype).unwrap_or_else(|err| {
                                             self.error(err, *span);
                                             Type::Void
@@ -1376,6 +1383,7 @@ impl Analyzer {
 
                                     let name = format!("__{}_{}", imp, name);
                                     if let Some(Type::Function(args, datatype)) = import.functions.get(&name) {
+                                        prev_type_display = *datatype.clone();
                                         prev_type = self.unwrap_alias(datatype).unwrap_or_else(|err| {
                                             self.error(err, *span);
                                             Type::Void
@@ -1472,6 +1480,7 @@ impl Analyzer {
                                             );
                                         }
 
+                                        prev_type_display = Type::Alias(name.clone());
                                         prev_type = import.structs.get(&name).unwrap().clone();
                                     }
                                 }
