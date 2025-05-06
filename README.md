@@ -18,14 +18,14 @@
 </div>
 
 ## 👀 Description
-**Deen** is a statically-typed compiled programming language inspired by languages like C, C++, Zig, and Rust. <br><br>
+**Deen** - a statically-typed compiling programming language inspired by languages like C, C++, Zig, and Rust. <br><br>
 It provides tools for system programming, including: structures, C-like enums with supported functions, type definitions, backward compatibility with C, pointers, recursion, and more.
 
 **⚠️ The project is currently under active development and may be unstable.**
 
 ## 🎯 Features
 * ⚡ **Simplicity**. The language syntax is easy to read and write.
-* 🚀 **Fast**. The compiler uses LLVM as a backend for maximum performance.
+* 🚀 **Fast**. The compiler uses LLVM as a backend for the best performance.
 * ✨ **Clean**. Nothing superfluous - just basic tools for everything.
 * 🌐 **Modern**. Syntax and mechanics are inspired by Rust and Zig.
 * 📑 **Strict**. Analyzers and checkers will prevent most compile-time errors.
