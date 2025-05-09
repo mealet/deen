@@ -1,5 +1,5 @@
-use deen_semantic::Analyzer;
 use deen_parser::types::Type;
+use deen_semantic::Analyzer;
 
 #[test]
 fn is_integer() {
@@ -29,7 +29,10 @@ fn unsigned_to_signed_integer() {
     assert_eq!(Type::I16, Analyzer::unsigned_to_signed_integer(&Type::U16));
     assert_eq!(Type::I32, Analyzer::unsigned_to_signed_integer(&Type::U32));
     assert_eq!(Type::I64, Analyzer::unsigned_to_signed_integer(&Type::U64));
-    assert_eq!(Type::I64, Analyzer::unsigned_to_signed_integer(&Type::USIZE));
+    assert_eq!(
+        Type::I64,
+        Analyzer::unsigned_to_signed_integer(&Type::USIZE)
+    );
 }
 
 #[test]

@@ -74,7 +74,7 @@ fn parentheses_symbols() {
 
 #[test]
 fn other_symbols() {
-    let mut lexer = Lexer::new("&ref : ; & | _ . ,", "test.dn");
+    let mut lexer = Lexer::new("&ref : ; & | _ . , =", "test.dn");
     let tokens = lexer.tokenize().unwrap().0;
 
     assert_eq!(
@@ -89,6 +89,7 @@ fn other_symbols() {
             Token::new(String::from("_"), TokenType::Identifier, (13, 13)),
             Token::new(String::from("."), TokenType::Dot, (15, 15)),
             Token::new(String::from(","), TokenType::Comma, (17, 17)),
+            Token::new(String::from("="), TokenType::Equal, (19, 19)),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]
     )
