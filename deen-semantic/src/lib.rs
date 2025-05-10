@@ -54,6 +54,17 @@ impl Analyzer {
                     return_type: Type::Void,
                 },
             ),
+
+            // drop!(object)
+            (
+                "drop".to_string(),
+                MacrosObject {
+                    arguments: vec![Type::Void],
+                    is_first_literal: false,
+                    is_var_args: false,
+                    return_type: Type::Void
+                }
+            )
         ]);
 
         Analyzer {
@@ -2024,7 +2035,7 @@ impl Analyzer {
                 .zip(arguments)
                 .for_each(|((index, expected), expression)| {
                     let provided = self.visit_expression(expression, Some(expected.clone()));
-                    if &provided != expected {
+                    if &provided != expected && expected != &Type::Void {
                         self.error(
                             format!(
                                 "Argument #{} expected to be `{}`, but found `{}`",
@@ -2034,6 +2045,13 @@ impl Analyzer {
                         );
                     };
                 });
+
+            if macro_object.arguments.len() < arguments.len() && !macro_object.is_var_args {
+                self.error(
+                    format!("Too much arguments! Expected {} but found {} args", macro_object.arguments.len(), arguments.len()),
+                    *span
+                );
+            }
 
             macro_object.return_type
         } else {
