@@ -332,6 +332,15 @@ impl Parser {
                         self.position -= 1;
                         return self.struct_expression(current.value.clone());
                     }
+                    TokenType::Not => {
+                        let _ = self.next();
+                        if self.expect(TokenType::LParen) {
+                            self.position -= 1;
+                            return self.macrocall_expression(current.value, current.span);
+                        }
+                        self.position -= 1;
+                        return output;
+                    }
                     TokenType::DoubleDots => {
                         let _ = self.next();
 
@@ -615,6 +624,7 @@ impl Parser {
                 let next = self.next();
                 match next.token_type {
                     TokenType::Equal => self.assign_statement(current.value, current.span),
+                    TokenType::Not => self.macrocall_statement(current.value, current.span),
                     TokenType::Dot => {
                         let sub_expr = self.subelement_expression(
                             Expressions::Value(

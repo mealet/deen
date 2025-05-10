@@ -514,7 +514,7 @@ impl Lexer {
                         }
                         _ => {
                             let mut formatted_token = matched_token;
-                            formatted_token.span = (span_start, self.position - 1);
+                            formatted_token.span = (span_start, span_start);
 
                             output.push(formatted_token);
                             self.getc();

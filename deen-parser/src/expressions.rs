@@ -328,14 +328,30 @@ impl Parser {
 
         let arguments =
             self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+
+        self.position -= 1;
         let span_end = self.current().span.1;
-        self.skip_eos();
+        self.position += 1;
 
         Expressions::FnCall {
             name: fname,
             arguments,
             span: (span.0, span_end),
         }
+    }
+
+    pub fn macrocall_expression(&mut self, name: String, span: (usize, usize)) -> Expressions {
+        if self.expect(TokenType::Not) {
+            let _ = self.next();
+        }
+
+        let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+        
+        self.position -= 1;
+        let span_end = self.current().span.1;
+        self.position += 1;
+
+        Expressions::MacroCall { name, arguments, span: (span.0, span_end) }
     }
 
     pub fn slice_expression(&mut self, expr: Expressions) -> Expressions {

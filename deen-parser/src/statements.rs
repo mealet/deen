@@ -641,7 +641,11 @@ impl Parser {
 
         let arguments =
             self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+
+        self.position -= 1;
         let span_end = self.current().span.1;
+        self.position += 1;
+
         self.skip_eos();
 
         Statements::FunctionCallStatement {
@@ -649,6 +653,22 @@ impl Parser {
             arguments,
             span: (span.0, span_end),
         }
+    }
+
+    pub fn macrocall_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
+        if self.expect(TokenType::Not) {
+            let _ = self.next();
+        }
+
+        let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+
+        self.position -= 1;
+        let span_end = self.current().span.1;
+        self.position += 1;
+
+        self.skip_eos();
+
+        Statements::MacroCallStatement { name: id, arguments, span: (span.0, span_end) }
     }
 
     pub fn struct_statement(&mut self) -> Statements {
