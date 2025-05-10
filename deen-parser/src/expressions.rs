@@ -47,6 +47,12 @@ pub enum Expressions {
         arguments: Vec<Expressions>,
         span: (usize, usize),
     },
+    MacroCall {
+        name: String,
+        arguments: Vec<Expressions>,
+        span: (usize, usize)
+    },
+
     Reference {
         object: Box<Expressions>,
         span: (usize, usize),
@@ -121,6 +127,7 @@ impl Parser {
                 arguments: _,
                 span,
             } => span,
+            Expressions::MacroCall { name: _, arguments: _, span } => span,
             Expressions::Reference { object: _, span } => span,
             Expressions::Dereference { object: _, span } => span,
             Expressions::Array {

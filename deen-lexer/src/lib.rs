@@ -366,7 +366,7 @@ impl Lexer {
                             output.push(Token::new(
                                 captured_string,
                                 TokenType::String,
-                                (span_start, span_start + len + 1),
+                                (span_start, span_start + len + 2),
                             ));
                             self.getc();
                         }

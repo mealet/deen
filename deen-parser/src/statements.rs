@@ -54,6 +54,12 @@ pub enum Statements {
         span: (usize, usize),
     },
 
+    MacroCallStatement {
+        name: String,
+        arguments: Vec<Expressions>,
+        span: (usize, usize),
+    },
+
     StructDefineStatement {
         name: String,
         fields: HashMap<String, Type>,

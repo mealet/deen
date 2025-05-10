@@ -590,6 +590,9 @@ impl Analyzer {
                     unreachable!()
                 }
             }
+            
+            #[allow(unused)]
+            Statements::MacroCallStatement { name, arguments, span } => todo!(),
 
             Statements::StructDefineStatement {
                 name,
@@ -1566,6 +1569,10 @@ impl Analyzer {
                     unreachable!()
                 }
             }
+
+            #[allow(unused)]
+            Expressions::MacroCall { name, arguments, span } => todo!(),
+
             Expressions::Reference { object, span: _ } => {
                 let obj = self.visit_expression(object, expected);
 

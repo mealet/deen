@@ -8,7 +8,7 @@ fn basic_string() {
     assert_eq!(
         tokens,
         vec![
-            Token::new(String::from("hello"), TokenType::String, (0, 6)),
+            Token::new(String::from("hello"), TokenType::String, (0, 7)),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]
     )
@@ -30,7 +30,7 @@ fn big_string() {
                     "Hello, World! Here's an interesting thing: first LLVM initial release was in 2003 year. The original authors of core was Chris Lattner and Vikram Adve"
                 ),
                 TokenType::String,
-                (0, 151)
+                (0, 152)
             ),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]
@@ -45,7 +45,7 @@ fn advanced_string() {
     assert_eq!(
         tokens,
         vec![
-            Token::new(String::from("¿?👉👈🤠👀"), TokenType::String, (0, 7)),
+            Token::new(String::from("¿?👉👈🤠👀"), TokenType::String, (0, 8)),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]
     )

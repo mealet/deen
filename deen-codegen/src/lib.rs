@@ -418,6 +418,9 @@ impl<'ctx> CodeGen<'ctx> {
                     .unwrap();
             }
 
+            #[allow(unused)]
+            Statements::MacroCallStatement { name, arguments, span } => todo!(),
+
             Statements::StructDefineStatement {
                 name,
                 fields,
@@ -684,6 +687,9 @@ impl<'ctx> CodeGen<'ctx> {
                         .unwrap(),
                 )
             }
+
+            #[allow(unused)]
+            Expressions::MacroCall { name, arguments, span } => todo!(),
 
             Expressions::Reference { object, span: _ } => match *object {
                 Expressions::Value(Value::Identifier(id), _) => {
