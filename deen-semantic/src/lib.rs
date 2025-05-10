@@ -1,6 +1,7 @@
 use crate::{
     error::{SemanticError, SemanticWarning},
     import::Import,
+    macros::MacrosObject,
     scope::Scope,
 };
 use deen_parser::{
@@ -12,6 +13,7 @@ use std::collections::HashMap;
 mod element;
 mod error;
 pub mod import;
+mod macros;
 mod scope;
 
 type SemanticOk = (HashMap<String, Import>, Vec<SemanticWarning>);
@@ -26,10 +28,34 @@ pub struct Analyzer {
     warnings: Vec<SemanticWarning>,
 
     imports: HashMap<String, Import>,
+    macros: HashMap<String, MacrosObject>,
 }
 
 impl Analyzer {
     pub fn new(src: &str, filename: &str, is_main: bool) -> Self {
+        let standart_macros = HashMap::from([
+            // print!("value: {}", 15);
+            (
+                "print".to_string(),
+                MacrosObject {
+                    arguments: vec![Type::String],
+                    is_first_literal: true,
+                    is_var_args: true,
+                    return_type: Type::Void,
+                },
+            ),
+            // println!("value: {}", 15);
+            (
+                "println".to_string(),
+                MacrosObject {
+                    arguments: vec![Type::String],
+                    is_first_literal: true,
+                    is_var_args: true,
+                    return_type: Type::Void,
+                },
+            ),
+        ]);
+
         Analyzer {
             scope: {
                 let mut scope = Scope::new();
@@ -42,6 +68,7 @@ impl Analyzer {
             warnings: Vec::new(),
 
             imports: HashMap::new(),
+            macros: standart_macros,
         }
     }
 
@@ -590,9 +617,14 @@ impl Analyzer {
                     unreachable!()
                 }
             }
-            
-            #[allow(unused)]
-            Statements::MacroCallStatement { name, arguments, span } => todo!(),
+
+            Statements::MacroCallStatement {
+                name,
+                arguments,
+                span,
+            } => {
+                let _ = self.verify_macrocall(name, arguments, span);
+            }
 
             Statements::StructDefineStatement {
                 name,
@@ -1383,7 +1415,7 @@ impl Analyzer {
                                             if expr_type != expected {
                                                 self.error(
                                                     format!("Argument #{} has type `{}`, but found `{}`", index + 1, expected, expr_type),
-                                                    *span
+                                                    deen_parser::Parser::get_span_expression(expr.clone())
                                                 );
                                             }
                                         });
@@ -1423,7 +1455,7 @@ impl Analyzer {
                                             if expr_type != expected {
                                                 self.error(
                                                     format!("Argument #{} has type `{}`, but found `{}`", index + 1, expected, expr_type),
-                                                    *span
+                                                    deen_parser::Parser::get_span_expression(expr.clone())
                                                 );
                                             }
                                         });
@@ -1570,8 +1602,11 @@ impl Analyzer {
                 }
             }
 
-            #[allow(unused)]
-            Expressions::MacroCall { name, arguments, span } => todo!(),
+            Expressions::MacroCall {
+                name,
+                arguments,
+                span,
+            } => self.verify_macrocall(name, arguments, span),
 
             Expressions::Reference { object, span: _ } => {
                 let obj = self.visit_expression(object, expected);
@@ -1859,6 +1894,151 @@ impl Analyzer {
             Value::Boolean(_) => Ok(Type::Bool),
             Value::Keyword(_) => Ok(Type::Void),
             Value::Void => Ok(Type::Void),
+        }
+    }
+}
+
+impl Analyzer {
+    pub fn verify_macrocall(
+        &mut self,
+        name: &String,
+        arguments: &Vec<Expressions>,
+        span: &(usize, usize),
+    ) -> Type {
+        if let Some(macro_object) = self.macros.get(name).cloned() {
+            if arguments.len() < macro_object.arguments.len() {
+                self.error(
+                    format!(
+                        "Not enough arguments. Expected {}",
+                        macro_object.arguments.len()
+                    ),
+                    *span,
+                );
+                return macro_object.return_type;
+            }
+
+            if macro_object.is_first_literal {
+                if let Some(Expressions::Value(Value::String(literal), literal_span)) =
+                    arguments.first()
+                {
+                    let mut bindings: Vec<Type> = Vec::new();
+
+                    let mut cursor = 0;
+                    let characters = literal.chars().collect::<Vec<char>>();
+
+                    while characters.get(cursor).is_some() {
+                        if let Some('{') = characters.get(cursor) {
+                            cursor += 1;
+                            let next = characters.get(cursor);
+
+                            match next {
+                                Some('}') => bindings.push(Type::Void),
+                                _ => self.error(
+                                    String::from("Unexpected binding in string found"),
+                                    *literal_span,
+                                ),
+                            }
+                        }
+
+                        cursor += 1;
+                    }
+
+                    if arguments.len() != bindings.len() + 1 {
+                        self.error(
+                            format!(
+                                "Expected {} arguments, but found {}",
+                                bindings.len() + 1,
+                                arguments.len()
+                            ),
+                            *span,
+                        );
+                        return macro_object.return_type;
+                    }
+
+                    let mut arguments_iterator = arguments.iter();
+                    let _ = arguments_iterator.next();
+
+                    arguments_iterator.for_each(|expr| {
+                        let expr_type = self.visit_expression(expr, None);
+
+                        match expr_type.clone() {
+                            int if Self::is_integer(&int) => {}
+                            float if Self::is_float(&float) => {},
+                            Type::Pointer(ptr) => {
+                                match *ptr {
+                                    Type::Char => {},
+                                    _ => {
+                                        self.error(
+                                            format!("Type `{}` must be dereferenced to be displayed", expr_type),
+                                            deen_parser::Parser::get_span_expression(expr.clone())
+                                        )
+                                    }
+                                }
+                            }
+                            Type::Struct(_, functions) => {
+                                if let Some(Type::Function(_, return_type)) = functions.get("__display") {
+                                    if let Type::Pointer(ptr) = *return_type.clone() {
+                                        if *ptr.clone() == Type::Char {} else {
+                                            self.error(
+                                                "Implementation for display must be `__display(&self) *char`".to_string(),
+                                                deen_parser::Parser::get_span_expression(expr.clone())
+                                            );
+                                        }
+                                    } else {
+                                        self.error(
+                                            "Implementation for display must be `__display(&self) *char`".to_string(),
+                                            deen_parser::Parser::get_span_expression(expr.clone())
+                                        );
+                                    }
+                                } else {
+                                    self.error(
+                                        format!("Type `{}` has no implementation for `__display(&self) *char`", expr_type),
+                                        deen_parser::Parser::get_span_expression(expr.clone())
+                                    );
+                                }
+                            }
+                            Type::Enum(_, _) => {},
+                            _ => {
+                                self.error(
+                                    format!("Type `{}` is not supported for display", expr_type),
+                                    deen_parser::Parser::get_span_expression(expr.clone())
+                                );
+                            }
+                        }
+                    });
+
+                    return macro_object.return_type;
+                } else {
+                    self.error(
+                        String::from("Macro requires string literal as first argument"),
+                        *span,
+                    );
+                    return macro_object.return_type;
+                }
+            }
+
+            macro_object
+                .arguments
+                .iter()
+                .enumerate()
+                .zip(arguments)
+                .for_each(|((index, expected), expression)| {
+                    let provided = self.visit_expression(expression, Some(expected.clone()));
+                    if &provided != expected {
+                        self.error(
+                            format!(
+                                "Argument #{} expected to be `{}`, but found `{}`",
+                                index, expected, provided
+                            ),
+                            deen_parser::Parser::get_span_expression(expression.clone()),
+                        );
+                    };
+                });
+
+            macro_object.return_type
+        } else {
+            self.error(format!("There's no macros called `{}!`", name), *span);
+            Type::Void
         }
     }
 }

@@ -660,7 +660,8 @@ impl Parser {
             let _ = self.next();
         }
 
-        let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+        let arguments =
+            self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
 
         self.position -= 1;
         let span_end = self.current().span.1;
@@ -668,7 +669,11 @@ impl Parser {
 
         self.skip_eos();
 
-        Statements::MacroCallStatement { name: id, arguments, span: (span.0, span_end) }
+        Statements::MacroCallStatement {
+            name: id,
+            arguments,
+            span: (span.0, span_end),
+        }
     }
 
     pub fn struct_statement(&mut self) -> Statements {

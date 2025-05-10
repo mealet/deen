@@ -50,7 +50,7 @@ pub enum Expressions {
     MacroCall {
         name: String,
         arguments: Vec<Expressions>,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     Reference {
@@ -127,7 +127,11 @@ impl Parser {
                 arguments: _,
                 span,
             } => span,
-            Expressions::MacroCall { name: _, arguments: _, span } => span,
+            Expressions::MacroCall {
+                name: _,
+                arguments: _,
+                span,
+            } => span,
             Expressions::Reference { object: _, span } => span,
             Expressions::Dereference { object: _, span } => span,
             Expressions::Array {
@@ -345,13 +349,18 @@ impl Parser {
             let _ = self.next();
         }
 
-        let arguments = self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
-        
+        let arguments =
+            self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+
         self.position -= 1;
         let span_end = self.current().span.1;
         self.position += 1;
 
-        Expressions::MacroCall { name, arguments, span: (span.0, span_end) }
+        Expressions::MacroCall {
+            name,
+            arguments,
+            span: (span.0, span_end),
+        }
     }
 
     pub fn slice_expression(&mut self, expr: Expressions) -> Expressions {
