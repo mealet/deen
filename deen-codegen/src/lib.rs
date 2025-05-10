@@ -22,6 +22,7 @@ mod enumeration;
 mod function;
 mod structure;
 mod variable;
+mod macros;
 
 pub struct CodeGen<'ctx> {
     context: &'ctx Context,
