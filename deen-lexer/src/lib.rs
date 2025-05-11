@@ -560,7 +560,7 @@ impl Lexer {
                         output.push(Token::new(
                             id,
                             TokenType::Identifier,
-                            (start_span, self.position - 2),
+                            (start_span, self.position - 1),
                         ));
                     }
                 }
