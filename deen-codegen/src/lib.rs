@@ -1228,7 +1228,7 @@ impl<'ctx> CodeGen<'ctx> {
                                         .unwrap()
                                         .try_as_basic_value()
                                         .left()
-                                        .unwrap();
+                                        .unwrap_or(self.context.i8_type().const_zero().into());
                                 }
                                 _ => unreachable!(),
                             }
@@ -1525,7 +1525,9 @@ impl<'ctx> CodeGen<'ctx> {
                         Type::U64 => (self.context.i64_type(), false),
                         Type::USIZE => (self.context.i64_type(), false),
 
-                        _ => unreachable!(),
+                        _ => {
+                            panic!("Unreachable type expected: {}", exp);
+                        },
                     };
 
                     return (

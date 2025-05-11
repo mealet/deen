@@ -318,7 +318,7 @@ impl Parser {
                 if self.expect(TokenType::RParen) {
                     let _ = self.next();
                 }
-                expr
+                return expr;
             }
 
             TokenType::Identifier => {
@@ -328,6 +328,9 @@ impl Parser {
                 match self.current().token_type {
                     TokenType::LParen => return self.call_expression(current.value, current.span),
                     TokenType::LBrack => return self.slice_expression(output),
+                    TokenType::Dot => {
+                        return self.subelement_expression(output, TokenType::Dot);
+                    }
                     TokenType::LBrace => {
                         self.position -= 1;
                         return self.struct_expression(current.value.clone());
@@ -354,7 +357,7 @@ impl Parser {
                     _ => {}
                 }
 
-                output
+                return output;
             }
 
             TokenType::Ref => Expressions::Reference {
@@ -424,7 +427,7 @@ impl Parser {
             _ => {
                 self.error(
                     String::from("Undefined term found"),
-                    (current.span.0 - 1, current.span.1 - 1),
+                    (current.span.0, current.span.1),
                 );
                 Expressions::None
             }
@@ -432,7 +435,7 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Expressions {
-        let mut node = self.term();
+        let node = self.term();
         let current = self.current();
 
         match current.token_type {
@@ -464,11 +467,6 @@ impl Parser {
                     index: Box::new(slice_index),
                     span,
                 }
-            }
-
-            TokenType::Dot => {
-                node = self.subelement_expression(node, TokenType::Dot);
-                node
             }
 
             END_STATEMENT => {
@@ -584,13 +582,16 @@ impl Parser {
                 Statements::ScopeStatement { block, span }
             }
             TokenType::Multiply => {
+                let span_start = self.current().span.0;
                 let _ = self.next();
 
                 match self.current().token_type {
                     TokenType::Identifier => {
-                        let span_start = self.current().span.0;
                         let stmt = self.statement();
-                        let span_end = self.current().span.1 - 1;
+
+                        self.position -= 1;
+                        let span_end = self.current().span.1;
+                        self.position += 1;
 
                         match stmt {
                             Statements::AssignStatement {
@@ -652,9 +653,13 @@ impl Parser {
                                 Statements::Expression(sub_expr)
                             }
                             _ => {
+                                self.position -= 1;
+                                let span_end = self.current().span.1;
+                                self.position += 1;
+
                                 self.error(
                                     String::from("Unexpected subelement in statement found"),
-                                    (current.span.0, self.current().span.1),
+                                    (current.span.0, span_end),
                                 );
                                 Statements::None
                             }

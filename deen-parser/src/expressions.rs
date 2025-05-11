@@ -191,7 +191,6 @@ impl Parser {
             span_end = self.current().span.1;
         }
 
-        self.skip_eos();
         Expressions::SubElement {
             head,
             subelements,
