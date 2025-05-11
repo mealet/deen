@@ -1774,6 +1774,7 @@ impl<'ctx> CodeGen<'ctx> {
                 )
                 .into(),
             Type::Enum(_, _) => self.context.i16_type().into(),
+            Type::SelfRef => self.context.ptr_type(AddressSpace::default()).into(),
             // Type::Function(args, datatype) => self.get_basic_type(*datatype).fn_type(
             //     &args.iter().map(|arg| self.get_basic_type(arg.clone()).into()).collect::<Vec<BasicMetadataTypeEnum>>(),
             //     false

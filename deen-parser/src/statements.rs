@@ -459,6 +459,17 @@ impl Parser {
                 {
                     (name.clone(), r#type.clone())
                 } else {
+                    // okay lets just skip this piece of code.
+                    // I've made a mistake creating this embedded code, but we all make mistakes.
+                    // Anyways I just wanted short code to unwrap and compare identifier inside
+                    // embedded boxed expressions blocks, so...
+
+                    if let Expressions::Reference { object, span: _ } = arg {
+                        if let Expressions::Value(Value::Identifier(id), _) = *object.clone() {
+                            if id == "self" { return (id, Type::SelfRef) }
+                        }
+                    }
+
                     self.error(
                         String::from("Unexpected argument declaration found"),
                         self.span_expression(arg.clone()),
