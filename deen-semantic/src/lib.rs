@@ -83,9 +83,20 @@ impl Analyzer {
     }
 
     pub fn analyze(&mut self, ast: &[Statements]) -> Result<SemanticOk, SemanticErr> {
-        for statement in ast {
-            self.visit_statement(statement);
-        }
+        let pre_statements = ast.iter().filter(|stmt| {
+            match stmt {
+                Statements::StructDefineStatement { name: _, fields: _, functions: _, public: _, span: _ } => true,
+                Statements::EnumDefineStatement { name: _, fields: _, functions: _, public: _, span: _ } => true,
+                Statements::TypedefStatement { alias: _, datatype: _, span: _ } => true,
+                Statements::ImportStatement { path: _, span: _ } => true,
+                _ => false
+            }
+        }).collect::<Vec<&Statements>>();
+
+        let after_statements = ast.iter().filter(|stmt| !pre_statements.contains(stmt));
+
+        pre_statements.clone().into_iter().for_each(|stmt| self.visit_statement(stmt));
+        after_statements.into_iter().for_each(|stmt| self.visit_statement(stmt));
 
         if self.scope.get_fn("main").is_none() && self.scope.is_main {
             let err = SemanticError {

@@ -99,9 +99,20 @@ impl<'ctx> CodeGen<'ctx> {
         statements: Vec<Statements>,
         prefix: Option<String>,
     ) -> &Module<'ctx> {
-        for statement in statements {
-            self.compile_statement(statement, prefix.clone());
-        }
+        let pre_statements = statements.iter().filter(|stmt| {
+            match stmt {
+                Statements::StructDefineStatement { name: _, fields: _, functions: _, public: _, span: _ } => true,
+                Statements::EnumDefineStatement { name: _, fields: _, functions: _, public: _, span: _ } => true,
+                Statements::TypedefStatement { alias: _, datatype: _, span: _ } => true,
+                Statements::ImportStatement { path: _, span: _ } => true,
+                _ => false
+            }
+        }).collect::<Vec<&Statements>>();
+
+        let after_statements = statements.iter().filter(|stmt| !pre_statements.contains(stmt));
+
+        pre_statements.clone().into_iter().for_each(|stmt| self.compile_statement(stmt.clone(), prefix.clone()));
+        after_statements.into_iter().for_each(|stmt| self.compile_statement(stmt.clone(), prefix.clone()));
 
         // let main_fn = self.functions.get("main");
         //
