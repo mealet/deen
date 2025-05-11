@@ -729,7 +729,11 @@ impl<'ctx> CodeGen<'ctx> {
                 }
             },
             Expressions::Dereference { object, span: _ } => {
-                let (ptr_type, ptr) = self.compile_expression(*object, expected);
+                let (datatype, ptr) = self.compile_expression(*object, expected);
+                let ptr_type = match datatype {
+                    Type::Pointer(ptr_type) => *ptr_type,
+                    _ => datatype
+                };
                 let basic_type = self.get_basic_type(ptr_type.clone());
 
                 let value = self
