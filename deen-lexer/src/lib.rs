@@ -355,18 +355,33 @@ impl Lexer {
                         TokenType::DoubleQuote => {
                             self.getc();
                             let mut captured_string = String::new();
-                            let mut len = 0;
 
                             while self.char != '"' {
+                                if self.char == '\\' {
+                                    self.getc();
+
+                                    match self.char {
+                                        '0' => captured_string.push('\0'),
+                                        'n' => captured_string.push('\n'),
+                                        'r' => captured_string.push('\r'),
+                                        't' => captured_string.push('\t'),
+                                        _ => {
+                                            continue;
+                                        }
+                                    }
+
+                                    self.getc();
+                                    continue;
+                                }
+
                                 captured_string.push(self.char);
-                                len += 1;
                                 self.getc();
                             }
 
                             output.push(Token::new(
-                                captured_string,
+                                captured_string.clone(),
                                 TokenType::String,
-                                (span_start, span_start + len + 2),
+                                (span_start, span_start + captured_string.len() + 2),
                             ));
                             self.getc();
                         }

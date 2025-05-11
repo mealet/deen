@@ -1,5 +1,7 @@
 use deen_parser::{expressions::Expressions, types::Type, value::Value};
-use inkwell::values::BasicValueEnum;
+use inkwell::{
+    module::Linkage, values::{BasicMetadataValueEnum, BasicValueEnum}, AddressSpace
+};
 
 use crate::CodeGen;
 
@@ -11,43 +13,85 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
     fn build_macro_call(&mut self, id: &str, arguments: Vec<Expressions>) -> (Type, BasicValueEnum<'ctx>) {
         match id {
             "print" | "println" => {
-                let literal = if let Some(Expressions::Value(Value::String(str), _)) = arguments.get(0) { str.clone() } else { String::default() };
+                let mut literal = if let Some(Expressions::Value(Value::String(str), _)) = arguments.get(0) { str.clone() } else { String::default() };
                 let compiled_args = arguments.iter().skip(1).map(|expr| {
                     self.compile_expression(expr.clone(), None)
                 }).collect::<Vec<(Type, BasicValueEnum)>>();
 
-                let format_specifiers = compiled_args.into_iter().map(|(typ, _)| {
-                    match typ {
-                        Type::I8 => "%hhd",
-                        Type::I16 => "%hd",
-                        Type::I32 => "%d",
-                        Type::I64 => "%lld",
-                        
-                        Type::U8 => "%hhu",
-                        Type::U16 => "%hu",
-                        Type::U32 => "%u",
-                        Type::U64 => "%llu",
+                let format_specifiers = compiled_args.iter().map(|(typ, _)| {
+                    self.type_specifier(typ)
+                }).collect::<Vec<String>>();
 
-                        Type::USIZE => "%zu",
-                        
-                        Type::F32 => "%f",
-                        Type::F64 => "%lf",
-
-                        Type::String => "%s",
-                        Type::Char => "%c",
-                        Type::Pointer(ptr) => {
-                            match *ptr {
-                                Type::Char => "%s",
-                                _ => unreachable!()
-                            }
-                        }
-
-                        Type::Bool => "%d",
-                        _ => todo!()
+                format_specifiers.into_iter().for_each(|spec| {
+                    if let Some(position) = literal.find("{}") {
+                        literal.replace_range(position..position + 2, &spec);
                     }
                 });
 
-                todo!()
+                if id.contains("ln") { literal.push('\n') }
+                let printf_fn = self.module.get_function("printf").unwrap_or_else(|| {
+                    self.module.add_function(
+                        "printf",
+                        self.context.i32_type().fn_type(
+                            &[
+                                self.context.ptr_type(AddressSpace::default()).into()
+                            ],
+                            true
+                        ),
+                        Some(Linkage::External)
+                    )
+                });
+
+                let format_values = compiled_args.into_iter().map(|arg| {
+                    match arg.0.clone() {
+                        Type::Bool => {
+                            let (_true, _false) = self.booleans_strings();
+                            self.builder.build_select(arg.1.into_int_value(), _true, _false, "").unwrap().into()
+                        }
+                        Type::Alias(alias) => {
+                            let alias_type = self.get_alias_type(arg.0.clone()).unwrap();
+                            
+                            return match alias_type {
+                                "struct" => {
+                                    let display_function = self
+                                        .functions
+                                        .get(&format!("{}_{}__{}", alias_type, alias, "__display"))
+                                        .unwrap()
+                                        .clone();
+
+                                    let self_val: BasicMetadataValueEnum = if arg.1.is_pointer_value() {
+                                        self.builder.build_load(
+                                            self.get_basic_type(arg.0),
+                                            arg.1.into_pointer_value(),
+                                            ""
+                                        )
+                                        .unwrap()
+                                        .into()
+                                    } else {
+                                        arg.1.into()
+                                    };
+
+                                    let output: BasicMetadataValueEnum = self.builder.build_call(
+                                        display_function.value,
+                                        &[self_val],
+                                        ""
+                                    ).unwrap().try_as_basic_value().left().unwrap().into();
+                                    output
+                                },
+                                "enum" => arg.1.into(),
+                                _ => unreachable!()
+                            };
+                        }
+                        _ => arg.1.into()
+                    }
+                }).collect::<Vec<BasicMetadataValueEnum<'ctx>>>();
+
+                let global_literal: BasicMetadataValueEnum<'ctx> = self.builder.build_global_string_ptr(&literal, "").unwrap().as_pointer_value().into();
+                let call_arguments = [vec![global_literal], format_values].concat();
+
+                let _ = self.builder.build_call(printf_fn, &call_arguments, "");
+
+                (Type::Void, self.context.bool_type().const_zero().into())
             },
             "drop" => todo!(),
             "format" => todo!(),

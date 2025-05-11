@@ -45,7 +45,7 @@ fn advanced_string() {
     assert_eq!(
         tokens,
         vec![
-            Token::new(String::from("¿?👉👈🤠👀"), TokenType::String, (0, 8)),
+            Token::new(String::from("¿?👉👈🤠👀"), TokenType::String, (0, 21)),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]
     )

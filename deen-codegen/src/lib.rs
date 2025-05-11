@@ -3,16 +3,11 @@ use crate::{
     function::Function,
     structure::{Field, Structure},
     variable::Variable,
+    macros::StandartMacros,
 };
 use deen_parser::{expressions::Expressions, statements::Statements, types::Type, value::Value};
 use inkwell::{
-    AddressSpace,
-    basic_block::BasicBlock,
-    builder::Builder,
-    context::Context,
-    module::Module,
-    types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType},
-    values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue},
+    basic_block::BasicBlock, builder::Builder, context::Context, module::Module, types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType}, values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, PointerValue}, AddressSpace
 };
 
 use deen_semantic::import::Import;
@@ -31,6 +26,7 @@ pub struct CodeGen<'ctx> {
 
     function: Option<FunctionValue<'ctx>>,
     breaks: Vec<BasicBlock<'ctx>>,
+    booleans_strings: Option<(PointerValue<'ctx>, PointerValue<'ctx>)>,
 
     variables: HashMap<String, Variable<'ctx>>,
     functions: HashMap<String, Function<'ctx>>,
@@ -79,6 +75,7 @@ impl<'ctx> CodeGen<'ctx> {
 
             function: None,
             breaks: vec![],
+            booleans_strings: None,
 
             variables: HashMap::new(),
             functions: HashMap::new(),
@@ -419,12 +416,13 @@ impl<'ctx> CodeGen<'ctx> {
                     .unwrap();
             }
 
-            #[allow(unused)]
             Statements::MacroCallStatement {
                 name,
                 arguments,
-                span,
-            } => todo!(),
+                span: _,
+            } => {
+                self.build_macro_call(&name, arguments);
+            },
 
             Statements::StructDefineStatement {
                 name,
@@ -1814,5 +1812,67 @@ impl<'ctx> CodeGen<'ctx> {
         {
             self.builder.build_unconditional_branch(block).unwrap();
         }
+    }
+
+    fn type_specifier(&self, datatype: &Type) -> String {
+        match datatype {
+            Type::I8 => "%hhd",
+            Type::I16 => "%hd",
+            Type::I32 => "%d",
+            Type::I64 => "%lld",
+            
+            Type::U8 => "%hhu",
+            Type::U16 => "%hu",
+            Type::U32 => "%u",
+            Type::U64 => "%llu",
+
+            Type::USIZE => "%zu",
+            
+            Type::F32 => "%f",
+            Type::F64 => "%lf",
+
+            Type::String => "%s",
+            Type::Char => "%c",
+            Type::Pointer(ptr) => {
+                match **ptr {
+                    Type::Char => "%s",
+                    _ => "%p"
+                }
+            }
+
+            Type::Bool => "%s",
+            Type::Enum(_, _) => "%d",
+
+            Type::Alias(_) => {
+                let alias_type = self.get_alias_type(datatype.clone()).unwrap();
+                match alias_type {
+                    "struct" => "%s",
+                    "enum" => "%d",
+                    _ => unreachable!()
+                }
+            }
+            _ => "%s"
+        }.to_string()
+    }
+
+    fn booleans_strings(&mut self) -> (PointerValue<'ctx>, PointerValue<'ctx>) {
+        if let Some(allocated_strings) = self.booleans_strings {
+            return allocated_strings;
+        }
+
+        let strings = (
+            self.builder
+                .build_global_string_ptr("true", "")
+                .unwrap()
+                .as_pointer_value(),
+
+            self.builder
+                .build_global_string_ptr("true", "")
+                .unwrap()
+                .as_pointer_value()
+        );
+
+        self.booleans_strings = Some(strings);
+        return strings
     }
 }

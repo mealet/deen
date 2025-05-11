@@ -1975,6 +1975,7 @@ impl Analyzer {
                         match expr_type.clone() {
                             int if Self::is_integer(&int) => {}
                             float if Self::is_float(&float) => {},
+                            Type::Bool => {},
                             Type::Pointer(ptr) => {
                                 match *ptr {
                                     Type::Char => {},
@@ -2003,7 +2004,7 @@ impl Analyzer {
                                     }
                                 } else {
                                     self.error(
-                                        format!("Type `{}` has no implementation for `__display(&self) *char`", expr_type),
+                                        format!("Type `{}` has no implementation for display: `__display(&self) *char", expr_type),
                                         deen_parser::Parser::get_span_expression(expr.clone())
                                     );
                                 }
