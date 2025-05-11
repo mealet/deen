@@ -54,7 +54,6 @@ impl Analyzer {
                     return_type: Type::Void,
                 },
             ),
-
             // drop!(object)
             (
                 "drop".to_string(),
@@ -62,9 +61,9 @@ impl Analyzer {
                     arguments: vec![Type::Void],
                     is_first_literal: false,
                     is_var_args: false,
-                    return_type: Type::Void
-                }
-            )
+                    return_type: Type::Void,
+                },
+            ),
         ]);
 
         Analyzer {
@@ -2049,8 +2048,12 @@ impl Analyzer {
 
             if macro_object.arguments.len() < arguments.len() && !macro_object.is_var_args {
                 self.error(
-                    format!("Too much arguments! Expected {} but found {} args", macro_object.arguments.len(), arguments.len()),
-                    *span
+                    format!(
+                        "Too much arguments! Expected {} but found {} args",
+                        macro_object.arguments.len(),
+                        arguments.len()
+                    ),
+                    *span,
                 );
             }
 

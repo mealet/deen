@@ -1,13 +1,19 @@
 use crate::{
     enumeration::Enumeration,
     function::Function,
+    macros::StandartMacros,
     structure::{Field, Structure},
     variable::Variable,
-    macros::StandartMacros,
 };
 use deen_parser::{expressions::Expressions, statements::Statements, types::Type, value::Value};
 use inkwell::{
-    basic_block::BasicBlock, builder::Builder, context::Context, module::Module, types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType}, values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, PointerValue}, AddressSpace
+    AddressSpace,
+    basic_block::BasicBlock,
+    builder::Builder,
+    context::Context,
+    module::Module,
+    types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType},
+    values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, PointerValue},
 };
 
 use deen_semantic::import::Import;
@@ -15,9 +21,9 @@ use std::collections::HashMap;
 
 mod enumeration;
 mod function;
+mod macros;
 mod structure;
 mod variable;
-mod macros;
 
 pub struct CodeGen<'ctx> {
     context: &'ctx Context,
@@ -422,7 +428,7 @@ impl<'ctx> CodeGen<'ctx> {
                 span: _,
             } => {
                 self.build_macro_call(&name, arguments);
-            },
+            }
 
             Statements::StructDefineStatement {
                 name,
@@ -1820,25 +1826,23 @@ impl<'ctx> CodeGen<'ctx> {
             Type::I16 => "%hd",
             Type::I32 => "%d",
             Type::I64 => "%lld",
-            
+
             Type::U8 => "%hhu",
             Type::U16 => "%hu",
             Type::U32 => "%u",
             Type::U64 => "%llu",
 
             Type::USIZE => "%zu",
-            
+
             Type::F32 => "%f",
             Type::F64 => "%lf",
 
             Type::String => "%s",
             Type::Char => "%c",
-            Type::Pointer(ptr) => {
-                match **ptr {
-                    Type::Char => "%s",
-                    _ => "%p"
-                }
-            }
+            Type::Pointer(ptr) => match **ptr {
+                Type::Char => "%s",
+                _ => "%p",
+            },
 
             Type::Bool => "%s",
             Type::Enum(_, _) => "%d",
@@ -1848,11 +1852,12 @@ impl<'ctx> CodeGen<'ctx> {
                 match alias_type {
                     "struct" => "%s",
                     "enum" => "%d",
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
             }
-            _ => "%s"
-        }.to_string()
+            _ => "%s",
+        }
+        .to_string()
     }
 
     fn booleans_strings(&mut self) -> (PointerValue<'ctx>, PointerValue<'ctx>) {
@@ -1865,14 +1870,13 @@ impl<'ctx> CodeGen<'ctx> {
                 .build_global_string_ptr("true", "")
                 .unwrap()
                 .as_pointer_value(),
-
             self.builder
                 .build_global_string_ptr("true", "")
                 .unwrap()
-                .as_pointer_value()
+                .as_pointer_value(),
         );
 
         self.booleans_strings = Some(strings);
-        return strings
+        strings
     }
 }

@@ -1,26 +1,44 @@
 use deen_parser::{expressions::Expressions, types::Type, value::Value};
 use inkwell::{
-    module::Linkage, values::{BasicMetadataValueEnum, BasicValueEnum}, AddressSpace
+    AddressSpace,
+    module::Linkage,
+    values::{BasicMetadataValueEnum, BasicValueEnum},
 };
 
 use crate::CodeGen;
 
-pub trait StandartMacros<'ctx> { 
-    fn build_macro_call(&mut self, id: &str, arguments: Vec<Expressions>) -> (Type, BasicValueEnum<'ctx>);
+pub trait StandartMacros<'ctx> {
+    fn build_macro_call(
+        &mut self,
+        id: &str,
+        arguments: Vec<Expressions>,
+    ) -> (Type, BasicValueEnum<'ctx>);
 }
 
 impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
-    fn build_macro_call(&mut self, id: &str, arguments: Vec<Expressions>) -> (Type, BasicValueEnum<'ctx>) {
+    fn build_macro_call(
+        &mut self,
+        id: &str,
+        arguments: Vec<Expressions>,
+    ) -> (Type, BasicValueEnum<'ctx>) {
         match id {
             "print" | "println" => {
-                let mut literal = if let Some(Expressions::Value(Value::String(str), _)) = arguments.get(0) { str.clone() } else { String::default() };
-                let compiled_args = arguments.iter().skip(1).map(|expr| {
-                    self.compile_expression(expr.clone(), None)
-                }).collect::<Vec<(Type, BasicValueEnum)>>();
+                let mut literal =
+                    if let Some(Expressions::Value(Value::String(str), _)) = arguments.first() {
+                        str.clone()
+                    } else {
+                        String::default()
+                    };
+                let compiled_args = arguments
+                    .iter()
+                    .skip(1)
+                    .map(|expr| self.compile_expression(expr.clone(), None))
+                    .collect::<Vec<(Type, BasicValueEnum)>>();
 
-                let format_specifiers = compiled_args.iter().map(|(typ, _)| {
-                    self.type_specifier(typ)
-                }).collect::<Vec<String>>();
+                let format_specifiers = compiled_args
+                    .iter()
+                    .map(|(typ, _)| self.type_specifier(typ))
+                    .collect::<Vec<String>>();
 
                 format_specifiers.into_iter().for_each(|spec| {
                     if let Some(position) = literal.find("{}") {
@@ -28,30 +46,34 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                     }
                 });
 
-                if id.contains("ln") { literal.push('\n') }
+                if id.contains("ln") {
+                    literal.push('\n')
+                }
                 let printf_fn = self.module.get_function("printf").unwrap_or_else(|| {
                     self.module.add_function(
                         "printf",
                         self.context.i32_type().fn_type(
-                            &[
-                                self.context.ptr_type(AddressSpace::default()).into()
-                            ],
-                            true
+                            &[self.context.ptr_type(AddressSpace::default()).into()],
+                            true,
                         ),
-                        Some(Linkage::External)
+                        Some(Linkage::External),
                     )
                 });
 
-                let format_values = compiled_args.into_iter().map(|arg| {
-                    match arg.0.clone() {
+                let format_values = compiled_args
+                    .into_iter()
+                    .map(|arg| match arg.0.clone() {
                         Type::Bool => {
                             let (_true, _false) = self.booleans_strings();
-                            self.builder.build_select(arg.1.into_int_value(), _true, _false, "").unwrap().into()
+                            self.builder
+                                .build_select(arg.1.into_int_value(), _true, _false, "")
+                                .unwrap()
+                                .into()
                         }
                         Type::Alias(alias) => {
                             let alias_type = self.get_alias_type(arg.0.clone()).unwrap();
-                            
-                            return match alias_type {
+
+                            match alias_type {
                                 "struct" => {
                                     let display_function = self
                                         .functions
@@ -59,43 +81,53 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         .unwrap()
                                         .clone();
 
-                                    let self_val: BasicMetadataValueEnum = if arg.1.is_pointer_value() {
-                                        self.builder.build_load(
-                                            self.get_basic_type(arg.0),
-                                            arg.1.into_pointer_value(),
-                                            ""
-                                        )
+                                    let self_val: BasicMetadataValueEnum =
+                                        if arg.1.is_pointer_value() {
+                                            self.builder
+                                                .build_load(
+                                                    self.get_basic_type(arg.0),
+                                                    arg.1.into_pointer_value(),
+                                                    "",
+                                                )
+                                                .unwrap()
+                                                .into()
+                                        } else {
+                                            arg.1.into()
+                                        };
+
+                                    let output: BasicMetadataValueEnum = self
+                                        .builder
+                                        .build_call(display_function.value, &[self_val], "")
                                         .unwrap()
-                                        .into()
-                                    } else {
-                                        arg.1.into()
-                                    };
-
-                                    let output: BasicMetadataValueEnum = self.builder.build_call(
-                                        display_function.value,
-                                        &[self_val],
-                                        ""
-                                    ).unwrap().try_as_basic_value().left().unwrap().into();
+                                        .try_as_basic_value()
+                                        .left()
+                                        .unwrap()
+                                        .into();
                                     output
-                                },
+                                }
                                 "enum" => arg.1.into(),
-                                _ => unreachable!()
-                            };
+                                _ => unreachable!(),
+                            }
                         }
-                        _ => arg.1.into()
-                    }
-                }).collect::<Vec<BasicMetadataValueEnum<'ctx>>>();
+                        _ => arg.1.into(),
+                    })
+                    .collect::<Vec<BasicMetadataValueEnum<'ctx>>>();
 
-                let global_literal: BasicMetadataValueEnum<'ctx> = self.builder.build_global_string_ptr(&literal, "").unwrap().as_pointer_value().into();
+                let global_literal: BasicMetadataValueEnum<'ctx> = self
+                    .builder
+                    .build_global_string_ptr(&literal, "")
+                    .unwrap()
+                    .as_pointer_value()
+                    .into();
                 let call_arguments = [vec![global_literal], format_values].concat();
 
                 let _ = self.builder.build_call(printf_fn, &call_arguments, "");
 
                 (Type::Void, self.context.bool_type().const_zero().into())
-            },
+            }
             "drop" => todo!(),
             "format" => todo!(),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
