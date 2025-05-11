@@ -668,7 +668,25 @@ impl Analyzer {
                 self.scope = structure_scope;
 
                 functions.iter().for_each(|func| {
-                    self.visit_statement(func.1);
+                    let mut wrapped_statement = func.1.clone();
+                    
+                    if let Statements::FunctionDefineStatement { name: function_name, datatype, arguments, block, public, span, header_span } = wrapped_statement.clone() {
+                        if let Some(_) = arguments.iter().find(|arg| arg.0 == "self" && arg.1 == Type::SelfRef) {
+                            let mut arguments = arguments.clone();
+                            *arguments.first_mut().unwrap() = (
+                                String::from("self"),
+                                Type::Pointer(
+                                    Box::new(
+                                        Type::Alias(name.clone())
+                                    )
+                                )
+                            );
+
+                            wrapped_statement = Statements::FunctionDefineStatement { name: function_name, datatype, arguments, block, public, span, header_span };
+                        }
+                    }
+
+                    self.visit_statement(&wrapped_statement);
                 });
 
                 let functions_signatures = self.scope.functions.clone();
@@ -1394,17 +1412,12 @@ impl Analyzer {
                                     if let Type::Function(args, datatype) = function_type {
                                         let mut arguments = arguments.clone();
 
-                                        if let Some(first_arg) = args.first() {
-                                            let unwrapped_arg = self.unwrap_alias(first_arg).unwrap_or_else(|err| {
-                                                self.error(err, *span);
-                                                Type::Void
-                                            });
-
-                                            if unwrapped_arg == prev_type {
-                                                arguments.reverse();
-                                                arguments.push(prev_expr.clone());
-                                                arguments.reverse();
-                                            }
+                                        if let Some(Type::SelfRef) = args.first() {
+                                            arguments.reverse();
+                                            arguments.push(
+                                                Expressions::Reference { object: Box::new(prev_expr.clone()), span: (deen_parser::Parser::get_span_expression(prev_expr.clone())) },
+                                            );
+                                            arguments.reverse();
                                         }
 
                                         prev_type_display = *datatype.clone();
