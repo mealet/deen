@@ -173,7 +173,7 @@ impl<'ctx> CodeGen<'ctx> {
                 let ptr_type = if let Type::Pointer(ptr) = instance_type {
                     *ptr
                 } else {
-                    instance_type
+                    panic!("Something went wrong")
                 };
 
                 let compiled_value = self.compile_expression(value, Some(ptr_type));
@@ -734,16 +734,24 @@ impl<'ctx> CodeGen<'ctx> {
             },
             Expressions::Dereference { object, span: _ } => {
                 let (datatype, ptr) = self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Void))));
-                let ptr_type = match datatype {
+                let mut ptr_type = match datatype.clone() {
                     Type::Pointer(ptr_type) => *ptr_type,
-                    _ => panic!("Something went wrong!")
+                    _ => {
+                        return (datatype, ptr);
+                    }
                 };
+
+                if let Some(Type::Pointer(_)) = expected {
+                    ptr_type = Type::Pointer(Box::new(ptr_type))
+                }
+
                 let basic_type = self.get_basic_type(ptr_type.clone());
 
                 let value = self
                     .builder
                     .build_load(basic_type, ptr.into_pointer_value(), "")
                     .unwrap();
+
                 (ptr_type, value)
             }
 
@@ -1634,8 +1642,12 @@ impl<'ctx> CodeGen<'ctx> {
                         .build_load(variable.llvm_type, variable.ptr, "")
                         .unwrap(),
                 };
+                let datatype = match expected {
+                    Some(Type::Pointer(_)) => Type::Pointer(Box::new(variable.datatype.clone())),
+                    _ => variable.datatype.clone()
+                };
 
-                (variable.datatype.clone(), value)
+                (datatype, value)
             }
 
             Value::Void => (Type::Void, self.context.bool_type().const_zero().into()),

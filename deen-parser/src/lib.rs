@@ -586,7 +586,7 @@ impl Parser {
                 let _ = self.next();
 
                 match self.current().token_type {
-                    TokenType::Identifier => {
+                    TokenType::Identifier | TokenType::Multiply => {
                         let stmt = self.statement();
 
                         self.position -= 1;
@@ -623,6 +623,13 @@ impl Parser {
                                 value,
                                 span
                             },
+                            Statements::DerefAssignStatement { object, value, span } => {
+                                Statements::DerefAssignStatement {
+                                    object: Expressions::Dereference { object: Box::new(object), span },
+                                    value,
+                                    span
+                                }
+                            }
                             _ => {
                                 self.error(
                                     String::from("Unsupported for dereference statement found"),
