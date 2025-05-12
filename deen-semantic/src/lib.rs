@@ -198,70 +198,19 @@ impl Analyzer {
 
         match statement {
             Statements::AssignStatement {
-                identifier,
+                object,
                 value,
                 span,
             } => {
-                if let Some(variable) = self.scope.get_var(identifier) {
-                    let value_type = self.visit_expression(value, Some(variable.datatype.clone()));
+                if let Expressions::Value(Value::Identifier(identifier), _) = object {
+                    if let Some(variable) = self.scope.get_var(identifier) {
+                        let value_type = self.visit_expression(value, Some(variable.datatype.clone()));
 
-                    if variable.datatype != value_type {
-                        self.error(
-                            format!(
-                                "Variable has type `{}`, but found `{}`",
-                                variable.datatype, value_type
-                            ),
-                            *span,
-                        );
-                        return;
-                    }
-
-                    self.scope
-                        .set_init_var(identifier, true)
-                        .unwrap_or_else(|err| {
-                            self.error(err, *span);
-                        });
-                } else {
-                    self.error(
-                        format!("Variable \"{}\" is not defined here", identifier),
-                        *span,
-                    );
-                }
-            }
-            Statements::BinaryAssignStatement {
-                identifier,
-                operand,
-                value,
-                span,
-            } => {
-                self.visit_statement(&Statements::AssignStatement {
-                    identifier: identifier.clone(),
-                    span: *span,
-                    value: Expressions::Binary {
-                        operand: operand.clone(),
-                        lhs: Box::new(Expressions::Value(
-                            Value::Identifier(identifier.clone()),
-                            *span,
-                        )),
-                        rhs: Box::new(value.clone()),
-                        span: *span,
-                    },
-                });
-            }
-            Statements::DerefAssignStatement {
-                identifier,
-                value,
-                span,
-            } => {
-                if let Some(variable) = self.scope.get_var(identifier) {
-                    if let Type::Pointer(ptr_type) = variable.datatype {
-                        let value_type = self.visit_expression(value, None);
-
-                        if value_type != *ptr_type {
+                        if variable.datatype != value_type {
                             self.error(
                                 format!(
-                                    "Pointer has type `{}`, but found `{}`",
-                                    ptr_type, value_type
+                                    "Variable has type `{}`, but found `{}`",
+                                    variable.datatype, value_type
                                 ),
                                 *span,
                             );
@@ -275,88 +224,115 @@ impl Analyzer {
                             });
                     } else {
                         self.error(
-                            format!(
-                                "Unable to dereference non-pointer type `{}`",
-                                variable.datatype
-                            ),
+                            format!("Variable \"{}\" is not defined here", identifier),
                             *span,
                         );
                     }
+                }
+            }
+            Statements::BinaryAssignStatement {
+                object,
+                operand,
+                value,
+                span,
+            } => {
+                self.visit_statement(&Statements::AssignStatement {
+                    object: object.clone(),
+                    span: *span,
+                    value: Expressions::Binary {
+                        operand: operand.clone(),
+                        lhs: Box::new(object.clone()),
+                        rhs: Box::new(value.clone()),
+                        span: *span,
+                    },
+                });
+            }
+            Statements::DerefAssignStatement {
+                object,
+                value,
+                span,
+            } => {
+                let instance = self.visit_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
+                if let Type::Pointer(ptr_type) = instance {
+                    let value_type = self.visit_expression(value, Some(*ptr_type.clone()));
+
+                    if value_type != *ptr_type {
+                        self.error(
+                            format!("Pointer expected type `{}`, but found `{}`", ptr_type, value_type),
+                            *span
+                        );
+                        return;
+                    }
                 } else {
                     self.error(
-                        format!("Variable \"{}\" is not defined here", identifier),
-                        *span,
+                        format!("Type `{}` cannot be deref-assigned", instance),
+                        *span
                     );
+                    return;
                 }
             }
             Statements::SliceAssignStatement {
-                identifier,
+                object,
                 index,
                 value,
                 span,
             } => {
-                if let Some(variable) = self.scope.get_var(identifier) {
-                    match variable.datatype {
-                        Type::Array(typ, _) => {
-                            // i could spent some time to implement evaluating expressions for
-                            // checking index out of bounds, but it will be like in Rust: panics at
-                            // the runtime
+                let instance = self.visit_expression(object, None);
+                match instance {
+                    Type::Array(typ, _) => {
+                        // i could spent some time to implement evaluating expressions for
+                        // checking index out of bounds, but it will be like in Rust: panics at
+                        // the runtime
 
-                            let index_type = self.visit_expression(index, Some(Type::USIZE));
+                        let index_type = self.visit_expression(index, Some(Type::USIZE));
 
-                            if index_type != Type::USIZE {
-                                self.error(
-                                    format!(
-                                        "Expected index with type `usize`, but found `{}`",
-                                        index_type
-                                    ),
-                                    *span,
-                                );
-                            }
-
-                            let value_type = self.visit_expression(value, Some(*typ.clone()));
-
-                            if value_type != *typ {
-                                self.error(
-                                    format!("Array has type `{}`, but found `{}`", typ, value_type),
-                                    *span,
-                                );
-                            }
-                        }
-                        Type::DynamicArray(typ) => {
-                            let index_type = self.visit_expression(index, Some(Type::USIZE));
-
-                            if index_type != Type::USIZE {
-                                self.error(
-                                    format!(
-                                        "Expected index with type `usize`, but found `{}`",
-                                        index_type
-                                    ),
-                                    *span,
-                                );
-                            }
-
-                            let value_type = self.visit_expression(value, Some(*typ.clone()));
-
-                            if value_type != *typ {
-                                self.error(
-                                    format!("Array has type `{}`, but found `{}`", typ, value_type),
-                                    *span,
-                                );
-                            }
-                        }
-                        _ => {
+                        if index_type != Type::USIZE {
                             self.error(
-                                format!("Unable to apply slicing to `{}` type", variable.datatype),
+                                format!(
+                                    "Expected index with type `usize`, but found `{}`",
+                                    index_type
+                                ),
+                                *span,
+                            );
+                        }
+
+                        let value_type = self.visit_expression(value, Some(*typ.clone()));
+
+                        if value_type != *typ {
+                            self.error(
+                                format!("Array has type `{}`, but found `{}`", typ, value_type),
                                 *span,
                             );
                         }
                     }
-                } else {
-                    self.error(
-                        format!("Variable \"{}\" is not defined here", identifier),
-                        *span,
-                    );
+                    Type::DynamicArray(typ) => {
+                        let index_type = self.visit_expression(index, Some(Type::USIZE));
+
+                        if index_type != Type::USIZE {
+                            self.error(
+                                format!(
+                                    "Expected index with type `usize`, but found `{}`",
+                                    index_type
+                                ),
+                                *span,
+                            );
+                        }
+
+                        let value_type = self.visit_expression(value, Some(*typ.clone()));
+
+                        if value_type != *typ {
+                            self.error(
+                                format!("Array has type `{}`, but found `{}`", typ, value_type),
+                                *span,
+                            );
+                        }
+                    }
+                    _ => {
+                        self.error(
+                            format!("Unable to apply slicing to `{}` type", instance),
+                            *span,
+                        );
+                    }
                 }
             }
             Statements::FieldAssignStatement {
@@ -1320,7 +1296,7 @@ impl Analyzer {
                 subelements,
                 span,
             } => {
-                let head_type = self.visit_expression(head, expected);
+                let head_type = self.visit_expression(head, expected.clone());
 
                 let mut prev_type_display = head_type.clone();
                 let mut prev_type = self.unwrap_alias(&head_type).unwrap_or_else(|err| {
@@ -1333,6 +1309,11 @@ impl Analyzer {
                 };
 
                 subelements.iter().for_each(|sub| {
+                    let mut is_ptr = false;
+                    if let Type::Pointer(ptr_type) = prev_type.clone() {
+                        is_ptr = true;
+                        prev_type = *ptr_type;
+                    }
                     match sub {
                         Expressions::Value(Value::Identifier(field), field_span) => {
                             match prev_type.clone() {
@@ -1350,6 +1331,15 @@ impl Analyzer {
                                         self.error(err, *field_span);
                                         Type::Void
                                     });
+
+                                    if is_ptr {
+                                        prev_type = Type::Pointer(Box::new(prev_type.clone()));
+                                    } else {
+                                        if let Some(Type::Pointer(_)) = expected.clone() {
+                                            prev_type = Type::Pointer(Box::new(prev_type.clone()));
+                                        }
+                                    }
+
                                     prev_expr = sub.clone();
                                 }
                                 Type::Enum(fields, _) => {
@@ -1388,6 +1378,14 @@ impl Analyzer {
                                         self.error(err, *idx_span);
                                         Type::Void
                                     });
+
+                                    if is_ptr {
+                                        prev_type = Type::Pointer(Box::new(prev_type.clone()));
+                                    } else {
+                                        if let Some(Type::Pointer(_)) = expected.clone() {
+                                            prev_type = Type::Pointer(Box::new(prev_type.clone()));
+                                        }
+                                    }
                                     prev_expr = sub.clone();
                                 },
                                 _ => {

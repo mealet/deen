@@ -5,23 +5,23 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statements {
     AssignStatement {
-        identifier: String,
+        object: Expressions,
         value: Expressions,
         span: (usize, usize),
     },
     BinaryAssignStatement {
-        identifier: String,
+        object: Expressions,
         operand: String,
         value: Expressions,
         span: (usize, usize),
     },
     DerefAssignStatement {
-        identifier: String,
+        object: Expressions,
         value: Expressions,
         span: (usize, usize),
     },
     SliceAssignStatement {
-        identifier: String,
+        object: Expressions,
         index: Expressions,
         value: Expressions,
         span: (usize, usize),
@@ -558,7 +558,7 @@ impl Parser {
         Statements::BreakStatements { span }
     }
 
-    pub fn assign_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
+    pub fn assign_statement(&mut self, object: Expressions, span: (usize, usize)) -> Statements {
         if self.expect(TokenType::Equal) {
             let _ = self.next();
         }
@@ -567,7 +567,7 @@ impl Parser {
         let span_end = self.current().span.1;
 
         Statements::AssignStatement {
-            identifier: id,
+            object,
             value,
             span: (span.0, span_end - 3),
         }
@@ -575,7 +575,7 @@ impl Parser {
 
     pub fn binary_assign_statement(
         &mut self,
-        id: String,
+        object: Expressions,
         op: String,
         span: (usize, usize),
     ) -> Statements {
@@ -589,13 +589,13 @@ impl Parser {
 
         Statements::BinaryAssignStatement {
             operand: op,
-            identifier: id,
+            object,
             value,
             span: (span.0, span_end - 3),
         }
     }
 
-    pub fn slice_assign_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
+    pub fn slice_assign_statement(&mut self, object: Expressions, span: (usize, usize)) -> Statements {
         let brackets_span_start = self.current().span.0;
         if self.expect(TokenType::LBrack) {
             let _ = self.next();
@@ -628,7 +628,7 @@ impl Parser {
         let span_end = self.current().span.1;
 
         Statements::SliceAssignStatement {
-            identifier: id,
+            object,
             index: ind,
             value: val,
             span: (span.0, span_end),

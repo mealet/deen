@@ -132,26 +132,30 @@ impl<'ctx> CodeGen<'ctx> {
     fn compile_statement(&mut self, statement: Statements, prefix: Option<String>) {
         match statement {
             Statements::AssignStatement {
-                identifier,
+                object,
                 value,
                 span: _,
             } => {
-                let var = self.variables.get(&identifier).unwrap().clone();
-                let compiled_value = self.compile_expression(value, Some(var.datatype));
+                if let Expressions::Value(Value::Identifier(identifier), _) = object {
+                    let var = self.variables.get(&identifier).unwrap().clone();
+                    let compiled_value = self.compile_expression(value, Some(var.datatype));
 
-                self.builder.build_store(var.ptr, compiled_value.1).unwrap();
+                    self.builder.build_store(var.ptr, compiled_value.1).unwrap();
+                } else {
+                    unreachable!()
+                }
             }
             Statements::BinaryAssignStatement {
-                identifier,
+                object,
                 operand,
                 value,
                 span,
             } => {
                 let stmt = Statements::AssignStatement {
-                    identifier: identifier.clone(),
+                    object: object.clone(),
                     value: Expressions::Binary {
                         operand,
-                        lhs: Box::new(Expressions::Value(Value::Identifier(identifier), (0, 0))),
+                        lhs: Box::new(object),
                         rhs: Box::new(value),
                         span: (0, 0),
                     },
@@ -161,35 +165,35 @@ impl<'ctx> CodeGen<'ctx> {
                 self.compile_statement(stmt, prefix);
             }
             Statements::DerefAssignStatement {
-                identifier,
+                object,
                 value,
                 span: _,
             } => {
-                let var = self.variables.get(&identifier).unwrap().clone();
-                let ptr_type = if let Type::Pointer(ptr) = var.datatype {
+                let (instance_type, instance_ptr) = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
+                let ptr_type = if let Type::Pointer(ptr) = instance_type {
                     *ptr
                 } else {
-                    var.datatype
+                    instance_type
                 };
 
                 let compiled_value = self.compile_expression(value, Some(ptr_type));
 
                 let dereferenced_ptr = self
                     .builder
-                    .build_load(self.context.ptr_type(AddressSpace::default()), var.ptr, "")
+                    .build_load(self.context.ptr_type(AddressSpace::default()), instance_ptr.into_pointer_value(), "")
                     .unwrap();
                 self.builder
                     .build_store(dereferenced_ptr.into_pointer_value(), compiled_value.1)
                     .unwrap();
             }
             Statements::SliceAssignStatement {
-                identifier,
+                object,
                 index,
                 value,
                 span: _,
             } => {
-                let var = self.variables.get(&identifier).unwrap().clone();
-                let (item_type, len) = match var.datatype.clone() {
+                let (instance_type, instance_ptr) = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
+                let (item_type, len) = match instance_type.clone() {
                     Type::Array(tty, len) => (*tty, len),
 
                     _ => unreachable!(),
@@ -248,7 +252,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 let array_ptr = self
                     .builder
-                    .build_load(self.context.ptr_type(AddressSpace::default()), var.ptr, "")
+                    .build_load(self.context.ptr_type(AddressSpace::default()), instance_ptr.into_pointer_value(), "")
                     .unwrap();
                 let ptr = unsafe {
                     self.builder
@@ -819,7 +823,7 @@ impl<'ctx> CodeGen<'ctx> {
                         }
                     }
 
-                    _ => unreachable!(),
+                    _ => panic!("Unreachable type found: {}", lhs_value.0.clone()),
                 };
 
                 let output = match senior_type.clone() {
@@ -1527,7 +1531,8 @@ impl<'ctx> CodeGen<'ctx> {
     ) -> (Type, BasicValueEnum<'ctx>) {
         match value {
             Value::Integer(int) => {
-                if let Some(exp) = expected.clone() {
+                if deen_semantic::Analyzer::is_integer(&expected.clone().unwrap_or(Type::Void)) {
+                    let exp = if let Some(exp) = expected.clone() { exp } else { unreachable!() };
                     let (expected_type, signed) = match exp {
                         Type::I8 => (self.context.i8_type(), true),
                         Type::I16 => (self.context.i16_type(), true),
