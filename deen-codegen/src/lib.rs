@@ -733,10 +733,10 @@ impl<'ctx> CodeGen<'ctx> {
                 }
             },
             Expressions::Dereference { object, span: _ } => {
-                let (datatype, ptr) = self.compile_expression(*object, expected);
+                let (datatype, ptr) = self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Void))));
                 let ptr_type = match datatype {
                     Type::Pointer(ptr_type) => *ptr_type,
-                    _ => datatype
+                    _ => panic!("Something went wrong!")
                 };
                 let basic_type = self.get_basic_type(ptr_type.clone());
 
@@ -1117,6 +1117,12 @@ impl<'ctx> CodeGen<'ctx> {
 
                 subelements.iter().for_each(|sub| match sub {
                     Expressions::Value(Value::Identifier(field), _) => {
+                        let mut is_ptr = false;
+                        if let Type::Pointer(ptr_type) = prev_type.clone() {
+                            prev_type = *ptr_type;
+                            is_ptr = true;
+                        }
+
                         if let Type::Alias(alias) = prev_type.clone() {
                             let alias_type = self.get_alias_type(prev_type.clone()).unwrap();
 
@@ -1138,7 +1144,7 @@ impl<'ctx> CodeGen<'ctx> {
                                     let value = if let Some(Type::Pointer(_)) = expected {
                                         ptr.as_basic_value_enum()
                                     } else {
-                                        self.builder.build_load(field.llvm_type, ptr, "").unwrap()
+                                        if is_ptr { ptr.as_basic_value_enum() } else { self.builder.build_load(field.llvm_type, ptr, "").unwrap() }
                                     };
 
                                     prev_type = field.datatype.clone();
