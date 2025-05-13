@@ -397,12 +397,12 @@ impl<'ctx> CodeGen<'ctx> {
                     self.builder.build_return(None).unwrap();
                 }
 
+                self.exit_scope();
                 if let Some(basic_block) = old_position {
                     self.builder.position_at_end(basic_block);
                 }
 
                 self.function = old_function;
-                self.exit_scope();
 
                 self.scope.set_function(
                     name.clone(),
@@ -476,15 +476,24 @@ impl<'ctx> CodeGen<'ctx> {
                     name.clone(),
                     Structure {
                         fields: fields_hashmap,
+                        functions: HashMap::new(),
                         llvm_type: struct_type.into(),
                     },
                 );
 
                 functions.iter().for_each(|(_, function_statement)| {
+                    self.enter_new_scope();
+
                     self.compile_statement(
                         function_statement.to_owned(),
                         Some(format!("struct_{}__", name)),
                     );
+
+                    let (mut function_id, function_value) = self.scope.stricted_functions().into_iter().last().unwrap();
+                    self.exit_scope_raw();
+
+                    function_id = function_id.replace(&format!("struct_{}__", name), "");
+                    self.scope.get_mut_struct(&name).unwrap().functions.insert(function_id, function_value);
                 });
             }
             Statements::EnumDefineStatement {
@@ -499,6 +508,7 @@ impl<'ctx> CodeGen<'ctx> {
                     name.clone(),
                     Enumeration {
                         fields,
+                        functions: HashMap::new(),
                         llvm_type: self.context.i8_type().into(),
                     },
                 );
@@ -507,7 +517,20 @@ impl<'ctx> CodeGen<'ctx> {
                     self.compile_statement(
                         function_statement.to_owned(),
                         Some(format!("enum_{}__", name)),
-                    )
+                    );
+
+                    self.enter_new_scope();
+
+                    self.compile_statement(
+                        function_statement.to_owned(),
+                        Some(format!("enum_{}__", name)),
+                    );
+
+                    let (mut function_id, function_value) = self.scope.stricted_functions().into_iter().last().unwrap();
+                    self.exit_scope_raw();
+
+                    function_id = function_id.replace(&format!("struct_{}__", name), "");
+                    self.scope.get_mut_enum(&name).unwrap().functions.insert(function_id, function_value);
                 });
             }
             Statements::TypedefStatement {
@@ -1221,6 +1244,7 @@ impl<'ctx> CodeGen<'ctx> {
                                         .scope
                                         .get_function(format!("{}_{}__{}", alias_type, alias, name))
                                         .unwrap();
+
                                     let mut arguments = arguments
                                         .iter()
                                         .zip(function.arguments.clone())

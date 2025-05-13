@@ -66,6 +66,12 @@ impl<'ctx> Scope<'ctx> {
             .or_else(|| self.parent.as_ref().and_then(|parent| parent.get_struct(id)))
     }
 
+    pub fn get_mut_struct(&mut self, id: impl std::convert::AsRef<str>) -> Option<&mut Structure<'ctx>> {
+        self.structures
+            .get_mut(id.as_ref())
+            .or_else(|| self.parent.as_mut().and_then(|parent| parent.get_mut_struct(id)))
+    }
+
     // enums
     pub fn set_enum(&mut self, id: impl std::convert::AsRef<str>, object: Enumeration<'ctx>) {
         self.enumerations.insert(id.as_ref().into(), object);
@@ -78,6 +84,12 @@ impl<'ctx> Scope<'ctx> {
             .or_else(|| self.parent.as_ref().and_then(|parent| parent.get_enum(id)))
     }
 
+    pub fn get_mut_enum(&mut self, id: impl std::convert::AsRef<str>) -> Option<&mut Enumeration<'ctx>> {
+        self.enumerations
+            .get_mut(id.as_ref())
+            .or_else(|| self.parent.as_mut().and_then(|parent| parent.get_mut_enum(id)))
+    }
+
     // typedefs
     pub fn set_typedef(&mut self, id: impl std::convert::AsRef<str>, object: Type) {
         self.typedefs.insert(id.as_ref().into(), object);
@@ -88,6 +100,15 @@ impl<'ctx> Scope<'ctx> {
             .get(id.as_ref())
             .cloned()
             .or_else(|| self.parent.as_ref().and_then(|parent| parent.get_typedef(id)))
+    }
+    
+    // tech
+    pub fn stricted_variables(&self) -> HashMap<String, Variable<'ctx>> {
+        self.variables.to_owned()
+    }
+
+    pub fn stricted_functions(&self) -> HashMap<String, Function<'ctx>> {
+        self.functions.to_owned()
     }
 }
 
@@ -104,8 +125,53 @@ impl<'ctx> CodeGen<'ctx> {
         self.enter_scope(new_scope);
     }
 
+    pub fn cleanup_variables(&mut self) {
+        let scope_variables = self.scope.stricted_variables();
+
+        scope_variables.into_iter().for_each(|(_, var)| {
+            match var.datatype.clone() {
+                Type::Alias(alias) => {
+                    if let Some("struct") = self.get_alias_type(var.datatype) {
+                        let structure = self.scope.get_struct(alias).unwrap();
+
+                        if let Some(destructor) = structure.functions.get("drop") {
+                            if destructor.arguments == vec![Type::SelfRef] {
+                                let _ = self.builder.build_call(
+                                    destructor.value,
+                                    &[
+                                        var.ptr.into()
+                                    ],
+                                    ""
+                                );
+                            }
+                        }
+                    }
+                }
+                Type::Struct(_, _) => {
+                    panic!("Something went wrong, developer got brainrot, please report that on Github Issue")
+                },
+                _ => {}
+            }
+        })
+    }
+
+    pub fn exit_scope_raw(&mut self) {
+        if let Some(parent) = self.scope.parent.to_owned() {
+            self.scope = parent;
+        }
+    }
+
     pub fn exit_scope(&mut self) {
         if let Some(parent) = self.scope.parent.to_owned() {
+            let insert_block = self.builder.get_insert_block().unwrap();
+            
+            if let Some(instr) = insert_block.get_terminator() {
+                self.builder.position_before(&instr);
+                self.cleanup_variables();
+
+                self.builder.position_at_end(insert_block);
+            }
+
             self.scope = parent;
         }
     }
