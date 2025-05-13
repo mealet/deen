@@ -4,6 +4,7 @@ use crate::{
     macros::StandartMacros,
     structure::{Field, Structure},
     variable::Variable,
+    scope::Scope,
 };
 use deen_parser::{expressions::Expressions, statements::Statements, types::Type, value::Value};
 use inkwell::{
@@ -24,21 +25,17 @@ mod function;
 mod macros;
 mod structure;
 mod variable;
+mod scope;
 
 pub struct CodeGen<'ctx> {
     context: &'ctx Context,
     builder: Builder<'ctx>,
     module: Module<'ctx>,
 
+    scope: Box<Scope<'ctx>>,
     function: Option<FunctionValue<'ctx>>,
     breaks: Vec<BasicBlock<'ctx>>,
     booleans_strings: Option<(PointerValue<'ctx>, PointerValue<'ctx>)>,
-
-    variables: HashMap<String, Variable<'ctx>>,
-    functions: HashMap<String, Function<'ctx>>,
-    structures: HashMap<String, Structure<'ctx>>,
-    enumerations: HashMap<String, Enumeration<'ctx>>,
-    typedefs: HashMap<String, Type>,
 
     imports: HashMap<String, Import>,
     is_main: bool,
@@ -79,15 +76,10 @@ impl<'ctx> CodeGen<'ctx> {
             builder,
             module,
 
+            scope: Box::new(Scope::new()),
             function: None,
             breaks: vec![],
             booleans_strings: None,
-
-            variables: HashMap::new(),
-            functions: HashMap::new(),
-            structures: HashMap::new(),
-            enumerations: HashMap::new(),
-            typedefs: HashMap::new(),
 
             imports,
             is_main,
@@ -137,7 +129,7 @@ impl<'ctx> CodeGen<'ctx> {
                 span: _,
             } => {
                 if let Expressions::Value(Value::Identifier(identifier), _) = object {
-                    let var = self.variables.get(&identifier).unwrap().clone();
+                    let var = self.scope.get_variable(&identifier).unwrap();
                     let compiled_value = self.compile_expression(value, Some(var.datatype));
 
                     self.builder.build_store(var.ptr, compiled_value.1).unwrap();
@@ -295,7 +287,7 @@ impl<'ctx> CodeGen<'ctx> {
                         .build_alloca(value.1.get_type(), &identifier)
                         .unwrap();
 
-                    self.variables.insert(
+                    self.scope.set_variable(
                         identifier,
                         Variable {
                             datatype: value.0,
@@ -309,7 +301,7 @@ impl<'ctx> CodeGen<'ctx> {
                     let basic_type = self.get_basic_type(datatype.clone());
                     let alloca = self.builder.build_alloca(basic_type, &identifier).unwrap();
 
-                    self.variables.insert(
+                    self.scope.set_variable(
                         identifier,
                         Variable {
                             datatype,
@@ -325,7 +317,7 @@ impl<'ctx> CodeGen<'ctx> {
                         .build_alloca(compiled_value.1.get_type(), &identifier)
                         .unwrap();
 
-                    self.variables.insert(
+                    self.scope.set_variable(
                         identifier,
                         Variable {
                             datatype: compiled_value.0,
@@ -367,19 +359,18 @@ impl<'ctx> CodeGen<'ctx> {
                 self.builder.position_at_end(entry);
                 self.function = Some(function);
 
-                let mut old_variables = HashMap::new();
+                self.enter_new_scope();
 
                 arguments.iter().enumerate().for_each(|(index, arg)| {
                     let arg_name = arg.0.clone();
                     let arg_value = function.get_nth_param(index as u32).unwrap();
-                    old_variables.insert(arg_name.clone(), self.variables.remove(&arg_name));
 
                     let param_type = self.get_basic_type(arg.1.clone());
                     let param_alloca = self.builder.build_alloca(param_type, "").unwrap();
 
                     let _ = self.builder.build_store(param_alloca, arg_value);
 
-                    self.variables.insert(
+                    self.scope.set_variable(
                         arg_name,
                         Variable {
                             datatype: arg.1.clone(),
@@ -389,13 +380,13 @@ impl<'ctx> CodeGen<'ctx> {
                     );
                 });
 
-                let typed_args = arguments.iter().map(|x| x.1.clone()).collect();
-                self.functions.insert(
+                let typed_args = arguments.iter().map(|x| x.1.clone()).collect::<Vec<Type>>();
+                self.scope.set_function(
                     name.clone(),
                     Function {
                         datatype: datatype.clone(),
                         value: function,
-                        arguments: typed_args,
+                        arguments: typed_args.clone(),
                     },
                 );
                 block
@@ -411,18 +402,23 @@ impl<'ctx> CodeGen<'ctx> {
                 }
 
                 self.function = old_function;
-                old_variables.iter().for_each(|var| {
-                    if let Some(value) = var.1 {
-                        self.variables.insert(var.0.to_owned(), value.to_owned());
-                    }
-                })
+                self.exit_scope();
+
+                self.scope.set_function(
+                    name.clone(),
+                    Function {
+                        datatype: datatype.clone(),
+                        value: function,
+                        arguments: typed_args,
+                    },
+                );
             }
             Statements::FunctionCallStatement {
                 name,
                 arguments,
                 span: _,
             } => {
-                let function = self.functions.get(&name).unwrap().clone();
+                let function = self.scope.get_function(&name).unwrap();
                 let mut basic_args: Vec<BasicMetadataValueEnum> = Vec::new();
 
                 arguments
@@ -476,7 +472,7 @@ impl<'ctx> CodeGen<'ctx> {
                     fields_hashmap.insert(field.name.clone(), field);
                 });
 
-                self.structures.insert(
+                self.scope.set_struct(
                     name.clone(),
                     Structure {
                         fields: fields_hashmap,
@@ -499,7 +495,7 @@ impl<'ctx> CodeGen<'ctx> {
                 span: _,
             } => {
                 let name = format!("{}{}", prefix.unwrap_or_default(), name);
-                self.enumerations.insert(
+                self.scope.set_enum(
                     name.clone(),
                     Enumeration {
                         fields,
@@ -519,7 +515,7 @@ impl<'ctx> CodeGen<'ctx> {
                 datatype,
                 span: _,
             } => {
-                self.typedefs.insert(alias, datatype);
+                self.scope.set_typedef(alias, datatype);
             }
 
             Statements::IfStatement {
@@ -664,9 +660,12 @@ impl<'ctx> CodeGen<'ctx> {
                 self.module.link_in_module(module.to_owned()).unwrap();
             }
             Statements::ScopeStatement { block, span: _ } => {
+                self.enter_new_scope();
                 block
                     .iter()
                     .for_each(|stmt| self.compile_statement(stmt.clone(), None));
+                
+                self.exit_scope();
             }
 
             Statements::Expression(expr) => {
@@ -688,7 +687,7 @@ impl<'ctx> CodeGen<'ctx> {
                 arguments,
                 span: _,
             } => {
-                let function = self.functions.get(&name).unwrap().clone();
+                let function = self.scope.get_function(&name).unwrap();
                 let mut args: Vec<BasicMetadataValueEnum> = Vec::new();
                 arguments
                     .iter()
@@ -721,7 +720,7 @@ impl<'ctx> CodeGen<'ctx> {
 
             Expressions::Reference { object, span: _ } => match *object {
                 Expressions::Value(Value::Identifier(id), _) => {
-                    let var = self.variables.get(&id).unwrap();
+                    let var = self.scope.get_variable(&id).unwrap();
                     (var.datatype.clone(), var.ptr.into())
                 }
                 _ => {
@@ -1136,7 +1135,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                             match alias_type {
                                 "struct" => {
-                                    let structure = self.structures.get(&alias).unwrap();
+                                    let structure = self.scope.get_struct(&alias).unwrap();
                                     let field = structure.fields.get(field).unwrap();
 
                                     let ptr = self
@@ -1159,7 +1158,7 @@ impl<'ctx> CodeGen<'ctx> {
                                     prev_val = value;
                                 }
                                 "enum" => {
-                                    let enumeration = self.enumerations.get(&alias).unwrap();
+                                    let enumeration = self.scope.get_enum(&alias).unwrap();
                                     let idx =
                                         enumeration.fields.iter().position(|f| f == field).unwrap();
                                     let idx_value =
@@ -1219,10 +1218,9 @@ impl<'ctx> CodeGen<'ctx> {
                             match alias_type {
                                 "struct" | "enum" => {
                                     let function = self
-                                        .functions
-                                        .get(&format!("{}_{}__{}", alias_type, alias, name))
-                                        .unwrap()
-                                        .clone();
+                                        .scope
+                                        .get_function(format!("{}_{}__{}", alias_type, alias, name))
+                                        .unwrap();
                                     let mut arguments = arguments
                                         .iter()
                                         .zip(function.arguments.clone())
@@ -1494,7 +1492,7 @@ impl<'ctx> CodeGen<'ctx> {
                 } else {
                     format!("__{}_{}", self.module.get_name().to_str().unwrap(), name)
                 };
-                let structure = self.structures.get(&name).unwrap().clone();
+                let structure = self.scope.get_struct(&name).unwrap();
                 let struct_alloca = self
                     .builder
                     .build_alloca(structure.llvm_type, &format!("struct.{}.init", name))
@@ -1624,17 +1622,17 @@ impl<'ctx> CodeGen<'ctx> {
                 } else {
                     format!("__{}_{}", self.module.get_name().to_str().unwrap(), id)
                 };
-                if let Some(typedef) = self.typedefs.get(&externed_id) {
+                if let Some(typedef) = self.scope.get_typedef(&externed_id) {
                     return (typedef.clone(), self.context.i8_type().const_zero().into());
                 }
-                if self.enumerations.contains_key(&externed_id) {
+                if self.scope.get_enum(&externed_id).is_some() {
                     return (
                         Type::Alias(externed_id),
                         self.context.i8_type().const_zero().into(),
                     );
                 }
 
-                let variable = self.variables.get(&id).unwrap(); // already checked by semantic analyzer
+                let variable = self.scope.get_variable(&id).unwrap(); // already checked by semantic analyzer
                 let value = match expected {
                     Some(Type::Pointer(_)) => variable.ptr.into(),
                     _ => self
@@ -1771,9 +1769,9 @@ impl<'ctx> CodeGen<'ctx> {
                 } else {
                     format!("__{}_{}", self.module.get_name().to_str().unwrap(), alias)
                 };
-                let struct_type = self.structures.get(&alias);
-                let enum_type = self.enumerations.get(&alias);
-                let typedef_type = self.typedefs.get(&alias);
+                let struct_type = self.scope.get_struct(&alias);
+                let enum_type = self.scope.get_enum(&alias);
+                let typedef_type = self.scope.get_typedef(&alias);
 
                 if let Some(struct_type) = struct_type {
                     return struct_type.llvm_type;
@@ -1825,9 +1823,9 @@ impl<'ctx> CodeGen<'ctx> {
 
     fn get_alias_type(&self, alias_type: Type) -> Option<&str> {
         if let Type::Alias(alias) = alias_type {
-            let struct_type = self.structures.get(&alias);
-            let enum_type = self.enumerations.get(&alias);
-            let typedef_type = self.typedefs.get(&alias);
+            let struct_type = self.scope.get_struct(&alias);
+            let enum_type = self.scope.get_enum(&alias);
+            let typedef_type = self.scope.get_typedef(&alias);
 
             if struct_type.is_some() {
                 return Some("struct");

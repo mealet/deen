@@ -76,10 +76,9 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                             match alias_type {
                                 "struct" => {
                                     let display_function = self
-                                        .functions
-                                        .get(&format!("{}_{}__{}", alias_type, alias, "__display"))
-                                        .unwrap()
-                                        .clone();
+                                        .scope
+                                        .get_function(format!("{}_{}__{}", alias_type, alias, "__display"))
+                                        .unwrap();
 
                                     let self_val: BasicMetadataValueEnum =
                                         if arg.1.is_pointer_value() {
