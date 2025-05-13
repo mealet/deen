@@ -2009,23 +2009,23 @@ impl Analyzer {
                                 }
                             }
                             Type::Struct(_, functions) => {
-                                if let Some(Type::Function(_, return_type)) = functions.get("__display") {
+                                if let Some(Type::Function(_, return_type)) = functions.get("display") {
                                     if let Type::Pointer(ptr) = *return_type.clone() {
                                         if *ptr.clone() == Type::Char {} else {
                                             self.error(
-                                                "Implementation for display must be `__display(&self) *char`".to_string(),
+                                                "Implementation for display must be `display(&self) *char`".to_string(),
                                                 deen_parser::Parser::get_span_expression(expr.clone())
                                             );
                                         }
                                     } else {
                                         self.error(
-                                            "Implementation for display must be `__display(&self) *char`".to_string(),
+                                            "Implementation for display must be `display(&self) *char`".to_string(),
                                             deen_parser::Parser::get_span_expression(expr.clone())
                                         );
                                     }
                                 } else {
                                     self.error(
-                                        format!("Type `{}` has no implementation for display: `__display(&self) *char", expr_type),
+                                        format!("Type `{}` has no implementation for display: `display(&self) *char", expr_type),
                                         deen_parser::Parser::get_span_expression(expr.clone())
                                     );
                                 }
