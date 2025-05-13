@@ -1303,7 +1303,7 @@ impl Analyzer {
                     self.error(err, *span);
                     Type::Void
                 });
-                let mut prev_expr = Expressions::None;
+                let mut prev_expr = *head.clone();
                 if prev_type == Type::Void {
                     return head_type;
                 };
@@ -1410,12 +1410,14 @@ impl Analyzer {
                                     if let Type::Function(args, datatype) = function_type {
                                         let mut arguments = arguments.clone();
 
-                                        if let Some(Type::SelfRef) = args.first() {
-                                            arguments.reverse();
-                                            arguments.push(
-                                                Expressions::Reference { object: Box::new(prev_expr.clone()), span: (deen_parser::Parser::get_span_expression(prev_expr.clone())) },
-                                            );
-                                            arguments.reverse();
+                                        if let Some(Type::Pointer(ptr_type)) = args.first() {
+                                            if *ptr_type.clone() == prev_type_display {
+                                                arguments.reverse();
+                                                arguments.push(
+                                                    Expressions::Reference { object: Box::new(prev_expr.clone()), span: (deen_parser::Parser::get_span_expression(prev_expr.clone())) },
+                                                );
+                                                arguments.reverse();
+                                            }
                                         }
 
                                         prev_type_display = *datatype.clone();
@@ -1785,7 +1787,7 @@ impl Analyzer {
                         self.error(format!("Missing structure fields: {}", fmt), *span);
                     }
 
-                    structure
+                    Type::Alias(name.clone())
                 } else {
                     unreachable!()
                 }
@@ -1900,16 +1902,17 @@ impl Analyzer {
                 Ok(Type::F32)
             }
             Value::Identifier(id) => {
-                // if let Some(structure) = self.scope.get_struct(&id) { return Ok(structure) }
                 if self.imports.contains_key(&id) {
                     return Ok(Type::ImportObject(id));
                 }
-                if let Some(typedef) = self.scope.get_typedef(&id) {
-                    return Ok(typedef);
-                }
-                if let Some(enumeration) = self.scope.get_enum(&id) {
-                    return Ok(enumeration);
-                }
+
+                // if let Some(structure) = self.scope.get_struct(&id) { return Ok(structure) }
+                // if let Some(typedef) = self.scope.get_typedef(&id) {
+                //     return Ok(typedef);
+                // }
+                // if let Some(enumeration) = self.scope.get_enum(&id) {
+                //     return Ok(enumeration);
+                // }
 
                 match self.scope.get_var(&id) {
                     Some(var) => {

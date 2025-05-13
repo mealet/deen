@@ -165,7 +165,7 @@ impl<'ctx> CodeGen<'ctx> {
                 let ptr_type = if let Type::Pointer(ptr) = instance_type {
                     *ptr
                 } else {
-                    panic!("Something went wrong")
+                    panic!("Non-pointer type handled: `{}`", instance_type)
                 };
 
                 let compiled_value = self.compile_expression(value, Some(ptr_type));
@@ -491,6 +491,8 @@ impl<'ctx> CodeGen<'ctx> {
 
                     let (mut function_id, function_value) = self.scope.stricted_functions().into_iter().last().unwrap();
                     self.exit_scope_raw();
+
+                    self.scope.set_function(function_id.clone(), function_value.clone());
 
                     function_id = function_id.replace(&format!("struct_{}__", name), "");
                     self.scope.get_mut_struct(&name).unwrap().functions.insert(function_id, function_value);
@@ -1234,61 +1236,52 @@ impl<'ctx> CodeGen<'ctx> {
                         name,
                         arguments,
                         span: _,
-                    } => match prev_type.clone() {
-                        Type::Alias(alias) => {
-                            let alias_type = self.get_alias_type(prev_type.clone()).unwrap();
+                    } => {
+                        if let Type::Pointer(ptr_type) = prev_type.clone() {
+                            prev_type = *ptr_type;
+                        }
 
-                            match alias_type {
-                                "struct" | "enum" => {
-                                    let function = self
-                                        .scope
-                                        .get_function(format!("{}_{}__{}", alias_type, alias, name))
-                                        .unwrap();
+                        match prev_type.clone() {
+                            Type::Alias(alias) => {
+                                let alias_type = self.get_alias_type(prev_type.clone()).unwrap();
 
-                                    let mut arguments = arguments
-                                        .iter()
-                                        .zip(function.arguments.clone())
-                                        .map(|(arg, exp)| {
-                                            self.compile_expression(arg.clone(), Some(exp)).1.into()
-                                        })
-                                        .collect::<Vec<BasicMetadataValueEnum>>();
+                                match alias_type {
+                                    "struct" | "enum" => {
+                                        let function = self
+                                            .scope
+                                            .get_function(format!("{}_{}__{}", alias_type, alias, name))
+                                            .unwrap();
 
-                                    if let Some(Type::Alias(first_arg)) = function.arguments.first()
-                                    {
-                                        if *first_arg == alias {
-                                            let self_val: BasicMetadataValueEnum =
-                                                if prev_val.is_pointer_value() {
-                                                    self.builder
-                                                        .build_load(
-                                                            self.get_basic_type(prev_type.clone()),
-                                                            prev_val.into_pointer_value(),
-                                                            "",
-                                                        )
-                                                        .unwrap()
-                                                        .into()
-                                                } else {
-                                                    prev_val.into()
-                                                };
+                                        let mut arguments = arguments
+                                            .iter()
+                                            .zip(function.arguments.clone())
+                                            .map(|(arg, exp)| {
+                                                self.compile_expression(arg.clone(), Some(exp)).1.into()
+                                            })
+                                            .collect::<Vec<BasicMetadataValueEnum>>();
 
+                                        if let Some(Type::SelfRef) = function.arguments.first() {
                                             arguments.reverse();
-                                            arguments.push(self_val);
+                                            arguments.push(prev_val.clone().into());
                                             arguments.reverse();
                                         }
-                                    }
 
-                                    prev_type = function.datatype;
-                                    prev_val = self
-                                        .builder
-                                        .build_call(function.value, &arguments, "")
-                                        .unwrap()
-                                        .try_as_basic_value()
-                                        .left()
-                                        .unwrap_or(self.context.i8_type().const_zero().into());
+                                        prev_type = function.datatype;
+                                        prev_val = self
+                                            .builder
+                                            .build_call(function.value, &arguments, "")
+                                            .unwrap()
+                                            .try_as_basic_value()
+                                            .left()
+                                            .unwrap_or(self.context.i8_type().const_zero().into());
+                                    }
+                                    _ => unreachable!(),
                                 }
-                                _ => unreachable!(),
+                            }
+                            _ => {
+                                panic!("FnCall `{}()` unreachable type got: `{}`", name, &prev_type);
                             }
                         }
-                        _ => unreachable!(),
                     },
 
                     _ => unreachable!(),
