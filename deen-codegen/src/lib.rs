@@ -171,12 +171,8 @@ impl<'ctx> CodeGen<'ctx> {
 
                 let compiled_value = self.compile_expression(value, Some(ptr_type));
 
-                let dereferenced_ptr = self
-                    .builder
-                    .build_load(self.context.ptr_type(AddressSpace::default()), instance_ptr.into_pointer_value(), "")
-                    .unwrap();
                 self.builder
-                    .build_store(dereferenced_ptr.into_pointer_value(), compiled_value.1)
+                    .build_store(instance_ptr.into_pointer_value(), compiled_value.1)
                     .unwrap();
             }
             Statements::SliceAssignStatement {
@@ -747,10 +743,8 @@ impl<'ctx> CodeGen<'ctx> {
             Expressions::Reference { object, span: _ } => match *object {
                 Expressions::Value(Value::Identifier(id), _) => {
                     let var = self.scope.get_variable(&id).unwrap();
-                    let ref_alloca = self.builder.build_alloca(self.context.ptr_type(AddressSpace::default()), "").unwrap();
-                    let _ = self.builder.build_store(ref_alloca, var.ptr).unwrap();
 
-                    (Type::Pointer(Box::new(var.datatype.clone())), ref_alloca.into())
+                    (Type::Pointer(Box::new(var.datatype.clone())), var.ptr.into())
                 }
                 _ => {
                     let value = self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Void))));
