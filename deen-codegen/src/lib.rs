@@ -746,10 +746,13 @@ impl<'ctx> CodeGen<'ctx> {
             Expressions::Reference { object, span: _ } => match *object {
                 Expressions::Value(Value::Identifier(id), _) => {
                     let var = self.scope.get_variable(&id).unwrap();
-                    (var.datatype.clone(), var.ptr.into())
+                    let ref_alloca = self.builder.build_alloca(self.context.ptr_type(AddressSpace::default()), "").unwrap();
+                    let _ = self.builder.build_store(ref_alloca, var.ptr).unwrap();
+
+                    (Type::Pointer(Box::new(var.datatype.clone())), ref_alloca.into())
                 }
                 _ => {
-                    let value = self.compile_expression(*object, expected);
+                    let value = self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Void))));
                     let alloca = self.builder.build_alloca(value.1.get_type(), "").unwrap();
                     let _ = self.builder.build_store(alloca, value.1);
 
@@ -757,17 +760,13 @@ impl<'ctx> CodeGen<'ctx> {
                 }
             },
             Expressions::Dereference { object, span: _ } => {
-                let (datatype, ptr) = self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Void))));
-                let mut ptr_type = match datatype.clone() {
+                let (datatype, ptr) = self.compile_expression(*object, None);
+                let ptr_type = match datatype.clone() {
                     Type::Pointer(ptr_type) => *ptr_type,
                     _ => {
                         return (datatype, ptr);
                     }
                 };
-
-                if let Some(Type::Pointer(_)) = expected {
-                    ptr_type = Type::Pointer(Box::new(ptr_type))
-                }
 
                 let basic_type = self.get_basic_type(ptr_type.clone());
 
@@ -1149,11 +1148,11 @@ impl<'ctx> CodeGen<'ctx> {
 
                 subelements.iter().for_each(|sub| match sub {
                     Expressions::Value(Value::Identifier(field), _) => {
-                        let mut is_ptr = false;
-                        if let Type::Pointer(ptr_type) = prev_type.clone() {
-                            prev_type = *ptr_type;
-                            is_ptr = true;
-                        }
+                        // let mut is_ptr = false;
+                        // if let Type::Pointer(ptr_type) = prev_type.clone() {
+                        //     prev_type = *ptr_type;
+                        //     is_ptr = true;
+                        // }
 
                         if let Type::Alias(alias) = prev_type.clone() {
                             let alias_type = self.get_alias_type(prev_type.clone()).unwrap();
@@ -1176,7 +1175,8 @@ impl<'ctx> CodeGen<'ctx> {
                                     let value = if let Some(Type::Pointer(_)) = expected {
                                         ptr.as_basic_value_enum()
                                     } else {
-                                        if is_ptr { ptr.as_basic_value_enum() } else { self.builder.build_load(field.llvm_type, ptr, "").unwrap() }
+                                        // if is_ptr { ptr.as_basic_value_enum() } else { self.builder.build_load(field.llvm_type, ptr, "").unwrap() }
+                                        self.builder.build_load(field.llvm_type, ptr, "").unwrap()
                                     };
 
                                     prev_type = field.datatype.clone();
