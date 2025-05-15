@@ -251,6 +251,13 @@ impl Parser {
             let _ = self.next();
         }
     }
+
+    fn skip_statement(&mut self) {
+        while !self.expect(TokenType::Semicolon) {
+            let _ = self.next();
+        }
+        self.skip_eos();
+    }
 }
 
 impl Parser {

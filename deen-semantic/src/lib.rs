@@ -651,11 +651,7 @@ impl Analyzer {
                             let mut arguments = arguments.clone();
                             *arguments.first_mut().unwrap() = (
                                 String::from("self"),
-                                Type::Pointer(
-                                    Box::new(
-                                        Type::Alias(name.clone())
-                                    )
-                                )
+                                Type::Alias(name.clone())
                             );
 
                             wrapped_statement = Statements::FunctionDefineStatement { name: function_name, datatype, arguments, block, public, span, header_span };
@@ -1410,8 +1406,8 @@ impl Analyzer {
                                     if let Type::Function(args, datatype) = function_type {
                                         let mut arguments = arguments.clone();
 
-                                        if let Some(Type::Pointer(ptr_type)) = args.first() {
-                                            if *ptr_type.clone() == prev_type_display {
+                                        if let Some(Type::Alias(alias)) = args.first() {
+                                            if Type::Alias(alias.clone()) == prev_type_display {
                                                 arguments.reverse();
                                                 arguments.push(
                                                     Expressions::Reference { object: Box::new(prev_expr.clone()), span: (deen_parser::Parser::get_span_expression(prev_expr.clone())) },
@@ -1440,15 +1436,19 @@ impl Analyzer {
                                                     self.error(err, *span);
                                                     Type::Void
                                             });
+                                            let raw_expected = expected;
                                             let expected = self.unwrap_alias(expected).unwrap_or_else(|err| {
                                                 self.error(err, *span);
                                                 Type::Void
                                             });
 
                                             if expected == Type::Void || raw_expr_type == Type::Void { return };
+                                            if let Type::Pointer(ptr_type) = raw_expr_type.clone() {
+                                                if *ptr_type.clone() == *raw_expected { return };
+                                            }
                                             if expr_type != expected {
                                                 self.error(
-                                                    format!("Argument #{} has type `{}`, but found `{}`", index + 1, expected, expr_type),
+                                                    format!("Argument #{} has type `{}`, but found `{}`", index + 1, raw_expected, raw_expr_type),
                                                     deen_parser::Parser::get_span_expression(expr.clone())
                                                 );
                                             }

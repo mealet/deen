@@ -134,7 +134,10 @@ impl<'ctx> CodeGen<'ctx> {
 
                     self.builder.build_store(var.ptr, compiled_value.1).unwrap();
                 } else {
-                    unreachable!()
+                    let ptr = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
+                    let value = self.compile_expression(value, None);
+
+                    let _ = self.builder.build_store(ptr.1.into_pointer_value(), value.1);
                 }
             }
             Statements::BinaryAssignStatement {
@@ -1143,11 +1146,9 @@ impl<'ctx> CodeGen<'ctx> {
 
                 subelements.iter().for_each(|sub| match sub {
                     Expressions::Value(Value::Identifier(field), _) => {
-                        // let mut is_ptr = false;
-                        // if let Type::Pointer(ptr_type) = prev_type.clone() {
-                        //     prev_type = *ptr_type;
-                        //     is_ptr = true;
-                        // }
+                        if let Type::Pointer(ptr_type) = prev_type.clone() {
+                            prev_type = *ptr_type;
+                        }
 
                         if let Type::Alias(alias) = prev_type.clone() {
                             let alias_type = self.get_alias_type(prev_type.clone()).unwrap();
@@ -1170,7 +1171,6 @@ impl<'ctx> CodeGen<'ctx> {
                                     let value = if let Some(Type::Pointer(_)) = expected {
                                         ptr.as_basic_value_enum()
                                     } else {
-                                        // if is_ptr { ptr.as_basic_value_enum() } else { self.builder.build_load(field.llvm_type, ptr, "").unwrap() }
                                         self.builder.build_load(field.llvm_type, ptr, "").unwrap()
                                     };
 

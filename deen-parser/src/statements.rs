@@ -618,6 +618,7 @@ impl Parser {
                 String::from("Expected `=` in slice assign"),
                 (span.0, self.current().span.1),
             );
+            self.skip_statement();
             return Statements::None;
         }
 
