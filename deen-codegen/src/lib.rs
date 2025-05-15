@@ -161,7 +161,8 @@ impl<'ctx> CodeGen<'ctx> {
                 value,
                 span: _,
             } => {
-                let (instance_type, instance_ptr) = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
+                let (instance_type, instance_ptr) = self.compile_expression(object, None);
+
                 let ptr_type = if let Type::Pointer(ptr) = instance_type {
                     *ptr
                 } else {
