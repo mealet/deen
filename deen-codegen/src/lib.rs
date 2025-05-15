@@ -1159,6 +1159,9 @@ impl<'ctx> CodeGen<'ctx> {
                 let mut prev_val = compiled_head.1;
                 let mut prev_type = compiled_head.0;
 
+                // I know it looks kinda awful and terrible, but it works.
+                // There's no way you can get double pointer to a struct in sub-element, so i just
+                // placed self pointers into this shit.
                 if let Type::Pointer(ptr_type) = prev_type.clone() {
                     if let Type::Pointer(ptr_type) = *ptr_type.clone() {
                         prev_type = *ptr_type;
