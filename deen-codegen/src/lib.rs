@@ -269,6 +269,7 @@ impl<'ctx> CodeGen<'ctx> {
                     self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
                 let compiled_value = self.compile_expression(value, Some(compiled_object.0));
 
+
                 self.builder
                     .build_store(compiled_object.1.into_pointer_value(), compiled_value.1)
                     .unwrap();
@@ -339,7 +340,7 @@ impl<'ctx> CodeGen<'ctx> {
                 span: _,
                 header_span: _,
             } => {
-                let name = format!("{}{}", prefix.unwrap_or_default(), name);
+                let name = format!("{}{}", prefix.clone().unwrap_or_default(), name);
 
                 let mut args: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
                 arguments.iter().for_each(|arg| {
@@ -370,10 +371,21 @@ impl<'ctx> CodeGen<'ctx> {
 
                     let _ = self.builder.build_store(param_alloca, arg_value);
 
+                    let arg_datatype = match arg.1 {
+                        Type::SelfRef => {
+                            let prefix = prefix.clone().unwrap();
+                            let alias = prefix.replace("struct_", "").replace("enum_", "");
+                            let alias = alias.split("__").collect::<Vec<&str>>()[0];
+
+                            Type::Alias(alias.to_owned())
+                        },
+                        _ => arg.1.clone()
+                    };
+
                     self.scope.set_variable(
                         arg_name,
                         Variable {
-                            datatype: arg.1.clone(),
+                            datatype: arg_datatype,
                             llvm_type: param_type,
                             ptr: param_alloca,
                         },
@@ -489,9 +501,12 @@ impl<'ctx> CodeGen<'ctx> {
                         Some(format!("struct_{}__", name)),
                     );
 
-                    let (mut function_id, function_value) = self.scope.stricted_functions().into_iter().last().unwrap();
+                    let (mut function_id, mut function_value) = self.scope.stricted_functions().into_iter().last().unwrap();
                     self.exit_scope_raw();
 
+                    if let Some(Type::SelfRef) = function_value.arguments.first() {
+                        *function_value.arguments.first_mut().unwrap() = Type::Pointer(Box::new(Type::Alias(name.clone())));
+                    }
                     self.scope.set_function(function_id.clone(), function_value.clone());
 
                     function_id = function_id.replace(&format!("struct_{}__", name), "");
@@ -1144,6 +1159,13 @@ impl<'ctx> CodeGen<'ctx> {
                 let mut prev_val = compiled_head.1;
                 let mut prev_type = compiled_head.0;
 
+                if let Type::Pointer(ptr_type) = prev_type.clone() {
+                    if let Type::Pointer(ptr_type) = *ptr_type.clone() {
+                        prev_type = *ptr_type;
+                        prev_val = self.builder.build_load(self.context.ptr_type(AddressSpace::default()), prev_val.clone().into_pointer_value(), "").unwrap();
+                    }
+                }
+
                 subelements.iter().for_each(|sub| match sub {
                     Expressions::Value(Value::Identifier(field), _) => {
                         if let Type::Pointer(ptr_type) = prev_type.clone() {
@@ -1255,10 +1277,14 @@ impl<'ctx> CodeGen<'ctx> {
                                             })
                                             .collect::<Vec<BasicMetadataValueEnum>>();
 
-                                        if let Some(Type::SelfRef) = function.arguments.first() {
-                                            arguments.reverse();
-                                            arguments.push(prev_val.clone().into());
-                                            arguments.reverse();
+                                        if let Some(Type::Pointer(ptr_type)) = function.arguments.first() {
+                                            if let Type::Alias(arg_alias) = *ptr_type.clone() {
+                                                if arg_alias == alias {
+                                                    arguments.reverse();
+                                                    arguments.push(prev_val.clone().into());
+                                                    arguments.reverse();
+                                                }
+                                            }
                                         }
 
                                         prev_type = function.datatype;
@@ -1515,15 +1541,15 @@ impl<'ctx> CodeGen<'ctx> {
                     let field_value =
                         self.compile_expression(field_expr, Some(struct_field.datatype.clone()));
 
-                    let ordered_index = self
-                        .context
-                        .i64_type()
-                        .const_int(struct_field.nth as u64, false);
-                    let field_ptr = unsafe {
-                        self.builder
-                            .build_gep(structure.llvm_type, struct_alloca, &[ordered_index], "")
-                            .unwrap()
-                    };
+                    // let ordered_index = self
+                    //     .context
+                    //     .i64_type()
+                    //     .const_int(struct_field.nth as u64, false);
+
+
+                    let field_ptr = self.builder
+                            .build_struct_gep(structure.llvm_type, struct_alloca, struct_field.nth, "")
+                            .unwrap();
 
                     let _ = self.builder.build_store(field_ptr, field_value.1).unwrap();
                 }
@@ -1653,7 +1679,13 @@ impl<'ctx> CodeGen<'ctx> {
                         .unwrap(),
                 };
                 let datatype = match expected {
-                    Some(Type::Pointer(_)) => Type::Pointer(Box::new(variable.datatype.clone())),
+                    Some(Type::Pointer(_)) => {
+                        if id == "self" {
+                            Type::Pointer(Box::new(Type::Pointer(Box::new(variable.datatype.clone()))))
+                        } else {
+                            Type::Pointer(Box::new(variable.datatype.clone()))
+                        }
+                    },
                     _ => variable.datatype.clone()
                 };
 
