@@ -505,12 +505,26 @@ impl Lexer {
 
                             match self.char {
                                 '&' => {
-                                    output.push(Token::new(
-                                        String::from("&&"),
-                                        TokenType::And,
-                                        (span_start, self.position - 1),
-                                    ));
                                     self.getc();
+                                    if self.char == ' ' {
+                                        self.position -= 1;
+                                        output.push(Token::new(
+                                            String::from("&&"),
+                                            TokenType::And,
+                                            (span_start, self.position - 1),
+                                        ));
+                                    } else {
+                                        output.push(Token::new(
+                                            String::from("&"),
+                                            TokenType::Ref,
+                                            (span_start, self.position - 2)
+                                        ));
+                                        output.push(Token::new(
+                                            String::from("&"),
+                                            TokenType::Ref,
+                                            (span_start + 1, self.position - 1)
+                                        ));
+                                    }
                                 }
                                 ' ' => {
                                     let mut formatted_token = matched_token;
