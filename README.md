@@ -86,7 +86,7 @@ struct Person {
 
   fn birthday(&self) {
     println!("Happy Birthday!");
-    self.age = self.age + 1;
+    self.age += 1;
   }
 }
 
