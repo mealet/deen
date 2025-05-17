@@ -56,12 +56,12 @@ impl Analyzer {
             ),
             // drop!(object)
             (
-                "drop".to_string(),
+                "format".to_string(),
                 MacrosObject {
-                    arguments: vec![Type::Void],
-                    is_first_literal: false,
-                    is_var_args: false,
-                    return_type: Type::Void,
+                    arguments: vec![Type::String],
+                    is_first_literal: true,
+                    is_var_args: true,
+                    return_type: Type::Pointer(Box::new(Type::Char)),
                 },
             ),
             // panic!("number: {}", 15)

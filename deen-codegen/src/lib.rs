@@ -754,12 +754,13 @@ impl<'ctx> CodeGen<'ctx> {
                 )
             }
 
-            #[allow(unused)]
             Expressions::MacroCall {
                 name,
                 arguments,
-                span,
-            } => todo!(),
+                span: _,
+            } => {
+                self.build_macro_call(&name, arguments)
+            },
 
             Expressions::Reference { object, span: _ } => match *object {
                 Expressions::Value(Value::Identifier(id), _) => {
