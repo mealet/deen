@@ -339,8 +339,14 @@ impl Parser {
                         return self.subelement_expression(output, TokenType::Dot);
                     }
                     TokenType::LBrace => {
+                        let _ = self.next();
+                        if self.expect(TokenType::Dot) {
+                            self.position -= 2;
+                            return self.struct_expression(current.value.clone());
+                        }
                         self.position -= 1;
-                        return self.struct_expression(current.value.clone());
+                        return output
+
                     }
                     TokenType::Not => {
                         let _ = self.next();

@@ -395,6 +395,7 @@ impl Parser {
                 String::from("Expected `{` after structure initialization"),
                 (span_start, self.current().span.1),
             );
+            self.skip_statement();
             return Expressions::None;
         };
 

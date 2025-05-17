@@ -150,6 +150,7 @@ impl Parser {
                 let value = self.expression();
 
                 self.skip_eos();
+
                 Statements::AnnotationStatement {
                     identifier: id,
                     datatype,
