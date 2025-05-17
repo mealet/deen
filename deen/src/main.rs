@@ -144,7 +144,7 @@ fn main() {
     );
 
     let mut analyzer = deen_semantic::Analyzer::new(&src, fname, true);
-    let (imports, warns) = match analyzer.analyze(&ast) {
+    let (symtable, warns) = match analyzer.analyze(&ast) {
         Ok(res) => res,
         Err((errors, warns)) => {
             errors.iter().for_each(|e| {
@@ -200,7 +200,7 @@ fn main() {
         .unwrap_or(fname.replace(".dn", ""));
 
     let ctx = deen_codegen::CodeGen::create_context();
-    let mut codegen = deen_codegen::CodeGen::new(&ctx, &module_name, imports, true);
+    let mut codegen = deen_codegen::CodeGen::new(&ctx, &module_name, &src, symtable, true);
 
     let module_ref = codegen.compile(ast, None);
 

@@ -1,6 +1,6 @@
 use crate::{
     error::{SemanticError, SemanticWarning},
-    import::Import,
+    symtable::{SymbolTable, Import},
     macros::MacrosObject,
     scope::Scope,
 };
@@ -12,11 +12,11 @@ use std::collections::HashMap;
 
 mod element;
 mod error;
-pub mod import;
+pub mod symtable;
 mod macros;
 mod scope;
 
-type SemanticOk = (HashMap<String, Import>, Vec<SemanticWarning>);
+type SemanticOk = (SymbolTable, Vec<SemanticWarning>);
 type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
 
 #[derive(Debug)]
@@ -27,7 +27,7 @@ pub struct Analyzer {
     errors: Vec<SemanticError>,
     warnings: Vec<SemanticWarning>,
 
-    imports: HashMap<String, Import>,
+    symtable: SymbolTable,
     macros: HashMap<String, MacrosObject>,
 }
 
@@ -77,7 +77,7 @@ impl Analyzer {
             errors: Vec::new(),
             warnings: Vec::new(),
 
-            imports: HashMap::new(),
+            symtable: SymbolTable::default(),
             macros: standart_macros,
         }
     }
@@ -120,7 +120,7 @@ impl Analyzer {
             return Err((self.errors.clone(), self.warnings.clone()));
         }
 
-        Ok((self.imports.clone(), self.warnings.clone()))
+        Ok((self.symtable.clone(), self.warnings.clone()))
     }
 
     fn error(&mut self, message: String, span: (usize, usize)) {
@@ -1029,7 +1029,7 @@ impl Analyzer {
                             };
 
                             let mut analyzer = Self::new(&src, fname, false);
-                            let (embedded_imports, warns) = match analyzer.analyze(&ast) {
+                            let (embedded_symtable, warns) = match analyzer.analyze(&ast) {
                                 Ok(warns) => warns,
                                 Err((errors, warns)) => {
                                     errors.iter().for_each(|err| self.errors.push(err.clone()));
@@ -1049,7 +1049,7 @@ impl Analyzer {
                                 .map(|n| n.to_string())
                                 .unwrap_or(fname.replace(".dn", ""));
 
-                            let mut import = Import::new(ast);
+                            let mut import = Import::new(ast, &src);
 
                             analyzer.scope.functions.into_iter().for_each(|func| {
                                 if func.1.public {
@@ -1078,8 +1078,8 @@ impl Analyzer {
                                 }
                             });
 
-                            import.embedded_imports = embedded_imports;
-                            self.imports.insert(module_name, import);
+                            import.embedded_symtable = embedded_symtable;
+                            self.symtable.imports.insert(module_name, import);
                         }
                         None => {
                             self.error(format!("Unable to find: `{}`", path), *span);
@@ -1456,7 +1456,7 @@ impl Analyzer {
                                     };
                                 },
                                 Type::ImportObject(imp) => {
-                                    let import = self.imports.get(&imp).unwrap().clone();
+                                    let import = self.symtable.imports.get(&imp).unwrap().clone();
 
                                     let name = format!("__{}_{}", imp, name);
                                     if let Some(Type::Function(args, datatype)) = import.functions.get(&name) {
@@ -1512,7 +1512,7 @@ impl Analyzer {
                         Expressions::Struct { name, fields, span } => {
                             match prev_type.clone() {
                                 Type::ImportObject(imp) => {
-                                    let import = self.imports.get(&imp).unwrap().clone();
+                                    let import = self.symtable.imports.get(&imp).unwrap().clone();
 
                                     let name = format!("__{}_{}", imp, name); 
                                     if let Some(Type::Struct(struct_fields, _)) = import.structs.get(&name) {
@@ -1902,7 +1902,7 @@ impl Analyzer {
                 Ok(Type::F32)
             }
             Value::Identifier(id) => {
-                if self.imports.contains_key(&id) {
+                if self.symtable.imports.contains_key(&id) {
                     return Ok(Type::ImportObject(id));
                 }
 

@@ -17,7 +17,7 @@ use inkwell::{
     values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, PointerValue},
 };
 
-use deen_semantic::import::Import;
+use deen_semantic::symtable::SymbolTable;
 use std::collections::HashMap;
 
 mod enumeration;
@@ -28,6 +28,8 @@ mod variable;
 mod scope;
 
 pub struct CodeGen<'ctx> {
+    source: String,
+
     context: &'ctx Context,
     builder: Builder<'ctx>,
     module: Module<'ctx>,
@@ -37,7 +39,7 @@ pub struct CodeGen<'ctx> {
     breaks: Vec<BasicBlock<'ctx>>,
     booleans_strings: Option<(PointerValue<'ctx>, PointerValue<'ctx>)>,
 
-    imports: HashMap<String, Import>,
+    symtable: SymbolTable,
     is_main: bool,
 }
 
@@ -50,7 +52,8 @@ impl<'ctx> CodeGen<'ctx> {
     pub fn new(
         context: &'ctx Context,
         module_name: &str,
-        imports: HashMap<String, Import>,
+        module_source: &str,
+        symtable: SymbolTable,
         is_main: bool,
     ) -> Self {
         let module = context.create_module(module_name);
@@ -72,6 +75,8 @@ impl<'ctx> CodeGen<'ctx> {
             .unwrap();
 
         Self {
+            source: module_source.to_owned(),
+
             context,
             builder,
             module,
@@ -81,7 +86,7 @@ impl<'ctx> CodeGen<'ctx> {
             breaks: vec![],
             booleans_strings: None,
 
-            imports,
+            symtable,
             is_main,
         }
     }
@@ -182,7 +187,7 @@ impl<'ctx> CodeGen<'ctx> {
                 object,
                 index,
                 value,
-                span: _,
+                span,
             } => {
                 let (instance_type, instance_ptr) = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
                 let (item_type, len) = match instance_type.clone() {
@@ -211,7 +216,7 @@ impl<'ctx> CodeGen<'ctx> {
                 self.builder.position_at_end(checker_block);
 
                 let expected_basic_value =
-                    self.context.i64_type().const_int((len + 1) as u64, false);
+                    self.context.i64_type().const_int(len as u64, false);
                 let provided_basic_value = compiled_idx.1.into_int_value();
 
                 let cmp_value = self
@@ -229,13 +234,10 @@ impl<'ctx> CodeGen<'ctx> {
 
                 self.builder.position_at_end(error_block);
 
-                let panic_message = self
-                    .builder
-                    .build_global_string_ptr("Array has len %ld, but index is %ld", "panic_msg")
-                    .unwrap();
                 self.build_panic(
-                    panic_message.as_basic_value_enum(),
+                    "Array has len %ld, but index is %ld",
                     vec![expected_basic_value.into(), provided_basic_value.into()],
+                    self.get_source_line(span.0)
                 );
                 self.builder.build_unconditional_branch(ok_block).unwrap();
                 self.builder.position_at_end(ok_block);
@@ -686,11 +688,12 @@ impl<'ctx> CodeGen<'ctx> {
                     .map(|n| n.to_string())
                     .unwrap_or(fname.replace(".dn", ""));
 
-                let import = self.imports.get(&module_name).unwrap();
+                let import = self.symtable.imports.get(&module_name).unwrap();
                 let mut codegen = Self::new(
                     self.context,
                     &module_name,
-                    import.embedded_imports.clone(),
+                    &import.source,
+                    import.embedded_symtable.clone(),
                     false,
                 );
 
@@ -1446,7 +1449,7 @@ impl<'ctx> CodeGen<'ctx> {
             Expressions::Slice {
                 object,
                 index,
-                span: _,
+                span,
             } => {
                 let obj = self.compile_expression(*object, None);
                 let idx = self.compile_expression(*index, Some(Type::USIZE));
@@ -1470,7 +1473,7 @@ impl<'ctx> CodeGen<'ctx> {
                         self.builder.position_at_end(checker_block);
 
                         let expected_basic_value =
-                            self.context.i64_type().const_int((len + 1) as u64, false);
+                            self.context.i64_type().const_int(len as u64, false);
                         let provided_basic_value = idx.1.into_int_value();
 
                         let cmp_value = self
@@ -1488,16 +1491,10 @@ impl<'ctx> CodeGen<'ctx> {
 
                         self.builder.position_at_end(error_block);
 
-                        let panic_message = self
-                            .builder
-                            .build_global_string_ptr(
-                                "Array has len %ld, but index is %ld",
-                                "panic_msg",
-                            )
-                            .unwrap();
                         self.build_panic(
-                            panic_message.as_basic_value_enum(),
+                            "Array has len %ld, but index is %ld",
                             vec![expected_basic_value.into(), provided_basic_value.into()],
+                            self.get_source_line(span.0)
                         );
                         self.builder.build_unconditional_branch(ok_block).unwrap();
 
@@ -1704,15 +1701,24 @@ impl<'ctx> CodeGen<'ctx> {
 impl<'ctx> CodeGen<'ctx> {
     fn build_panic(
         &mut self,
-        message: BasicValueEnum<'ctx>,
+        message: impl std::convert::AsRef<str>,
         specifiers: Vec<BasicMetadataValueEnum<'ctx>>,
+        call_line: usize,
     ) {
+        let mut message = message.as_ref().to_owned();
         let panic_fn = self
             .module
             .get_function("__deen_panic")
             .unwrap_or_else(|| self.create_panic_function());
 
-        let args: Vec<BasicMetadataValueEnum> = [vec![message.into()], specifiers].concat();
+        if message.chars().last().unwrap_or(' ') != '\n' { message.push('\n') }
+
+        let message_ptr = self.builder.build_global_string_ptr(
+            &format!("Runtime Panic [line: {}]: {}", call_line, message),
+            "panic_formatter"
+        ).unwrap().as_pointer_value();
+
+        let args: Vec<BasicMetadataValueEnum> = [vec![message_ptr.into()], specifiers].concat();
         self.builder.build_call(panic_fn, &args, "").unwrap();
     }
 
@@ -1888,6 +1894,13 @@ impl<'ctx> CodeGen<'ctx> {
         } else {
             None
         }
+    }
+
+    fn get_source_line(&self, position: usize) -> usize {
+        self.source.char_indices()
+            .take_while(|&(pos, _)| pos < position)
+            .filter(|&(_, chr)| chr == '\n')
+            .count() + 1
     }
 
     fn is_main(&self) -> bool {
