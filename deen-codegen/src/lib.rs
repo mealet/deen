@@ -1714,7 +1714,7 @@ impl<'ctx> CodeGen<'ctx> {
         if message.chars().last().unwrap_or(' ') != '\n' { message.push('\n') }
 
         let message_ptr = self.builder.build_global_string_ptr(
-            &format!("Runtime Panic [line: {}]: {}", call_line, message),
+            &format!("Runtime Panic at `{}.dn` <line {}>\n{}", self.module.get_name().to_str().unwrap(), call_line, message),
             "panic_formatter"
         ).unwrap().as_pointer_value();
 

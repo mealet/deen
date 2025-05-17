@@ -64,6 +64,16 @@ impl Analyzer {
                     return_type: Type::Void,
                 },
             ),
+            // panic!("number: {}", 15)
+            (
+                "panic".to_string(),
+                MacrosObject {
+                    arguments: vec![Type::String],
+                    is_first_literal: true,
+                    is_var_args: true,
+                    return_type: Type::Void,
+                },
+            ),
         ]);
 
         Analyzer {
