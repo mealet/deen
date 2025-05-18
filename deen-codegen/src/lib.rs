@@ -334,7 +334,7 @@ impl<'ctx> CodeGen<'ctx> {
             },
 
             Statements::FunctionDefineStatement {
-                name,
+                name: raw_name,
                 datatype,
                 arguments,
                 block,
@@ -345,13 +345,13 @@ impl<'ctx> CodeGen<'ctx> {
                 let name = format!(
                     "{}{}",
                     prefix.clone().unwrap_or_default(),
-                    name,
+                    raw_name,
                 );
 
                 let llvm_ir_name = format!(
                     "{}{}({})",
                     prefix.clone().unwrap_or_default(),
-                    name,
+                    raw_name,
                     arguments.iter().map(|arg| arg.1.to_string()).collect::<Vec<String>>().join(", ")
                 );
 
