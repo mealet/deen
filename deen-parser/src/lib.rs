@@ -325,7 +325,7 @@ impl Parser {
                 if self.expect(TokenType::RParen) {
                     let _ = self.next();
                 }
-                return expr;
+                expr
             }
 
             TokenType::Identifier => {
