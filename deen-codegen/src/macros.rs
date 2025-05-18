@@ -151,12 +151,13 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                 if id.contains("ln") {
                     literal.push('\n')
                 }
-                let sprintf_fn = self.module.get_function("printf").unwrap_or_else(|| {
+                let snprintf_fn = self.module.get_function("snprintf").unwrap_or_else(|| {
                     self.module.add_function(
-                        "sprintf",
+                        "snprintf",
                         self.context.i32_type().fn_type(
                             &[
                                 self.context.ptr_type(AddressSpace::default()).into(),
+                                self.context.i64_type().into(),
                                 self.context.ptr_type(AddressSpace::default()).into(),
                             ],
                             true,
@@ -224,19 +225,54 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                     .as_pointer_value()
                     .into();
 
-                let result_alloca = self.builder.build_alloca(self.context.ptr_type(AddressSpace::default()), "").unwrap();
-                let call_arguments = [vec![result_alloca.into(), global_literal], format_values].concat();
+                // first call for output size
+
+                let first_call_args = [
+                    vec![
+                        self.context.ptr_type(AddressSpace::default()).const_null().into(),
+                        self.context.i64_type().const_zero().into(),
+                        global_literal,
+                    ],
+                    format_values.clone()
+                ].concat();
+
+                let length = self.builder.build_call(
+                    snprintf_fn,
+                    &first_call_args,
+                    ""
+                ).unwrap().try_as_basic_value().left().unwrap();
+
+                let buffer = {
+                    let buffer_size = self.builder.build_int_add(
+                        length.into_int_value(),
+                        self.context.i32_type().const_int(1, false),
+                        ""
+                    ).unwrap();
+
+                    self.builder.build_array_alloca(self.context.ptr_type(AddressSpace::default()), buffer_size, "").unwrap()
+                };
+
+                // second call for the final format
+
+                let sprintf_fn = self.module.get_function("sprintf").unwrap_or_else(|| {
+                    self.module.add_function(
+                        "sprintf",
+                        self.context.i32_type().fn_type(
+                            &[
+                                self.context.ptr_type(AddressSpace::default()).into(),
+                                self.context.ptr_type(AddressSpace::default()).into(),
+                            ],
+                            true,
+                        ),
+                        Some(Linkage::External),
+                    )
+                });
+
+                let call_arguments = [vec![buffer.into(), global_literal], format_values].concat();
 
                 let _ = self.builder.build_call(sprintf_fn, &call_arguments, "");
 
-                (Type::Pointer(Box::new(Type::Char)), result_alloca.into())
-
-                // BUG: Formatting and storing unkonwn sized string into stack allocated buffer
-                // with stricted size causes segmentation fault. There's only 2 ways I've found how
-                // to fix it:
-                // 1. Find the string length and then allocate memory for that
-                // 2. Implement dynamic `string` datatype with allocation on heap and make macro
-                //    return this type.
+                (Type::Pointer(Box::new(Type::Char)), buffer.into())
             }
             "panic" => {
                 let (mut literal, call_line) =
