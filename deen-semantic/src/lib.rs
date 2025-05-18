@@ -2097,6 +2097,7 @@ impl Analyzer {
                                 }
                             }
                             Type::Enum(_, _) => {},
+                            Type::Char => {},
                             _ => {
                                 self.error(
                                     format!("Type `{}` is not supported for display", expr_type),
