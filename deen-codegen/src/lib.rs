@@ -342,7 +342,12 @@ impl<'ctx> CodeGen<'ctx> {
                 span: _,
                 header_span: _,
             } => {
-                let name = format!("{}{}", prefix.clone().unwrap_or_default(), name);
+                let name = format!(
+                    "{}{}({})",
+                    prefix.clone().unwrap_or_default(),
+                    name,
+                    arguments.iter().map(|arg| arg.1.to_string()).collect::<Vec<String>>().join(", ")
+                );
 
                 let mut args: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
                 arguments.iter().for_each(|arg| {
