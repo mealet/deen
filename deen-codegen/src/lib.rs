@@ -362,7 +362,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 let fn_type = self.get_fn_type(datatype.clone(), &args, false);
                 let function = self.module.add_function(
-                    &llvm_ir_name,
+                    if name == "main" { "main" } else { &llvm_ir_name },
                     fn_type,
                     Some(inkwell::module::Linkage::External),
                 );
