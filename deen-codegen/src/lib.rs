@@ -343,6 +343,12 @@ impl<'ctx> CodeGen<'ctx> {
                 header_span: _,
             } => {
                 let name = format!(
+                    "{}{}",
+                    prefix.clone().unwrap_or_default(),
+                    name,
+                );
+
+                let llvm_ir_name = format!(
                     "{}{}({})",
                     prefix.clone().unwrap_or_default(),
                     name,
@@ -356,7 +362,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 let fn_type = self.get_fn_type(datatype.clone(), &args, false);
                 let function = self.module.add_function(
-                    &name,
+                    &llvm_ir_name,
                     fn_type,
                     Some(inkwell::module::Linkage::External),
                 );
