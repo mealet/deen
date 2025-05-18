@@ -249,7 +249,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                         ""
                     ).unwrap();
 
-                    self.builder.build_array_alloca(self.context.ptr_type(AddressSpace::default()), buffer_size, "").unwrap()
+                    self.builder.build_array_alloca(self.context.i8_type(), buffer_size, "").unwrap()
                 };
 
                 // second call for the final format
