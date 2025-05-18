@@ -3,6 +3,7 @@ use inkwell::{
     AddressSpace,
     module::Linkage,
     values::{BasicMetadataValueEnum, BasicValueEnum},
+    types::BasicType
 };
 
 use crate::CodeGen;
@@ -360,7 +361,18 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                 
                 self.build_panic(literal, format_values, call_line);
                 (Type::Void, self.context.bool_type().const_zero().into())
+            },
+            "sizeof" => {
+                let instance = arguments.first().unwrap();
+                let basic_type = {
+                    if let Expressions::Argument { name: _, r#type, span: _ } = instance {
+                        self.get_basic_type(r#type.clone())
+                    } else {
+                        self.compile_expression(instance.clone(), None).1.get_type()
+                    }
+                };
 
+                (Type::USIZE, basic_type.size_of().unwrap().into())
             },
             "drop" => todo!(),
             _ => {

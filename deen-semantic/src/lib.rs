@@ -44,6 +44,7 @@ impl Analyzer {
                     return_type: Type::Void,
                 },
             ),
+
             // println!("value: {}", 15);
             (
                 "println".to_string(),
@@ -54,7 +55,8 @@ impl Analyzer {
                     return_type: Type::Void,
                 },
             ),
-            // drop!(object)
+
+            // format!("str: {}", "hello")
             (
                 "format".to_string(),
                 MacrosObject {
@@ -64,6 +66,7 @@ impl Analyzer {
                     return_type: Type::Pointer(Box::new(Type::Char)),
                 },
             ),
+
             // panic!("number: {}", 15)
             (
                 "panic".to_string(),
@@ -72,6 +75,17 @@ impl Analyzer {
                     is_first_literal: true,
                     is_var_args: true,
                     return_type: Type::Void,
+                },
+            ),
+
+            // panic!("number: {}", 15)
+            (
+                "sizeof".to_string(),
+                MacrosObject {
+                    arguments: vec![Type::Void],
+                    is_first_literal: false,
+                    is_var_args: false,
+                    return_type: Type::USIZE,
                 },
             ),
         ]);
@@ -1293,10 +1307,20 @@ impl Analyzer {
             }
 
             Expressions::Argument {
-                name: _,
-                r#type: _,
-                span: _,
-            } => unreachable!(),
+                name,
+                r#type,
+                span,
+            } => {
+                if name == "@deen_type" {
+                    return Type::Void;
+                }
+
+                self.error(
+                    String::from("Argument expressions isn't supported in global code"),
+                    *span
+                );
+                r#type.clone()
+            },
             Expressions::SubElement {
                 head,
                 subelements,

@@ -437,6 +437,11 @@ impl Parser {
                 }
             }
 
+            TokenType::Type => {
+                let datatype = self.get_basic_type(current.value, current.span);
+                Expressions::Argument { name: "@deen_type".to_string(), r#type: datatype, span: current.span }
+            }
+
             _ => {
                 self.error(
                     String::from("Undefined term found"),
