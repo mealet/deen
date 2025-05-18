@@ -374,7 +374,6 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
 
                 (Type::USIZE, basic_type.size_of().unwrap().into())
             },
-            "drop" => todo!(),
             _ => {
                 panic!("Provided macros is under development stage: `{}!()`", id)
             },
