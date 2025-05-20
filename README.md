@@ -66,6 +66,8 @@ The project is divided into submodules using a virtual workspace environment:
 _Coming soon..._
 
 ## 🧊 Examples
+
+Basic Functions and Standart Output
 ```rust
 fn greet(name: *char) *char {
   return format!("Hello, {}!", name);
@@ -75,11 +77,13 @@ fn main() {
   println!("{}", greet("mealet"));
 }
 ```
-**Output:**
+**OUTPUT:**
 ```
 Hello, mealet!
 ```
 ----
+
+Structures and Methods
 ```rust
 struct Person {
   age: u32,
@@ -97,10 +101,37 @@ fn main() {
   println!("The age is {}", man.age);
 }
 ```
-**Output:**
+**OUTPUT:**
 ```
 Happy Birthday!
 The age is 21
+```
+
+----
+
+Advanced Structures Usage
+```rust
+struct Man {
+  name: *char,
+  age: u32,
+
+  fn new(name: *char, age: u32) Man {
+    return Man { .name = name, .age = age };
+  }
+
+  fn display(&self) *char {
+    return format!("{} <{}>", self.name, self.age);
+  }
+}
+
+fn main() {
+  let man = Man.new("Jason", 35);
+  println!("{}", man);
+}
+```
+**OUTPUT:**
+```
+Jason <35>
 ```
 
 ## 👮 License
