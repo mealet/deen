@@ -1687,19 +1687,29 @@ impl<'ctx> CodeGen<'ctx> {
                 }
 
                 let variable = self.scope.get_variable(&id).unwrap(); // already checked by semantic analyzer
-                let value = match expected {
-                    Some(Type::Pointer(_)) => variable.ptr.into(),
+                let value = match expected.clone() {
+                    Some(Type::Pointer(ptr_type)) => {
+                        if *ptr_type == Type::Char {
+                            self.builder.build_load(variable.llvm_type, variable.ptr, "").unwrap()
+                        } else {
+                            variable.ptr.into()
+                        }
+                    },
                     _ => self
                         .builder
                         .build_load(variable.llvm_type, variable.ptr, "")
                         .unwrap(),
                 };
                 let datatype = match expected {
-                    Some(Type::Pointer(_)) => {
-                        if id == "self" {
-                            Type::Pointer(Box::new(Type::Pointer(Box::new(variable.datatype.clone()))))
+                    Some(Type::Pointer(ptr_type)) => {
+                        if *ptr_type == Type::Char {
+                            variable.datatype.clone()
                         } else {
-                            Type::Pointer(Box::new(variable.datatype.clone()))
+                            if id == "self" {
+                                Type::Pointer(Box::new(Type::Pointer(Box::new(variable.datatype.clone()))))
+                            } else {
+                                Type::Pointer(Box::new(variable.datatype.clone()))
+                            }
                         }
                     },
                     _ => variable.datatype.clone()
