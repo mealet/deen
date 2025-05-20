@@ -81,6 +81,9 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         .get_function(format!("{}_{}__{}", alias_type, alias, "display"))
                                         .unwrap();
 
+                                    // NOTE: Method `display(&self) *char` won`t give mutability of
+                                    // structure, it will only provide tool to use struct in basic
+                                    // output.
                                     let self_val: BasicMetadataValueEnum =
                                         if arg.1.is_pointer_value() {
                                             self.builder
@@ -92,7 +95,9 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                                 .unwrap()
                                                 .into()
                                         } else {
-                                            arg.1.into()
+                                            let alloca = self.builder.build_alloca(arg.1.get_type(), "").unwrap();
+                                            let _ = self.builder.build_store(alloca, arg.1).unwrap();
+                                            alloca.into()
                                         };
 
                                     let output: BasicMetadataValueEnum = self
