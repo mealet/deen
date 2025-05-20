@@ -408,40 +408,12 @@ impl Analyzer {
             } => {
                 // unwrapping type
                 let display_type = datatype.clone();
-                let mut datatype = datatype.clone().map(|tty| {
-                    self.unwrap_alias(&tty).unwrap_or_else(|err| {
-                        self.error(err, *span);
-                        Type::Void
-                    })
-                });
-
-                if let Some(Type::Alias(alias)) = &datatype {
-                    let struct_type = self.scope.get_struct(alias);
-                    let enum_type = self.scope.get_enum(alias);
-                    let typedef_type = self.scope.get_typedef(alias);
-
-                    let mut staged = false;
-
-                    if struct_type.is_some() && !staged {
-                        datatype = struct_type;
-                        staged = true;
-                    };
-
-                    if enum_type.is_some() && !staged {
-                        datatype = enum_type;
-                        staged = true;
-                    };
-
-                    if typedef_type.is_some() && !staged {
-                        datatype = typedef_type
-                    };
-                }
 
                 match (datatype, value) {
                     (Some(datatype), Some(value)) => {
                         let value_type = self.visit_expression(value, Some(datatype.clone()));
 
-                        if value_type != datatype {
+                        if &value_type != datatype {
                             if Self::is_integer(&value_type) && Self::is_integer(&datatype) {
                                 if Self::integer_order(&value_type) > Self::integer_order(&datatype)
                                 {
@@ -512,11 +484,6 @@ impl Analyzer {
                     return;
                 }
 
-                let display_datatype = datatype;
-                let datatype = self.unwrap_alias(datatype).unwrap_or_else(|err| {
-                    self.error(err, *span);
-                    Type::Void
-                });
                 let mut function_scope = Scope::new();
 
                 self.scope
@@ -559,7 +526,7 @@ impl Analyzer {
                     self.error(
                         format!(
                             "Function `{}` returns type `{}`, but found `{}`",
-                            name, display_datatype, ret
+                            name, datatype, ret
                         ),
                         *header_span,
                     );
@@ -1612,7 +1579,7 @@ impl Analyzer {
                     }
                 });
 
-                prev_type
+                prev_type_display
             }
 
             Expressions::FnCall {
@@ -1940,13 +1907,15 @@ impl Analyzer {
                     return Ok(Type::ImportObject(id));
                 }
 
-                // if let Some(structure) = self.scope.get_struct(&id) { return Ok(structure) }
-                // if let Some(typedef) = self.scope.get_typedef(&id) {
-                //     return Ok(typedef);
-                // }
-                // if let Some(enumeration) = self.scope.get_enum(&id) {
-                //     return Ok(enumeration);
-                // }
+                if let Some(_) = self.scope.get_struct(&id) {
+                    return Ok(Type::Alias(id));
+                }
+                if let Some(typedef) = self.scope.get_typedef(&id) {
+                    return Ok(typedef);
+                }
+                if let Some(enumeration) = self.scope.get_enum(&id) {
+                    return Ok(enumeration);
+                }
 
                 match self.scope.get_var(&id) {
                     Some(var) => {

@@ -1672,6 +1672,10 @@ impl<'ctx> CodeGen<'ctx> {
                 } else {
                     format!("__{}_{}", self.module.get_name().to_str().unwrap(), id)
                 };
+
+                if let Some(_) = self.scope.get_struct(&externed_id) {
+                    return (Type::Alias(externed_id), self.context.i8_type().const_zero().into())
+                }
                 if let Some(typedef) = self.scope.get_typedef(&externed_id) {
                     return (typedef.clone(), self.context.i8_type().const_zero().into());
                 }
