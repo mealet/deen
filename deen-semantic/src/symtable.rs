@@ -6,7 +6,7 @@ pub struct SymbolTable {
     pub imports: HashMap<String, Import>
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Import {
     pub functions: HashMap<String, Type>,
     pub structs: HashMap<String, Type>,
@@ -40,5 +40,23 @@ impl Import {
 
     pub fn add_enum(&mut self, name: String, typ: Type) {
         self.enums.insert(name, typ);
+    }
+
+    pub fn get_struct(&self, name: impl std::convert::AsRef<str>) -> Option<Type> {
+        self.structs.get(name.as_ref()).cloned()
+    }
+
+    pub fn get_enum(&self, name: impl std::convert::AsRef<str>) -> Option<Type> {
+        self.enums.get(name.as_ref()).cloned()
+    }
+
+    pub fn get_fn(&self, name: impl std::convert::AsRef<str>) -> Option<Type> {
+        self.functions.get(name.as_ref()).cloned()
+    }
+}
+
+impl Default for Import {
+    fn default() -> Self {
+        Self::new(Vec::new(), "")
     }
 }

@@ -1461,8 +1461,8 @@ impl Analyzer {
                                 },
                                 Type::ImportObject(imp) => {
                                     let import = self.symtable.imports.get(&imp).unwrap().clone();
-
                                     let name = format!("{}.{}", imp, name);
+
                                     if let Some(Type::Function(args, datatype)) = import.functions.get(&name) {
                                         prev_type_display = *datatype.clone();
                                         prev_type = self.unwrap_alias(datatype).unwrap_or_else(|err| {
@@ -2218,6 +2218,26 @@ impl Analyzer {
                 if let Some(typedef_type) = typedef_type {
                     return Ok(typedef_type);
                 };
+                
+                if alias.contains(".") {
+                    let splitted_alias = alias.split(".").collect::<Vec<&str>>();
+                    let module_name = splitted_alias[0];
+
+                    if let Some(import_object) = self.symtable.imports.get(module_name) {
+                        let struct_type = import_object.get_struct(alias);
+                        let enum_type = import_object.get_enum(alias);
+
+                        if let Some(struct_type) = struct_type {
+                            return Ok(struct_type);
+                        }
+
+                        if let Some(enum_type) = enum_type {
+                            return Ok(enum_type);
+                        }
+                    } else {
+                        return Err(format!("Import `{}` is not declared here", module_name))
+                    }
+                }
 
                 Err(format!("Type `{}` is not defined in this scope", typ))
             }

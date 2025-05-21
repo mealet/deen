@@ -35,7 +35,6 @@ pub struct CodeGen<'ctx> {
 
     symtable: SymbolTable,
     imports: HashMap<String, ModuleContent<'ctx>>,
-    is_main: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -56,7 +55,6 @@ impl<'ctx> CodeGen<'ctx> {
         module_name: &str,
         module_source: &str,
         symtable: SymbolTable,
-        is_main: bool,
     ) -> Self {
         let module = context.create_module(module_name);
         let builder = context.create_builder();
@@ -90,7 +88,6 @@ impl<'ctx> CodeGen<'ctx> {
 
             symtable,
             imports: HashMap::new(),
-            is_main,
         }
     }
 
@@ -471,14 +468,16 @@ impl<'ctx> CodeGen<'ctx> {
             }
 
             Statements::StructDefineStatement {
-                name,
+                name: raw_name,
                 fields,
                 functions,
                 public: _,
                 span: _,
             } => {
-                let name = format!("{}{}", prefix.unwrap_or_default(), name);
-                let struct_type = self.context.opaque_struct_type(&name);
+                let name = format!("{}{}", prefix.clone().unwrap_or_default(), raw_name);
+                let llvm_name = format!("{}.{}{}", self.module.get_name().to_str().unwrap(), prefix.unwrap_or_default(), raw_name);
+
+                let struct_type = self.context.opaque_struct_type(&llvm_name);
                 let mut compiled_fields = Vec::new();
 
                 fields.iter().for_each(|field| {
@@ -703,16 +702,15 @@ impl<'ctx> CodeGen<'ctx> {
                     .map(|n| n.to_string())
                     .unwrap_or(fname.replace(".dn", ""));
 
-                let import = self.symtable.imports.get(&module_name).unwrap();
+                let import = self.symtable.imports.get(&module_name).cloned().unwrap_or_default();
                 let mut codegen = Self::new(
                     self.context,
                     &module_name,
                     &import.source,
                     import.embedded_symtable.clone(),
-                    false,
                 );
 
-                let (module, mut module_content) = codegen.compile(import.ast.clone(), None);
+                let (_module, mut module_content) = codegen.compile(import.ast.clone(), None);
 
                 module_content.functions.iter_mut().for_each(|func| {
                     let args_fmt = func.1.arguments.iter().map(|typ| typ.to_string()).collect::<Vec<String>>();
@@ -724,7 +722,6 @@ impl<'ctx> CodeGen<'ctx> {
                 });
 
                 self.imports.insert(module_name, module_content);
-                // self.module.link_in_module(module.to_owned()).unwrap();
             }
             Statements::ScopeStatement { block, span: _ } => {
                 self.enter_new_scope();
@@ -1204,7 +1201,7 @@ impl<'ctx> CodeGen<'ctx> {
                         }
 
                         if let Type::Alias(alias) = prev_type.clone() {
-                            let alias_type = self.get_alias_type(prev_type.clone()).unwrap();
+                            let alias_type = self.get_alias_type(prev_type.clone(), None).unwrap();
 
                             match alias_type {
                                 "struct" => {
@@ -1291,7 +1288,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                         match prev_type.clone() {
                             Type::Alias(alias) => {
-                                let alias_type = self.get_alias_type(prev_type.clone()).unwrap();
+                                let alias_type = self.get_alias_type(prev_type.clone(), None).unwrap();
 
                                 match alias_type {
                                     "struct" | "enum" => {
@@ -1334,8 +1331,6 @@ impl<'ctx> CodeGen<'ctx> {
                                 let module_content = self.imports.get(&import_name).unwrap().clone();
                                 let function = module_content.functions.get(name).unwrap();
 
-                                dbg!(&module_content);
-
                                 let arguments = arguments
                                     .iter()
                                     .zip(function.arguments.clone())
@@ -1359,7 +1354,33 @@ impl<'ctx> CodeGen<'ctx> {
                         }
                     },
 
-                    _ => unreachable!(),
+                    Expressions::Struct { name, fields, span: _ } => {
+                        if let Type::ImportObject(import_name) = prev_type.clone() {
+                            let structure = self.imports.get(&import_name).unwrap().structures.get(name).unwrap().clone();
+                            let struct_alloca = self.builder.build_alloca(structure.llvm_type, &format!("struct.{}.init", name)).unwrap();
+
+                            for (field_name, field_expr) in fields {
+                                let struct_field = structure.fields.get(field_name).unwrap();
+                                let field_value = self.compile_expression(field_expr.clone(), Some(struct_field.datatype.clone()));
+
+                                let field_ptr = self.builder.build_struct_gep(structure.llvm_type, struct_alloca, struct_field.nth, "").unwrap();
+                                let _ = self.builder.build_store(field_ptr, field_value.1).unwrap();
+                            }
+
+                            let value = match expected {
+                                Some(Type::Pointer(_)) => struct_alloca.into(),
+                                _ => self.builder.build_load(structure.llvm_type, struct_alloca, "").unwrap()
+                            };
+
+                            prev_type = Type::Alias(format!("{}.{}", import_name, name));
+                            prev_val = value;
+                        } else {
+                            unreachable!()
+                        }
+                    }
+                    _ => {
+                        panic!("Unreachable expression found: {:?}", sub)
+                    },
                 });
 
                 (prev_type, prev_val)
@@ -1573,11 +1594,6 @@ impl<'ctx> CodeGen<'ctx> {
                 fields,
                 span: _,
             } => {
-                let name = if self.is_main() {
-                    name
-                } else {
-                    format!("__{}_{}", self.module.get_name().to_str().unwrap(), name)
-                };
                 let structure = self.scope.get_struct(&name).unwrap();
                 let struct_alloca = self
                     .builder
@@ -1882,11 +1898,9 @@ impl<'ctx> CodeGen<'ctx> {
                     .as_basic_type_enum()
             }
             Type::Alias(alias) => {
-                let alias = if self.is_main() {
-                    alias
-                } else {
-                    format!("__{}_{}", self.module.get_name().to_str().unwrap(), alias)
-                };
+                dbg!(&alias);
+                dbg!(&self.scope);
+
                 let struct_type = self.scope.get_struct(&alias);
                 let enum_type = self.scope.get_enum(&alias);
                 let typedef_type = self.scope.get_typedef(&alias);
@@ -1939,7 +1953,7 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    fn get_alias_type(&self, alias_type: Type) -> Option<&str> {
+    fn get_alias_type(&self, alias_type: Type, import_name: Option<&str>) -> Option<&str> {
         if let Type::Alias(alias) = alias_type {
             let struct_type = self.scope.get_struct(&alias);
             let enum_type = self.scope.get_enum(&alias);
@@ -1955,7 +1969,35 @@ impl<'ctx> CodeGen<'ctx> {
                 return Some("typedef");
             };
 
-            unreachable!()
+            if let Some(import_name) = import_name {
+                let import = self.imports.get(import_name).unwrap();
+
+                let struct_type = import.structures.get(&alias);
+                let enum_type = import.enumerations.get(&alias);
+
+                if struct_type.is_some() {
+                    return Some("struct");
+                };
+                if enum_type.is_some() {
+                    return Some("enum");
+                };
+
+                None
+            } else {
+                *self.imports.iter().map(|(_, import)| {
+                    let struct_type = import.structures.get(&alias);
+                    let enum_type = import.enumerations.get(&alias);
+
+                    if struct_type.is_some() {
+                        return Some("struct");
+                    };
+                    if enum_type.is_some() {
+                        return Some("enum");
+                    };
+
+                    None
+                }).collect::<Vec<Option<&str>>>().first().unwrap()
+            }
         } else {
             None
         }
@@ -1966,10 +2008,6 @@ impl<'ctx> CodeGen<'ctx> {
             .take_while(|&(pos, _)| pos < position)
             .filter(|&(_, chr)| chr == '\n')
             .count() + 1
-    }
-
-    fn is_main(&self) -> bool {
-        self.is_main
     }
 
     fn build_branch(&mut self, block: BasicBlock<'ctx>) {
@@ -2012,7 +2050,7 @@ impl<'ctx> CodeGen<'ctx> {
             Type::Enum(_, _) => "%d",
 
             Type::Alias(_) => {
-                let alias_type = self.get_alias_type(datatype.clone()).unwrap();
+                let alias_type = self.get_alias_type(datatype.clone(), None).unwrap();
                 match alias_type {
                     "struct" => "%s",
                     "enum" => "%d",

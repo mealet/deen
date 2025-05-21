@@ -72,7 +72,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 .into()
                         }
                         Type::Alias(alias) => {
-                            let alias_type = self.get_alias_type(arg.0.clone()).unwrap();
+                            let alias_type = self.get_alias_type(arg.0.clone(), None).unwrap();
 
                             match alias_type {
                                 "struct" => {
@@ -183,7 +183,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 .into()
                         }
                         Type::Alias(alias) => {
-                            let alias_type = self.get_alias_type(arg.0.clone()).unwrap();
+                            let alias_type = self.get_alias_type(arg.0.clone(), None).unwrap();
 
                             match alias_type {
                                 "struct" => {
@@ -323,7 +323,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 .into()
                         }
                         Type::Alias(alias) => {
-                            let alias_type = self.get_alias_type(arg.0.clone()).unwrap();
+                            let alias_type = self.get_alias_type(arg.0.clone(), None).unwrap();
 
                             match alias_type {
                                 "struct" => {
