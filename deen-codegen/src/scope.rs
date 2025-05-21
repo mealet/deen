@@ -110,6 +110,14 @@ impl<'ctx> Scope<'ctx> {
     pub fn stricted_functions(&self) -> HashMap<String, Function<'ctx>> {
         self.functions.to_owned()
     }
+
+    pub fn stricted_structs(&self) -> HashMap<String, Structure<'ctx>> {
+        self.structures.to_owned()
+    }
+
+    pub fn stricted_enums(&self) -> HashMap<String, Enumeration<'ctx>> {
+        self.enumerations.to_owned()
+    }
 }
 
 impl<'ctx> CodeGen<'ctx> {

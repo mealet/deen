@@ -8,13 +8,7 @@ use crate::{
 };
 use deen_parser::{expressions::Expressions, statements::Statements, types::Type, value::Value};
 use inkwell::{
-    AddressSpace,
-    basic_block::BasicBlock,
-    builder::Builder,
-    context::Context,
-    module::Module,
-    types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType},
-    values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, PointerValue},
+    basic_block::BasicBlock, builder::Builder, context::Context, module::{Linkage, Module}, types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType}, values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, PointerValue}, AddressSpace
 };
 
 use deen_semantic::symtable::SymbolTable;
@@ -40,7 +34,15 @@ pub struct CodeGen<'ctx> {
     booleans_strings: Option<(PointerValue<'ctx>, PointerValue<'ctx>)>,
 
     symtable: SymbolTable,
+    imports: HashMap<String, ModuleContent<'ctx>>,
     is_main: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ModuleContent<'ctx> {
+    pub functions: HashMap<String, Function<'ctx>>,
+    pub structures: HashMap<String, Structure<'ctx>>,
+    pub enumerations: HashMap<String, Enumeration<'ctx>>,
 }
 
 impl<'ctx> CodeGen<'ctx> {
@@ -87,6 +89,7 @@ impl<'ctx> CodeGen<'ctx> {
             booleans_strings: None,
 
             symtable,
+            imports: HashMap::new(),
             is_main,
         }
     }
@@ -95,13 +98,14 @@ impl<'ctx> CodeGen<'ctx> {
         &mut self,
         statements: Vec<Statements>,
         prefix: Option<String>,
-    ) -> &Module<'ctx> {
+    ) -> (&Module<'ctx>, ModuleContent<'ctx>) {
         let pre_statements = statements.iter().filter(|stmt| {
             match stmt {
                 Statements::StructDefineStatement { name: _, fields: _, functions: _, public: _, span: _ } => true,
                 Statements::EnumDefineStatement { name: _, fields: _, functions: _, public: _, span: _ } => true,
                 Statements::TypedefStatement { alias: _, datatype: _, span: _ } => true,
                 Statements::ImportStatement { path: _, span: _ } => true,
+                Statements::FunctionDefineStatement { name, datatype: _, arguments: _, block: _, public: _, span: _, header_span: _ } => name != "main",
                 _ => false
             }
         }).collect::<Vec<&Statements>>();
@@ -111,17 +115,15 @@ impl<'ctx> CodeGen<'ctx> {
         pre_statements.clone().into_iter().for_each(|stmt| self.compile_statement(stmt.clone(), prefix.clone()));
         after_statements.into_iter().for_each(|stmt| self.compile_statement(stmt.clone(), prefix.clone()));
 
-        // let main_fn = self.functions.get("main");
-        //
-        // if let Some(main_fn) = main_fn {
-        //     let verified = main_fn.value.verify(false);
-        //     if main_fn.datatype == Type::Void && !verified {
-        //         self.builder.position_at_end(self.main_latest_block.unwrap());
-        //         self.builder.build_return(None).unwrap();
-        //     }
-        // }
+        let module_content = {
+            let functions = self.scope.stricted_functions();
+            let structures = self.scope.stricted_structs();
+            let enumerations = self.scope.stricted_enums();
 
-        &self.module
+            ModuleContent { functions, structures, enumerations }
+        };
+
+        (&self.module, module_content)
     }
 }
 
@@ -342,6 +344,7 @@ impl<'ctx> CodeGen<'ctx> {
                 span: _,
                 header_span: _,
             } => {
+                let module_name = self.module.get_name().to_str().unwrap();
                 let name = format!(
                     "{}{}",
                     prefix.clone().unwrap_or_default(),
@@ -349,7 +352,8 @@ impl<'ctx> CodeGen<'ctx> {
                 );
 
                 let llvm_ir_name = format!(
-                    "{}{}({})",
+                    "{}{}{}({})",
+                    if module_name == "main" { "".to_owned() } else { format!("{}.", module_name) },
                     prefix.clone().unwrap_or_default(),
                     raw_name,
                     arguments.iter().map(|arg| arg.1.to_string()).collect::<Vec<String>>().join(", ")
@@ -708,10 +712,19 @@ impl<'ctx> CodeGen<'ctx> {
                     false,
                 );
 
-                let prefix = format!("__{}_", module_name);
-                let module = codegen.compile(import.ast.clone(), Some(prefix));
+                let (module, mut module_content) = codegen.compile(import.ast.clone(), None);
 
-                self.module.link_in_module(module.to_owned()).unwrap();
+                module_content.functions.iter_mut().for_each(|func| {
+                    let args_fmt = func.1.arguments.iter().map(|typ| typ.to_string()).collect::<Vec<String>>();
+                    let args = func.1.arguments.iter().map(|typ| self.get_basic_type(typ.clone()).into()).collect::<Vec<BasicMetadataTypeEnum<'ctx>>>();
+                    let fn_type = self.get_fn_type(func.1.datatype.clone(), &args, false);
+
+                    let declared_fn = self.module.add_function(&format!("{}.{}({})", &module_name, func.0, args_fmt.join(", ")), fn_type, Some(Linkage::External));
+                    func.1.value = declared_fn;
+                });
+
+                self.imports.insert(module_name, module_content);
+                // self.module.link_in_module(module.to_owned()).unwrap();
             }
             Statements::ScopeStatement { block, span: _ } => {
                 self.enter_new_scope();
@@ -1317,6 +1330,29 @@ impl<'ctx> CodeGen<'ctx> {
                                     _ => unreachable!(),
                                 }
                             }
+                            Type::ImportObject(import_name) => {
+                                let module_content = self.imports.get(&import_name).unwrap().clone();
+                                let function = module_content.functions.get(name).unwrap();
+
+                                dbg!(&module_content);
+
+                                let arguments = arguments
+                                    .iter()
+                                    .zip(function.arguments.clone())
+                                    .map(|(arg, exp)| {
+                                        self.compile_expression(arg.clone(), Some(exp)).1.into()
+                                    })
+                                    .collect::<Vec<BasicMetadataValueEnum>>();
+
+                                prev_type = function.datatype.to_owned();
+                                prev_val = self
+                                    .builder
+                                    .build_call(function.value, &arguments, "")
+                                    .unwrap()
+                                    .try_as_basic_value()
+                                    .left()
+                                    .unwrap_or(self.context.i8_type().const_zero().into());
+                            }
                             _ => {
                                 panic!("FnCall `{}()` unreachable type got: `{}`", name, &prev_type);
                             }
@@ -1667,23 +1703,26 @@ impl<'ctx> CodeGen<'ctx> {
                     .into(),
             ),
             Value::Identifier(id) => {
-                let externed_id = if self.is_main() {
-                    id.clone()
-                } else {
-                    format!("__{}_{}", self.module.get_name().to_str().unwrap(), id)
-                };
-
-                if let Some(_) = self.scope.get_struct(&externed_id) {
-                    return (Type::Alias(externed_id), self.context.i8_type().const_zero().into())
+                // current module objects
+                if let Some(_) = self.scope.get_struct(&id) {
+                    return (Type::Alias(id), self.context.i8_type().const_zero().into())
                 }
-                if let Some(typedef) = self.scope.get_typedef(&externed_id) {
+                if let Some(typedef) = self.scope.get_typedef(&id) {
                     return (typedef.clone(), self.context.i8_type().const_zero().into());
                 }
-                if self.scope.get_enum(&externed_id).is_some() {
+                if self.scope.get_enum(&id).is_some() {
                     return (
-                        Type::Alias(externed_id),
+                        Type::Alias(id),
                         self.context.i8_type().const_zero().into(),
                     );
+                }
+
+                // seeking through imports
+                if let Some(_) = self.imports.get(&id) {
+                    return (
+                        Type::ImportObject(id),
+                        self.context.i8_type().const_zero().into(),
+                    )
                 }
 
                 let variable = self.scope.get_variable(&id).unwrap(); // already checked by semantic analyzer

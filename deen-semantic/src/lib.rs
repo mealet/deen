@@ -414,32 +414,35 @@ impl Analyzer {
                         let value_type = self.visit_expression(value, Some(datatype.clone()));
 
                         if &value_type != datatype {
-                            if Self::is_integer(&value_type) && Self::is_integer(&datatype) {
-                                if Self::integer_order(&value_type) > Self::integer_order(&datatype)
-                                {
+                            let unwrapped_datatype = self.unwrap_alias(datatype).unwrap_or_else(|err| {
+                                self.error(err, *span);
+                                Type::Void
+                            });
+
+                            if unwrapped_datatype != value_type {
+                                if Self::is_integer(&value_type) && Self::is_integer(&unwrapped_datatype) {
+                                    if Self::integer_order(&value_type) > Self::integer_order(&unwrapped_datatype)
+                                    {
+                                        self.error(
+                                            format!(
+                                                "Expected integer type `{}`, but found `{}`",
+                                                display_type.unwrap(),
+                                                value_type
+                                            ),
+                                            *span,
+                                        );
+                                    }
+                                } else {
                                     self.error(
                                         format!(
-                                            "Expected integer type `{}`, but found `{}`",
+                                            "Expected type `{}` but found `{}`",
                                             display_type.unwrap(),
                                             value_type
                                         ),
                                         *span,
                                     );
-                                    return;
                                 }
-
-                                return;
                             }
-
-                            self.error(
-                                format!(
-                                    "Expected type `{}` but found `{}`",
-                                    display_type.unwrap(),
-                                    value_type
-                                ),
-                                *span,
-                            );
-                            return;
                         }
 
                         self.scope
@@ -1045,7 +1048,7 @@ impl Analyzer {
                             analyzer.scope.functions.into_iter().for_each(|func| {
                                 if func.1.public {
                                     import.add_fn(
-                                        format!("__{}_{}", module_name, func.0),
+                                        format!("{}.{}", module_name, func.0),
                                         func.1.datatype,
                                     );
                                 }
@@ -1054,7 +1057,7 @@ impl Analyzer {
                             analyzer.scope.structures.into_iter().for_each(|structure| {
                                 if structure.1.public {
                                     import.add_struct(
-                                        format!("__{}_{}", module_name, structure.0),
+                                        format!("{}.{}", module_name, structure.0),
                                         structure.1.datatype,
                                     );
                                 }
@@ -1063,7 +1066,7 @@ impl Analyzer {
                             analyzer.scope.enums.into_iter().for_each(|enumeration| {
                                 if enumeration.1.public {
                                     import.add_enum(
-                                        format!("__{}_{}", module_name, enumeration.0),
+                                        format!("{}.{}", module_name, enumeration.0),
                                         enumeration.1.datatype,
                                     );
                                 }
@@ -1459,7 +1462,7 @@ impl Analyzer {
                                 Type::ImportObject(imp) => {
                                     let import = self.symtable.imports.get(&imp).unwrap().clone();
 
-                                    let name = format!("__{}_{}", imp, name);
+                                    let name = format!("{}.{}", imp, name);
                                     if let Some(Type::Function(args, datatype)) = import.functions.get(&name) {
                                         prev_type_display = *datatype.clone();
                                         prev_type = self.unwrap_alias(datatype).unwrap_or_else(|err| {
@@ -1469,7 +1472,7 @@ impl Analyzer {
 
                                         if arguments.len() != args.len() {
                                             self.error(
-                                                format!("Function `{}` has {} arguments, but found {}", name, args.len(), arguments.len()),
+                                                format!("Function `{}()` has {} arguments, but found {}", name, args.len(), arguments.len()),
                                                 *span
                                             );
                                             return;
@@ -1496,7 +1499,7 @@ impl Analyzer {
                                         });
                                     } else {
                                         self.error(
-                                            format!("Import {} has no functions named `{}`", imp, name),
+                                            format!("Import `{}` has no functions named `{}()`", imp, name),
                                             *span
                                         );
                                     };
@@ -1515,7 +1518,7 @@ impl Analyzer {
                                 Type::ImportObject(imp) => {
                                     let import = self.symtable.imports.get(&imp).unwrap().clone();
 
-                                    let name = format!("__{}_{}", imp, name); 
+                                    let name = format!("{}.{}", imp, name); 
                                     if let Some(Type::Struct(struct_fields, _)) = import.structs.get(&name) {
 
                                         let mut assigned_fields = HashMap::new();

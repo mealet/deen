@@ -202,7 +202,7 @@ fn main() {
     let ctx = deen_codegen::CodeGen::create_context();
     let mut codegen = deen_codegen::CodeGen::new(&ctx, &module_name, &src, symtable, true);
 
-    let module_ref = codegen.compile(ast, None);
+    let (module_ref, _) = codegen.compile(ast, None);
 
     if args.llvm {
         module_ref
