@@ -103,6 +103,15 @@ pub enum Statements {
         path: Expressions,
         span: (usize, usize),
     },
+    ExternStatement {
+        identifier: String,
+        arguments: Vec<Type>,
+        return_type: Type,
+        extern_type: String,
+        is_var_args: bool,
+        public: bool,
+        span: (usize, usize)
+    },
 
     BreakStatements {
         span: (usize, usize),
@@ -517,7 +526,7 @@ impl Parser {
             let _ = self.next();
         }
 
-        self.skip_eos();
+        // self.skip_eos();
         Statements::FunctionDefineStatement {
             name: identifier,
             datatype,
@@ -931,5 +940,97 @@ impl Parser {
             datatype,
             span: (span_start, span_end),
         }
+    }
+
+    pub fn extern_statement(&mut self) -> Statements {
+        let span_start = self.current().span.0;
+        if self.expect(TokenType::Keyword) {
+            let _ = self.next();
+        }
+
+        if !self.expect(TokenType::String) {
+            self.error(
+                String::from("Expected stringified extern type. Example: extern \"C\" fn malloc(usize) *void"),
+                self.current().span
+            );
+        }
+
+        let extern_type = self.current().value;
+        let _ = self.next();
+
+        let public = self.expect(TokenType::Keyword) && self.current().value == "pub";
+        if public {
+            let _ = self.next();
+        }
+
+        if !self.expect(TokenType::Keyword) && self.current().value != "fn" {
+            self.error(
+                String::from("Extern statement supports only functions declarations"),
+                self.current().span
+            );
+        }
+
+        let _ = self.next();
+        let identifier = if self.expect(TokenType::Identifier) {
+            self.current().value
+        } else {
+            self.error(
+                String::from("Expected extern function identifier after keyword"),
+                self.current().span
+            );
+            "undefined".to_string()
+        };
+
+        let _ = self.next();
+        if !self.expect(TokenType::LParen) {
+            self.error(
+                String::from("Expected arguments types block for external function"),
+                self.current().span
+            );
+        }
+
+        let mut arguments = Vec::new();
+        let mut is_var_args = false;
+        let _ = self.next();
+
+        while !self.expect(TokenType::RParen) {
+            if self.expect(TokenType::Dot) {
+                if self.next().token_type == TokenType::Dot
+                && self.next().token_type == TokenType::Dot {
+                    is_var_args = true;
+                    let _ = self.next();
+                } else {
+                    self.position -= 1;
+                    self.error(
+                        String::from("Unexpected argument declaration found"),
+                        self.current().span
+                    );
+                }
+                continue;
+            }
+
+            if self.expect(TokenType::RParen) { break }
+            if self.expect(TokenType::Semicolon) { break }
+            if self.expect(TokenType::Comma) {
+                let _ = self.next();
+                continue;
+            }
+
+            arguments.push(self.parse_type());
+        }
+
+        if self.expect(TokenType::RParen) {
+            let _ = self.next();
+        }
+
+        let mut return_type = Type::Void;
+        if !self.expect(TokenType::Semicolon) {
+            return_type = self.parse_type();
+        }
+
+        let span_end = self.current().span.1;
+        self.skip_eos();
+
+        Statements::ExternStatement { identifier, arguments, return_type, extern_type, public, is_var_args, span: (span_start, span_end) }
     }
 }

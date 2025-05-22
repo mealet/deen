@@ -365,7 +365,7 @@ impl<'ctx> CodeGen<'ctx> {
                 let function = self.module.add_function(
                     if name == "main" { "main" } else { &llvm_ir_name },
                     fn_type,
-                    Some(inkwell::module::Linkage::External),
+                    None
                 );
                 let entry = self.context.append_basic_block(function, "entry");
 
@@ -447,9 +447,15 @@ impl<'ctx> CodeGen<'ctx> {
                 let function = self.scope.get_function(&name).unwrap();
                 let mut basic_args: Vec<BasicMetadataValueEnum> = Vec::new();
 
+                let mut function_args = function.arguments.clone();
+                if function_args[function_args.len() - 1] == Type::Void
+                && function_args[function_args.len() - 2] == Type::Void {
+                    function_args.resize(arguments.len(), Type::Void);
+                }
+
                 arguments
                     .into_iter()
-                    .zip(function.arguments.clone())
+                    .zip(function_args)
                     .for_each(|(expr, expected)| {
                         basic_args.push(self.compile_expression(expr, Some(expected)).1.into());
                     });
@@ -685,6 +691,32 @@ impl<'ctx> CodeGen<'ctx> {
                     self.builder.build_return(Some(&compiled_value.1)).unwrap();
                 }
             }
+
+            Statements::ExternStatement { identifier, arguments, return_type, extern_type: _, is_var_args, public: _, span: _ } => {
+                let basic_arguments = arguments.iter().map(|arg| self.get_basic_type(arg.clone()).into()).collect::<Vec<BasicMetadataTypeEnum>>();
+
+                let fn_type = self.get_fn_type(return_type.clone(), &basic_arguments, is_var_args);
+                let fn_value = self.module.add_function(&identifier, fn_type, Some(Linkage::External));
+
+                // little hack cuz i dont wanna add `is_var_args` argument to function structure
+                // and fix the whole code for the only one usage
+
+                let mut arguments = arguments;
+                arguments.push(Type::Void);
+                arguments.push(Type::Void);
+
+                // so if we have 2 void arguments at the end (which is impossible in basic code) - this is var args
+
+                self.scope.set_function(
+                    identifier,
+                    Function {
+                        datatype: return_type,
+                        value: fn_value,
+                        arguments
+                    }
+                )
+            },
+
             Statements::ImportStatement { path, span: _ } => {
                 let path = if let Expressions::Value(Value::String(path), _) = path {
                     path
@@ -1918,7 +1950,7 @@ impl<'ctx> CodeGen<'ctx> {
                 unreachable!()
             }
 
-            Type::Function(_, _) => unreachable!(),
+            Type::Function(_, _, _) => unreachable!(),
             Type::ImportObject(_) => unreachable!(),
             Type::Struct(fields, _) => self
                 .context

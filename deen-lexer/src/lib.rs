@@ -72,6 +72,7 @@ impl Lexer {
                 std_keyword!("pub"),
                 std_keyword!("fn"),
                 std_keyword!("import"),
+                std_keyword!("extern"),
                 std_keyword!("return"),
                 std_keyword!("struct"),
                 std_keyword!("enum"),

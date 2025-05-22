@@ -203,6 +203,7 @@ impl Analyzer {
                     public: _,
                     span: _,
                 } => {}
+                Statements::ExternStatement { identifier: _, arguments: _, return_type: _, extern_type: _, public: _, is_var_args: _, span: _ } => {}
                 _ => {
                     if let Some(err) = self.errors.last() {
                         if err.span == (255, 0).into() {
@@ -498,6 +499,7 @@ impl Analyzer {
                                 .map(|arg| arg.1.clone())
                                 .collect::<Vec<Type>>(),
                             Box::new(datatype.clone()),
+                            false
                         ),
                         *public,
                     )
@@ -563,23 +565,25 @@ impl Analyzer {
                 if func == Type::Void {
                     return;
                 };
-                if let Type::Function(func_args, func_type) = func {
+                if let Type::Function(func_args, func_type, is_var_args) = func {
                     let call_args = arguments
                         .iter()
                         .map(|arg| self.visit_expression(arg, None))
                         .collect::<Vec<Type>>();
 
                     if call_args.len() != func_args.len() {
-                        self.error(
-                            format!(
-                                "Function `{}` has {} arguments, but found {}",
-                                name,
-                                func_args.len(),
-                                call_args.len()
-                            ),
-                            *span,
-                        );
-                        return;
+                        if is_var_args && call_args.len() >= func_args.len() {} else {
+                            self.error(
+                                format!(
+                                    "Function `{}` has {} arguments, but found {}",
+                                    name,
+                                    func_args.len(),
+                                    call_args.len()
+                                ),
+                                *span,
+                            );
+                            return;
+                        }
                     }
 
                     call_args.iter().enumerate().zip(func_args).for_each(
@@ -1048,7 +1052,7 @@ impl Analyzer {
                             analyzer.scope.functions.into_iter().for_each(|func| {
                                 if func.1.public {
                                     import.add_fn(
-                                        format!("{}.{}", module_name, func.0),
+                                        format!("{}", func.0),
                                         func.1.datatype,
                                     );
                                 }
@@ -1057,7 +1061,7 @@ impl Analyzer {
                             analyzer.scope.structures.into_iter().for_each(|structure| {
                                 if structure.1.public {
                                     import.add_struct(
-                                        format!("{}.{}", module_name, structure.0),
+                                        format!("{}", structure.0),
                                         structure.1.datatype,
                                     );
                                 }
@@ -1066,7 +1070,7 @@ impl Analyzer {
                             analyzer.scope.enums.into_iter().for_each(|enumeration| {
                                 if enumeration.1.public {
                                     import.add_enum(
-                                        format!("{}.{}", module_name, enumeration.0),
+                                        format!("{}", enumeration.0),
                                         enumeration.1.datatype,
                                     );
                                 }
@@ -1084,6 +1088,44 @@ impl Analyzer {
                     self.error(String::from("Import must be string constant"), *span);
                 }
             },
+
+            Statements::ExternStatement { identifier, arguments, return_type, public, extern_type, is_var_args, span } => {
+                const SUPPORTED_EXTERN_TYPES: [&'static str; 1] = ["C"];
+
+                if !SUPPORTED_EXTERN_TYPES.contains(&extern_type.as_str()) {
+                    self.error(
+                        format!("Unsupported extern type found. Currently supported are: \"{}\"", SUPPORTED_EXTERN_TYPES.join("\", ")),
+                        *span
+                    )
+                }
+
+                if identifier == "main" {
+                    self.error(
+                        String::from("Function `main()` cannot be external declared"),
+                        *span
+                    );
+                }
+                if self.scope.get_fn(&identifier).is_some() {
+                    self.error(
+                        format!("Function `{}()` is already declared", &identifier),
+                        *span
+                    );
+                    return;
+                }
+
+                self.scope.add_fn(
+                    identifier.clone(),
+                    Type::Function(
+                        arguments.clone(),
+                        Box::new(return_type.clone()),
+                        *is_var_args
+                    ),
+                    *public
+                ).unwrap_or_else(|err| {
+                    self.error(err, *span);
+                });
+            },
+
             Statements::BreakStatements { span } => {
                 if !self.scope.is_loop() {
                     self.error(String::from("Used `break` keyword outside loop"), *span);
@@ -1407,7 +1449,7 @@ impl Analyzer {
                                         &Type::Void
                                     });
 
-                                    if let Type::Function(args, datatype) = function_type {
+                                    if let Type::Function(args, datatype, is_var_args) = function_type {
                                         let mut arguments = arguments.clone();
 
                                         if let Some(Type::Alias(alias)) = args.first() {
@@ -1427,11 +1469,13 @@ impl Analyzer {
                                         });
 
                                         if arguments.len() != args.len() {
-                                            self.error(
-                                                format!("Function `{}` has {} arguments, but found {}", name, args.len(), arguments.len()),
-                                                *span
-                                            );
-                                            return;
+                                            if *is_var_args && arguments.len() >= args.len() {} else {
+                                                self.error(
+                                                    format!("Function `{}` has {} arguments, but found {}", name, args.len(), arguments.len()),
+                                                    *span
+                                                );
+                                                return;
+                                            }
                                         }
 
                                         arguments.iter().enumerate().zip(args).for_each(|((index, expr), expected)| {
@@ -1463,7 +1507,7 @@ impl Analyzer {
                                     let import = self.symtable.imports.get(&imp).unwrap().clone();
                                     let name = format!("{}.{}", imp, name);
 
-                                    if let Some(Type::Function(args, datatype)) = import.functions.get(&name) {
+                                    if let Some(Type::Function(args, datatype, is_var_args)) = import.functions.get(&name) {
                                         prev_type_display = *datatype.clone();
                                         prev_type = self.unwrap_alias(datatype).unwrap_or_else(|err| {
                                             self.error(err, *span);
@@ -1471,11 +1515,13 @@ impl Analyzer {
                                         });
 
                                         if arguments.len() != args.len() {
-                                            self.error(
-                                                format!("Function `{}()` has {} arguments, but found {}", name, args.len(), arguments.len()),
-                                                *span
-                                            );
-                                            return;
+                                            if *is_var_args && arguments.len() >= args.len() {} else {
+                                                self.error(
+                                                    format!("Function `{}()` has {} arguments, but found {}", name, args.len(), arguments.len()),
+                                                    *span
+                                                );
+                                                return;
+                                            }
                                         }
 
                                         arguments.iter().enumerate().zip(args).for_each(|((index, expr), expected)| {
@@ -1598,7 +1644,7 @@ impl Analyzer {
                 if func == Type::Void {
                     return func;
                 };
-                if let Type::Function(func_args, func_type) = func {
+                if let Type::Function(func_args, func_type, is_var_args) = func {
                     let call_args = arguments
                         .iter()
                         .zip(func_args.clone())
@@ -1606,16 +1652,18 @@ impl Analyzer {
                         .collect::<Vec<Type>>();
 
                     if call_args.len() != func_args.len() {
-                        self.error(
-                            format!(
-                                "Function `{}` has {} arguments, but found {}",
-                                &name,
-                                func_args.len(),
-                                call_args.len()
-                            ),
-                            *span,
-                        );
-                        return *func_type;
+                        if is_var_args && call_args.len() >= func_args.len() {} else {
+                            self.error(
+                                format!(
+                                    "Function `{}` has {} arguments, but found {}",
+                                    &name,
+                                    func_args.len(),
+                                    call_args.len()
+                                ),
+                                *span,
+                            );
+                            return *func_type;
+                        }
                     }
 
                     call_args.iter().enumerate().zip(func_args).for_each(
@@ -2018,7 +2066,7 @@ impl Analyzer {
                                 }
                             }
                             Type::Struct(_, functions) => {
-                                if let Some(Type::Function(_, return_type)) = functions.get("display") {
+                                if let Some(Type::Function(_, return_type, _)) = functions.get("display") {
                                     if let Type::Pointer(ptr) = *return_type.clone() {
                                         if *ptr.clone() == Type::Char {} else {
                                             self.error(
@@ -2041,7 +2089,7 @@ impl Analyzer {
                             }
                             Type::Alias(alias) => {
                                 if let Some(Type::Struct(_, functions)) = self.scope.get_struct(&alias) {
-                                    if let Some(Type::Function(_, return_type)) = functions.get("display") {
+                                    if let Some(Type::Function(_, return_type, _)) = functions.get("display") {
                                         if let Type::Pointer(ptr) = *return_type.clone() {
                                             if *ptr.clone() == Type::Char {} else {
                                                 self.error(
