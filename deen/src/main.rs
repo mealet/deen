@@ -1,9 +1,45 @@
-use clap::Parser;
+use clap::{CommandFactory, Parser};
+use colored::Colorize;
 
 mod cli;
 
 fn main() {
-    let args = cli::Args::parse();
+    let args = cli::Args::try_parse().unwrap_or_else(|e| {
+        let mut command = cli::Args::command();
+
+        match e.kind() {
+            clap::error::ErrorKind::DisplayVersion => {
+
+                eprintln!("{}", "🚀 Deen Programming Language".bold().cyan());
+                eprintln!("| - version: {}", env!("CARGO_PKG_VERSION"));
+                eprintln!("| - authors: {}", env!("CARGO_PKG_AUTHORS"));
+
+                std::process::exit(0);
+            },
+            _ => {
+                eprintln!("{}", "🚀 Deen Programming Language".bold().cyan());
+                eprintln!("| - version: {}", env!("CARGO_PKG_VERSION"));
+                eprintln!("| - authors: {}", env!("CARGO_PKG_AUTHORS"));
+                eprintln!("");
+                eprintln!("{}", "🍀 Options:".bold().cyan());
+
+                command.print_help().unwrap();
+
+                eprintln!("");
+                eprintln!("{}", "🎓 Examples of usage:".bold().cyan());
+                eprintln!("  deen example.dn output");
+                eprintln!("  deen example.dn output --no-warns");
+                eprintln!("  deen example.dn output --include foo.c");
+
+                if e.kind() == clap::error::ErrorKind::DisplayHelp {
+                    std::process::exit(0);
+                }
+                std::process::exit(1);
+            }
+        }
+
+    });
+
     let no_warns = args.no_warns;
 
     let fname = args.path

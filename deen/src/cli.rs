@@ -3,18 +3,26 @@ use colored::Colorize;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(
+    author,
+    version,
+    about = "Compiler for Deen Programming Language",
+    long_about = None,
+    help_template = "\
+{options}
+"
+)]
 pub struct Args {
     pub path: PathBuf,
     pub output: PathBuf,
 
-    #[arg(short, long, action)]
+    #[arg(short, long, action, help = "Disable compiler's warnings")]
     pub no_warns: bool,
 
-    #[arg(short, long, action)]
+    #[arg(short, long, action, help = "Enable compilation into LLVM IR")]
     pub llvm: bool,
 
-    #[arg(short, long, action)]
+    #[arg(short, long, action, help = "Include C library to linker")]
     pub include: Vec<PathBuf>
 }
 
