@@ -134,6 +134,24 @@ fn main() {
 Jason <35>
 ```
 
+----
+
+Using Standart C Library
+```rust
+extern "C" fn malloc(usize) *void;
+extern "C" fn free(*void);
+
+fn main() {
+  let ptr = malloc(sizeof!(i32));
+  
+  // usage (soon will be implemented)
+
+  free(ptr);
+}
+```
+
+
+
 ## 👮 License
 The project is licensed under the BSD-3 Clause License. <br>
 For more information see [License File](https://github.com/mealet/deen/blob/master/LICENSE)
