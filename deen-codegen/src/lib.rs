@@ -1941,9 +1941,6 @@ impl<'ctx> CodeGen<'ctx> {
                     .as_basic_type_enum()
             }
             Type::Alias(alias) => {
-                dbg!(&alias);
-                dbg!(&self.scope);
-
                 let struct_type = self.scope.get_struct(&alias);
                 let enum_type = self.scope.get_enum(&alias);
                 let typedef_type = self.scope.get_typedef(&alias);

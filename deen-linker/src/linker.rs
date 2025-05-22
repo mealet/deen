@@ -9,12 +9,12 @@ impl ObjectLinker {
             output_path = format!("{output_path}.exe");
         }
 
-        let includes_formatted = includes.iter().map(|inc| inc.to_str().unwrap()).collect::<Vec<&str>>().join(" ");
-
+        let includes_formatted = includes.iter().map(|inc| inc.as_os_str()).collect::<Vec<_>>();
         let input = format!("{module_name}.o");
+
         let linker_output = std::process::Command::new("cc")
             .arg(input.clone())
-            .arg(includes_formatted)
+            .args(includes_formatted)
             .arg("-o")
             .arg(output_path)
             .output();
