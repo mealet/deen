@@ -251,6 +251,13 @@ impl Parser {
             let _ = self.next();
         }
     }
+
+    fn skip_statement(&mut self) {
+        while !self.expect(TokenType::Semicolon) {
+            let _ = self.next();
+        }
+        self.skip_eos();
+    }
 }
 
 impl Parser {
@@ -328,9 +335,27 @@ impl Parser {
                 match self.current().token_type {
                     TokenType::LParen => return self.call_expression(current.value, current.span),
                     TokenType::LBrack => return self.slice_expression(output),
+                    TokenType::Dot => {
+                        return self.subelement_expression(output, TokenType::Dot);
+                    }
                     TokenType::LBrace => {
+                        let _ = self.next();
+                        if self.expect(TokenType::Dot) {
+                            self.position -= 2;
+                            return self.struct_expression(current.value.clone());
+                        }
                         self.position -= 1;
-                        return self.struct_expression(current.value.clone());
+                        return output
+
+                    }
+                    TokenType::Not => {
+                        let _ = self.next();
+                        if self.expect(TokenType::LParen) {
+                            self.position -= 1;
+                            return self.macrocall_expression(current.value, current.span);
+                        }
+                        self.position -= 1;
+                        return output;
                     }
                     TokenType::DoubleDots => {
                         let _ = self.next();
@@ -345,7 +370,7 @@ impl Parser {
                     _ => {}
                 }
 
-                output
+                return output;
             }
 
             TokenType::Ref => Expressions::Reference {
@@ -412,10 +437,15 @@ impl Parser {
                 }
             }
 
+            TokenType::Type => {
+                let datatype = self.get_basic_type(current.value, current.span);
+                Expressions::Argument { name: "@deen_type".to_string(), r#type: datatype, span: current.span }
+            }
+
             _ => {
                 self.error(
                     String::from("Undefined term found"),
-                    (current.span.0 - 1, current.span.1 - 1),
+                    (current.span.0, current.span.1),
                 );
                 Expressions::None
             }
@@ -423,7 +453,7 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Expressions {
-        let mut node = self.term();
+        let node = self.term();
         let current = self.current();
 
         match current.token_type {
@@ -457,11 +487,6 @@ impl Parser {
                 }
             }
 
-            TokenType::Dot => {
-                node = self.subelement_expression(node, TokenType::Dot);
-                node
-            }
-
             END_STATEMENT => {
                 self.next();
                 node
@@ -478,6 +503,7 @@ impl Parser {
             TokenType::Keyword => match current.value.as_str() {
                 "let" => self.annotation_statement(),
                 "import" => self.import_statement(),
+                "extern" => self.extern_statement(),
                 "if" => self.if_statement(),
                 "else" => {
                     self.error(
@@ -575,24 +601,54 @@ impl Parser {
                 Statements::ScopeStatement { block, span }
             }
             TokenType::Multiply => {
+                let span_start = self.current().span.0;
                 let _ = self.next();
 
                 match self.current().token_type {
-                    TokenType::Identifier => {
-                        let span_start = self.current().span.0;
+                    TokenType::Identifier | TokenType::Multiply => {
                         let stmt = self.statement();
-                        let span_end = self.current().span.1 - 1;
+
+                        self.position -= 1;
+                        let span_end = self.current().span.1;
+                        self.position += 1;
 
                         match stmt {
                             Statements::AssignStatement {
-                                identifier,
+                                object,
                                 value,
                                 span,
                             } => Statements::DerefAssignStatement {
-                                identifier,
+                                object,
                                 value,
                                 span,
                             },
+                            Statements::FieldAssignStatement { object, value, span } => Statements::DerefAssignStatement { object, value, span },
+                            Statements::BinaryAssignStatement { object, operand, value, span } => Statements::DerefAssignStatement {
+                                object: object.clone(),
+                                value: Expressions::Binary {
+                                    operand,
+                                    lhs: Box::new(object),
+                                    rhs: Box::new(value),
+                                    span
+                                },
+                                span
+                            },
+                            Statements::SliceAssignStatement { object, index, value, span } => Statements::DerefAssignStatement {
+                                object: Expressions::Slice {
+                                    object: Box::new(object),
+                                    index: Box::new(index),
+                                    span
+                                },
+                                value,
+                                span
+                            },
+                            Statements::DerefAssignStatement { object, value, span } => {
+                                Statements::DerefAssignStatement {
+                                    object: Expressions::Dereference { object: Box::new(object), span },
+                                    value,
+                                    span
+                                }
+                            }
                             _ => {
                                 self.error(
                                     String::from("Unsupported for dereference statement found"),
@@ -614,7 +670,8 @@ impl Parser {
             TokenType::Identifier => {
                 let next = self.next();
                 match next.token_type {
-                    TokenType::Equal => self.assign_statement(current.value, current.span),
+                    TokenType::Equal => self.assign_statement(Expressions::Value(Value::Identifier(current.value), current.span), current.span),
+                    TokenType::Not => self.macrocall_statement(current.value, current.span),
                     TokenType::Dot => {
                         let sub_expr = self.subelement_expression(
                             Expressions::Value(
@@ -637,25 +694,53 @@ impl Parser {
                                     span: (current.span.0, span_end),
                                 }
                             }
+                            TokenType::Plus | TokenType::Minus | TokenType::Multiply | TokenType::Divide => {
+                                let operand = self.current().value;
+                                let _ = self.next();
+
+                                if !self.expect(TokenType::Equal) {
+                                    self.error(
+                                        String::from("Unexpected binary expression after subelement"),
+                                        (current.span.0, self.current().span.1)
+                                    );
+                                    return Statements::None;
+                                }
+
+                                let _ = self.next();
+                                let value = self.expression();
+                                let span_end = self.current().span.1;
+                                self.skip_eos();
+
+                                Statements::BinaryAssignStatement {
+                                    object: sub_expr,
+                                    operand,
+                                    value,
+                                    span: (current.span.0, span_end)
+                                }
+                            }
                             TokenType::Semicolon => {
                                 self.skip_eos();
                                 Statements::Expression(sub_expr)
                             }
                             _ => {
+                                self.position -= 1;
+                                let span_end = self.current().span.1;
+                                self.position += 1;
+
                                 self.error(
                                     String::from("Unexpected subelement in statement found"),
-                                    (current.span.0, self.current().span.1),
+                                    (current.span.0, span_end),
                                 );
                                 Statements::None
                             }
                         }
                     }
                     TokenType::LParen => self.call_statement(current.value, current.span),
-                    TokenType::LBrack => self.slice_assign_statement(current.value, current.span),
+                    TokenType::LBrack => self.slice_assign_statement(Expressions::Value(Value::Identifier(current.value), current.span), current.span),
 
                     tty if BINARY_OPERATORS.contains(&tty) => match self.next().token_type {
                         TokenType::Equal => {
-                            self.binary_assign_statement(current.value, next.value, current.span)
+                            self.binary_assign_statement(Expressions::Value(Value::Identifier(current.value), current.span), next.value, current.span)
                         }
                         TokenType::Plus | TokenType::Minus => {
                             let span_start = next.span.0;
@@ -676,7 +761,7 @@ impl Parser {
                             self.skip_eos();
 
                             Statements::BinaryAssignStatement {
-                                identifier: current.value,
+                                object: Expressions::Value(Value::Identifier(current.value), current.span),
                                 operand: op1,
                                 value: Expressions::Value(
                                     Value::Integer(1),

@@ -47,6 +47,12 @@ pub enum Expressions {
         arguments: Vec<Expressions>,
         span: (usize, usize),
     },
+    MacroCall {
+        name: String,
+        arguments: Vec<Expressions>,
+        span: (usize, usize),
+    },
+
     Reference {
         object: Box<Expressions>,
         span: (usize, usize),
@@ -121,6 +127,11 @@ impl Parser {
                 arguments: _,
                 span,
             } => span,
+            Expressions::MacroCall {
+                name: _,
+                arguments: _,
+                span,
+            } => span,
             Expressions::Reference { object: _, span } => span,
             Expressions::Dereference { object: _, span } => span,
             Expressions::Array {
@@ -180,7 +191,6 @@ impl Parser {
             span_end = self.current().span.1;
         }
 
-        self.skip_eos();
         Expressions::SubElement {
             head,
             subelements,
@@ -321,11 +331,32 @@ impl Parser {
 
         let arguments =
             self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+
+        self.position -= 1;
         let span_end = self.current().span.1;
-        self.skip_eos();
+        self.position += 1;
 
         Expressions::FnCall {
             name: fname,
+            arguments,
+            span: (span.0, span_end),
+        }
+    }
+
+    pub fn macrocall_expression(&mut self, name: String, span: (usize, usize)) -> Expressions {
+        if self.expect(TokenType::Not) {
+            let _ = self.next();
+        }
+
+        let arguments =
+            self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+
+        self.position -= 1;
+        let span_end = self.current().span.1;
+        self.position += 1;
+
+        Expressions::MacroCall {
+            name,
             arguments,
             span: (span.0, span_end),
         }
@@ -364,6 +395,7 @@ impl Parser {
                 String::from("Expected `{` after structure initialization"),
                 (span_start, self.current().span.1),
             );
+            self.skip_statement();
             return Expressions::None;
         };
 

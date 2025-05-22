@@ -16,11 +16,14 @@ fn assign_statement() {
 
     match ast.first() {
         Some(Statements::AssignStatement {
-            identifier,
+            object,
             value,
             span: _,
         }) => {
-            assert_eq!(identifier, "some_var");
+            if let Expressions::Value(Value::Identifier(identifier), _) = object {
+                assert_eq!(identifier, "some_var");
+            } else { panic!("Wrong obj expr parsed") }
+
             if let Expressions::Value(Value::Integer(5), _) = value {
             } else {
                 panic!("Wrong value expr found")
@@ -43,12 +46,15 @@ fn binary_assign_statement() {
 
     match ast.first() {
         Some(Statements::BinaryAssignStatement {
-            identifier,
+            object,
             operand,
             value,
             span: _,
         }) => {
-            assert_eq!(identifier, "some_var");
+            if let Expressions::Value(Value::Identifier(identifier), _) = object {
+                assert_eq!(identifier, "some_var");
+            }
+
             assert_eq!(operand, "+");
 
             if let Expressions::Value(Value::Integer(5), _) = value {
@@ -73,11 +79,13 @@ fn deref_assign_statement() {
 
     match ast.first() {
         Some(Statements::DerefAssignStatement {
-            identifier,
+            object,
             value,
             span: _,
         }) => {
-            assert_eq!(identifier, "ptr");
+            if let Expressions::Value(Value::Identifier(identifier), _) = object {
+                assert_eq!(identifier, "ptr");
+            }
 
             if let Expressions::Value(Value::Integer(5), _) = value {
             } else {
@@ -101,12 +109,14 @@ fn slice_assign_statement() {
 
     match ast.first() {
         Some(Statements::SliceAssignStatement {
-            identifier,
+            object,
             index,
             value,
             span: _,
         }) => {
-            assert_eq!(identifier, "list");
+            if let Expressions::Value(Value::Identifier(identifier), _) = object {
+                assert_eq!(identifier, "list");
+            }
 
             if let Expressions::Value(Value::Integer(0), _) = index {
             } else {

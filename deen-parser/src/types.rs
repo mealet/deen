@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
+    SelfRef,
+
     I8,
     I16,
     I32,
@@ -30,7 +32,7 @@ pub enum Type {
     Alias(String),
 
     // will be used for semantical analyzer
-    Function(Vec<Type>, Box<Type>), // fn foo(a: i32, b: u32) string  --->  Function([I32, U32], String)
+    Function(Vec<Type>, Box<Type>, bool), // fn foo(a: i32, b: u32) string  --->  Function([I32, U32], String)
     Struct(HashMap<String, Type>, HashMap<String, Type>), // struct Abc { a: i32, b: bool, c: *u64 }  ---> Struct([I32, Bool, Pointer(U64)])
     Enum(Vec<String>, HashMap<String, Type>),             // enum Abc { A, B, C } -> Enum([A, B, C])
 
@@ -40,6 +42,8 @@ pub enum Type {
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Type::SelfRef => write!(f, "&self"),
+
             Type::I8 => write!(f, "i8"),
             Type::I16 => write!(f, "i16"),
             Type::I32 => write!(f, "i32"),
@@ -76,13 +80,14 @@ impl std::fmt::Display for Type {
             }
 
             Type::Alias(alias) => write!(f, "{alias}"),
-            Type::Function(args, functype) => write!(
+            Type::Function(args, functype, is_var_args) => write!(
                 f,
-                "{functype} ({})",
+                "{functype} ({}{})",
                 args.iter()
                     .map(|a| format!("{a}"))
                     .collect::<Vec<String>>()
-                    .join(", ")
+                    .join(", "),
+                if *is_var_args { ", ..." } else { "" }
             ),
             Type::Struct(args, _) => write!(
                 f,

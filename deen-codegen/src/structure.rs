@@ -1,10 +1,12 @@
 use deen_parser::types::Type;
 use inkwell::types::BasicTypeEnum;
+use crate::function::Function;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Structure<'ctx> {
     pub fields: HashMap<String, Field<'ctx>>,
+    pub functions: HashMap<String, Function<'ctx>>,
     pub llvm_type: BasicTypeEnum<'ctx>,
 }
 

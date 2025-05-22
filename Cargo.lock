@@ -175,7 +175,7 @@ dependencies = [
 
 [[package]]
 name = "deen"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "clap",
  "colored",
@@ -191,7 +191,7 @@ dependencies = [
 
 [[package]]
 name = "deen-codegen"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "deen-parser",
  "deen-semantic",
@@ -202,7 +202,7 @@ dependencies = [
 
 [[package]]
 name = "deen-lexer"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "miette",
  "thiserror 2.0.12",
@@ -210,14 +210,14 @@ dependencies = [
 
 [[package]]
 name = "deen-linker"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "inkwell",
 ]
 
 [[package]]
 name = "deen-parser"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "deen-lexer",
  "miette",
@@ -226,7 +226,7 @@ dependencies = [
 
 [[package]]
 name = "deen-semantic"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "deen-lexer",
  "deen-parser",

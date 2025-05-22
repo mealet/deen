@@ -5,23 +5,23 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statements {
     AssignStatement {
-        identifier: String,
+        object: Expressions,
         value: Expressions,
         span: (usize, usize),
     },
     BinaryAssignStatement {
-        identifier: String,
+        object: Expressions,
         operand: String,
         value: Expressions,
         span: (usize, usize),
     },
     DerefAssignStatement {
-        identifier: String,
+        object: Expressions,
         value: Expressions,
         span: (usize, usize),
     },
     SliceAssignStatement {
-        identifier: String,
+        object: Expressions,
         index: Expressions,
         value: Expressions,
         span: (usize, usize),
@@ -49,6 +49,12 @@ pub enum Statements {
         header_span: (usize, usize),
     },
     FunctionCallStatement {
+        name: String,
+        arguments: Vec<Expressions>,
+        span: (usize, usize),
+    },
+
+    MacroCallStatement {
         name: String,
         arguments: Vec<Expressions>,
         span: (usize, usize),
@@ -97,6 +103,15 @@ pub enum Statements {
         path: Expressions,
         span: (usize, usize),
     },
+    ExternStatement {
+        identifier: String,
+        arguments: Vec<Type>,
+        return_type: Type,
+        extern_type: String,
+        is_var_args: bool,
+        public: bool,
+        span: (usize, usize)
+    },
 
     BreakStatements {
         span: (usize, usize),
@@ -144,6 +159,7 @@ impl Parser {
                 let value = self.expression();
 
                 self.skip_eos();
+
                 Statements::AnnotationStatement {
                     identifier: id,
                     datatype,
@@ -453,6 +469,17 @@ impl Parser {
                 {
                     (name.clone(), r#type.clone())
                 } else {
+                    // okay lets just skip this piece of code.
+                    // I've made a mistake creating this embedded code, but we all make mistakes.
+                    // Anyways I just wanted short code to unwrap and compare identifier inside
+                    // embedded boxed expressions blocks, so...
+
+                    if let Expressions::Reference { object, span: _ } = arg {
+                        if let Expressions::Value(Value::Identifier(id), _) = *object.clone() {
+                            if id == "self" { return (id, Type::SelfRef) }
+                        }
+                    }
+
                     self.error(
                         String::from("Unexpected argument declaration found"),
                         self.span_expression(arg.clone()),
@@ -499,7 +526,7 @@ impl Parser {
             let _ = self.next();
         }
 
-        self.skip_eos();
+        // self.skip_eos();
         Statements::FunctionDefineStatement {
             name: identifier,
             datatype,
@@ -541,7 +568,7 @@ impl Parser {
         Statements::BreakStatements { span }
     }
 
-    pub fn assign_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
+    pub fn assign_statement(&mut self, object: Expressions, span: (usize, usize)) -> Statements {
         if self.expect(TokenType::Equal) {
             let _ = self.next();
         }
@@ -550,7 +577,7 @@ impl Parser {
         let span_end = self.current().span.1;
 
         Statements::AssignStatement {
-            identifier: id,
+            object,
             value,
             span: (span.0, span_end - 3),
         }
@@ -558,7 +585,7 @@ impl Parser {
 
     pub fn binary_assign_statement(
         &mut self,
-        id: String,
+        object: Expressions,
         op: String,
         span: (usize, usize),
     ) -> Statements {
@@ -572,13 +599,13 @@ impl Parser {
 
         Statements::BinaryAssignStatement {
             operand: op,
-            identifier: id,
+            object,
             value,
             span: (span.0, span_end - 3),
         }
     }
 
-    pub fn slice_assign_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
+    pub fn slice_assign_statement(&mut self, object: Expressions, span: (usize, usize)) -> Statements {
         let brackets_span_start = self.current().span.0;
         if self.expect(TokenType::LBrack) {
             let _ = self.next();
@@ -601,6 +628,7 @@ impl Parser {
                 String::from("Expected `=` in slice assign"),
                 (span.0, self.current().span.1),
             );
+            self.skip_statement();
             return Statements::None;
         }
 
@@ -611,7 +639,7 @@ impl Parser {
         let span_end = self.current().span.1;
 
         Statements::SliceAssignStatement {
-            identifier: id,
+            object,
             index: ind,
             value: val,
             span: (span.0, span_end),
@@ -635,10 +663,35 @@ impl Parser {
 
         let arguments =
             self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+
+        self.position -= 1;
         let span_end = self.current().span.1;
+        self.position += 1;
+
         self.skip_eos();
 
         Statements::FunctionCallStatement {
+            name: id,
+            arguments,
+            span: (span.0, span_end),
+        }
+    }
+
+    pub fn macrocall_statement(&mut self, id: String, span: (usize, usize)) -> Statements {
+        if self.expect(TokenType::Not) {
+            let _ = self.next();
+        }
+
+        let arguments =
+            self.expressions_enum(TokenType::LParen, TokenType::RParen, TokenType::Comma);
+
+        self.position -= 1;
+        let span_end = self.current().span.1;
+        self.position += 1;
+
+        self.skip_eos();
+
+        Statements::MacroCallStatement {
             name: id,
             arguments,
             span: (span.0, span_end),
@@ -887,5 +940,97 @@ impl Parser {
             datatype,
             span: (span_start, span_end),
         }
+    }
+
+    pub fn extern_statement(&mut self) -> Statements {
+        let span_start = self.current().span.0;
+        if self.expect(TokenType::Keyword) {
+            let _ = self.next();
+        }
+
+        if !self.expect(TokenType::String) {
+            self.error(
+                String::from("Expected stringified extern type. Example: extern \"C\" fn malloc(usize) *void"),
+                self.current().span
+            );
+        }
+
+        let extern_type = self.current().value;
+        let _ = self.next();
+
+        let public = self.expect(TokenType::Keyword) && self.current().value == "pub";
+        if public {
+            let _ = self.next();
+        }
+
+        if !self.expect(TokenType::Keyword) && self.current().value != "fn" {
+            self.error(
+                String::from("Extern statement supports only functions declarations"),
+                self.current().span
+            );
+        }
+
+        let _ = self.next();
+        let identifier = if self.expect(TokenType::Identifier) {
+            self.current().value
+        } else {
+            self.error(
+                String::from("Expected extern function identifier after keyword"),
+                self.current().span
+            );
+            "undefined".to_string()
+        };
+
+        let _ = self.next();
+        if !self.expect(TokenType::LParen) {
+            self.error(
+                String::from("Expected arguments types block for external function"),
+                self.current().span
+            );
+        }
+
+        let mut arguments = Vec::new();
+        let mut is_var_args = false;
+        let _ = self.next();
+
+        while !self.expect(TokenType::RParen) {
+            if self.expect(TokenType::Dot) {
+                if self.next().token_type == TokenType::Dot
+                && self.next().token_type == TokenType::Dot {
+                    is_var_args = true;
+                    let _ = self.next();
+                } else {
+                    self.position -= 1;
+                    self.error(
+                        String::from("Unexpected argument declaration found"),
+                        self.current().span
+                    );
+                }
+                continue;
+            }
+
+            if self.expect(TokenType::RParen) { break }
+            if self.expect(TokenType::Semicolon) { break }
+            if self.expect(TokenType::Comma) {
+                let _ = self.next();
+                continue;
+            }
+
+            arguments.push(self.parse_type());
+        }
+
+        if self.expect(TokenType::RParen) {
+            let _ = self.next();
+        }
+
+        let mut return_type = Type::Void;
+        if !self.expect(TokenType::Semicolon) {
+            return_type = self.parse_type();
+        }
+
+        let span_end = self.current().span.1;
+        self.skip_eos();
+
+        Statements::ExternStatement { identifier, arguments, return_type, extern_type, public, is_var_args, span: (span_start, span_end) }
     }
 }

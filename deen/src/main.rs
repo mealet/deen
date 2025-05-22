@@ -6,7 +6,7 @@ fn main() {
     let args = cli::Args::parse();
     let no_warns = args.no_warns;
 
-    let fname = std::path::Path::new(&args.path)
+    let fname = args.path
         .file_name()
         .unwrap_or_else(|| {
             cli::error("Unable to find source file");
@@ -144,7 +144,7 @@ fn main() {
     );
 
     let mut analyzer = deen_semantic::Analyzer::new(&src, fname, true);
-    let (imports, warns) = match analyzer.analyze(&ast) {
+    let (symtable, warns) = match analyzer.analyze(&ast) {
         Ok(res) => res,
         Err((errors, warns)) => {
             errors.iter().for_each(|e| {
@@ -200,13 +200,13 @@ fn main() {
         .unwrap_or(fname.replace(".dn", ""));
 
     let ctx = deen_codegen::CodeGen::create_context();
-    let mut codegen = deen_codegen::CodeGen::new(&ctx, &module_name, imports, true);
+    let mut codegen = deen_codegen::CodeGen::new(&ctx, &module_name, &src, symtable);
 
-    let module_ref = codegen.compile(ast, None);
+    let (module_ref, _) = codegen.compile(ast, None);
 
     if args.llvm {
         module_ref
-            .print_to_file(format!("{}.ll", args.output))
+            .print_to_file(format!("{}.ll", args.output.display()))
             .unwrap_or_else(|_| {
                 cli::error("Unable to write LLVM IR file!");
                 std::process::exit(1);
@@ -214,19 +214,21 @@ fn main() {
 
         cli::info(
             "Successfully",
-            &format!("compiled to LLVM IR: `{}.ll`", args.output),
+            &format!("compiled to LLVM IR: `{}.ll`", args.output.display()),
         )
     } else {
         deen_linker::compiler::ObjectCompiler::compile_module(module_ref, &module_name);
-        deen_linker::linker::ObjectLinker::link(&module_name, &args.output).unwrap_or_else(|err| {
+        deen_linker::linker::ObjectLinker::link(&module_name, &args.output.to_str().unwrap(), args.include).unwrap_or_else(|err| {
             cli::error("Linker catched an error!");
-            println!("\n{}", err);
+            println!("\n{}\n", err);
+
+            cli::error("Please make sure you linked all the necessary libraries (check the '-i' argument)");
             std::process::exit(1);
         });
 
         cli::info(
             "Successfully",
-            &format!("compiled to binary: `{}`", args.output),
+            &format!("compiled to binary: `{}`", args.output.display()),
         )
     };
 }
