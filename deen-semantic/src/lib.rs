@@ -568,7 +568,8 @@ impl Analyzer {
                 if let Type::Function(func_args, func_type, is_var_args) = func {
                     let call_args = arguments
                         .iter()
-                        .map(|arg| self.visit_expression(arg, None))
+                        .zip(func_args.clone())
+                        .map(|(arg, exp)| self.visit_expression(arg, Some(exp)))
                         .collect::<Vec<Type>>();
 
                     if call_args.len() != func_args.len() {
