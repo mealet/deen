@@ -1776,10 +1776,14 @@ impl<'ctx> CodeGen<'ctx> {
                 let variable = self.scope.get_variable(&id).unwrap(); // already checked by semantic analyzer
                 let value = match expected.clone() {
                     Some(Type::Pointer(ptr_type)) => {
-                        if *ptr_type == Type::Char {
+                        if let Type::Pointer(_) = variable.datatype {
                             self.builder.build_load(variable.llvm_type, variable.ptr, "").unwrap()
                         } else {
-                            variable.ptr.into()
+                            if *ptr_type == Type::Char {
+                                self.builder.build_load(variable.llvm_type, variable.ptr, "").unwrap()
+                            } else {
+                                variable.ptr.into()
+                            }
                         }
                     },
                     _ => self
@@ -1789,13 +1793,20 @@ impl<'ctx> CodeGen<'ctx> {
                 };
                 let datatype = match expected {
                     Some(Type::Pointer(ptr_type)) => {
+                        // yep, i know this if-else constructions looks too complicated, but i just
+                        // cannot use `return` keyword due rust analyzer errors
+
                         if *ptr_type == Type::Char {
                             variable.datatype.clone()
                         } else {
                             if id == "self" {
                                 Type::Pointer(Box::new(Type::Pointer(Box::new(variable.datatype.clone()))))
                             } else {
-                                Type::Pointer(Box::new(variable.datatype.clone()))
+                                if let Type::Pointer(_) = variable.datatype {
+                                    Type::Pointer(Box::new(variable.datatype.clone()))
+                                } else {
+                                    Type::Pointer(Box::new(variable.datatype.clone()))
+                                }
                             }
                         }
                     },
