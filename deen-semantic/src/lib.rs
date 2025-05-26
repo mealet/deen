@@ -884,16 +884,69 @@ impl Analyzer {
                     Type::U16,
                     Type::U32,
                     Type::U64,
-                    Type::String,
+                    Type::USIZE,
                 ];
 
                 let iterator_type = self.visit_expression(iterator, None);
                 let mut binding_type = iterator_type.clone();
 
-                match iterator_type {
+                match iterator_type.clone() {
                     typ if BASIC_SUPPORTED_ITERATOR_TYPES.contains(&typ) => {}
                     Type::Array(typ, _) => binding_type = *typ,
                     Type::DynamicArray(typ) => binding_type = *typ,
+                    Type::Alias(alias) => {
+                        let alias_type = self.unwrap_alias(&iterator_type).unwrap_or_else(|err| {
+                            self.error(
+                                err,
+                                *span
+                            );
+                            Type::Void
+                        });
+
+                        if alias_type == Type::Void { return }
+
+                        match alias_type {
+                            Type::Struct(_, functions) => {
+                                if let Some(Type::Function(args, return_type, _)) = functions.get("iterate") {
+                                    let mut error_flag = args.len() > 1;
+                                    if let Some(Type::Alias(alias_arg)) = args.first() {
+                                        if alias_arg != &alias { error_flag = true }
+                                    }
+
+                                    if let Type::Tuple(fields) = *return_type.clone() {
+                                        if fields.len() != 2 {
+                                            error_flag = true
+                                        } else {
+                                            match (fields[0].clone(), fields[1].clone()) {
+                                                (left_type, Type::Bool) => binding_type = left_type,
+                                                _ => error_flag = true
+                                            }
+                                        }
+                                    }
+
+                                    if error_flag {
+                                        self.error(
+                                            format!("Implementation for iterator must be: fn iterate(&self) (_, bool)"),
+                                            *span
+                                        );
+                                        return;
+                                    }                                    
+                                } else {
+                                    self.error(
+                                        format!("Structure `{}` has no implementation for: fn iterate(&self) (_, bool)", alias),
+                                        *span
+                                    );
+                                }
+                            },
+                            _ => {
+                                self.error(
+                                    format!("Type `{}` is not supported for iteration", iterator_type),
+                                    *span,
+                                );
+                                return;
+                            }
+                        }
+                    },
                     _ => {
                         self.error(
                             format!("Type `{}` is not supported for iteration", iterator_type),
@@ -2066,19 +2119,19 @@ impl Analyzer {
                                     if let Type::Pointer(ptr) = *return_type.clone() {
                                         if *ptr.clone() == Type::Char {} else {
                                             self.error(
-                                                "Implementation for display must be `display(&self) *char`".to_string(),
+                                                "Implementation for display must be: fn display(&self) *char".to_string(),
                                                 deen_parser::Parser::get_span_expression(expr.clone())
                                             );
                                         }
                                     } else {
                                         self.error(
-                                            "Implementation for display must be `display(&self) *char`".to_string(),
+                                            "Implementation for display must be: fn display(&self) *char".to_string(),
                                             deen_parser::Parser::get_span_expression(expr.clone())
                                         );
                                     }
                                 } else {
                                     self.error(
-                                        format!("Type `{}` has no implementation for display: `display(&self) *char", expr_type),
+                                        format!("Type `{}` has no implementation for display: fn display(&self) *char", expr_type),
                                         deen_parser::Parser::get_span_expression(expr.clone())
                                     );
                                 }
@@ -2089,19 +2142,19 @@ impl Analyzer {
                                         if let Type::Pointer(ptr) = *return_type.clone() {
                                             if *ptr.clone() == Type::Char {} else {
                                                 self.error(
-                                                    "Implementation for display must be `display(&self) *char`".to_string(),
+                                                    "Implementation for display must be: fn display(&self) *char".to_string(),
                                                     deen_parser::Parser::get_span_expression(expr.clone())
                                                 );
                                             }
                                         } else {
                                             self.error(
-                                                "Implementation for display must be `display(&self) *char`".to_string(),
+                                                "Implementation for display must be: fn display(&self) *char".to_string(),
                                                 deen_parser::Parser::get_span_expression(expr.clone())
                                             );
                                         }
                                     } else {
                                         self.error(
-                                            format!("Type `{}` has no implementation for display: `display(&self) *char", expr_type),
+                                            format!("Type `{}` has no implementation for display: fn display(&self) *char", expr_type),
                                             deen_parser::Parser::get_span_expression(expr.clone())
                                         );
                                     }
