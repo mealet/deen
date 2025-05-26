@@ -1,7 +1,7 @@
 use crate::{
     error::{SemanticError, SemanticWarning},
     symtable::{SymbolTable, Import},
-    macros::MacrosObject,
+    macros::{MacrosObject, MacrosOption},
     scope::Scope,
 };
 use deen_parser::{
@@ -39,8 +39,7 @@ impl Analyzer {
                 "print".to_string(),
                 MacrosObject {
                     arguments: vec![Type::String],
-                    is_first_literal: true,
-                    is_var_args: true,
+                    settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
                     return_type: Type::Void,
                 },
             ),
@@ -50,8 +49,7 @@ impl Analyzer {
                 "println".to_string(),
                 MacrosObject {
                     arguments: vec![Type::String],
-                    is_first_literal: true,
-                    is_var_args: true,
+                    settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
                     return_type: Type::Void,
                 },
             ),
@@ -61,8 +59,7 @@ impl Analyzer {
                 "format".to_string(),
                 MacrosObject {
                     arguments: vec![Type::String],
-                    is_first_literal: true,
-                    is_var_args: true,
+                    settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
                     return_type: Type::Pointer(Box::new(Type::Char)),
                 },
             ),
@@ -72,8 +69,7 @@ impl Analyzer {
                 "panic".to_string(),
                 MacrosObject {
                     arguments: vec![Type::String],
-                    is_first_literal: true,
-                    is_var_args: true,
+                    settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
                     return_type: Type::Void,
                 },
             ),
@@ -83,8 +79,7 @@ impl Analyzer {
                 "sizeof".to_string(),
                 MacrosObject {
                     arguments: vec![Type::Void],
-                    is_first_literal: false,
-                    is_var_args: false,
+                    settings: vec![],
                     return_type: Type::USIZE,
                 },
             ),
@@ -2007,7 +2002,7 @@ impl Analyzer {
                 return macro_object.return_type;
             }
 
-            if macro_object.is_first_literal {
+            if macro_object.settings.contains(&MacrosOption::FirstLiteral) {
                 if let Some(Expressions::Value(Value::String(literal), literal_span)) =
                     arguments.first()
                 {
@@ -2156,7 +2151,7 @@ impl Analyzer {
                     };
                 });
 
-            if macro_object.arguments.len() < arguments.len() && !macro_object.is_var_args {
+            if macro_object.arguments.len() < arguments.len() && !macro_object.settings.contains(&MacrosOption::VarArgs) {
                 self.error(
                     format!(
                         "Too much arguments! Expected {} but found {} args",
