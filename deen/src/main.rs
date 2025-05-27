@@ -7,18 +7,21 @@ fn main() {
     let args = cli::Args::try_parse().unwrap_or_else(|e| {
         let mut command = cli::Args::command();
 
+        let git_hash: String = env!("GIT_HASH").chars().take(8).collect();
+        let version_fmt = format!("v{} {}", env!("CARGO_PKG_VERSION"), git_hash);
+
         match e.kind() {
             clap::error::ErrorKind::DisplayVersion => {
 
                 eprintln!("{}", "🚀 Deen Programming Language".bold().cyan());
-                eprintln!("| - version: {}", env!("CARGO_PKG_VERSION"));
+                eprintln!("| - version: {}", version_fmt);
                 eprintln!("| - authors: {}", env!("CARGO_PKG_AUTHORS"));
 
                 std::process::exit(0);
             },
             _ => {
                 eprintln!("{}", "🚀 Deen Programming Language".bold().cyan());
-                eprintln!("| - version: {}", env!("CARGO_PKG_VERSION"));
+                eprintln!("| - version: {}", version_fmt);
                 eprintln!("| - authors: {}", env!("CARGO_PKG_AUTHORS"));
                 eprintln!("");
                 eprintln!("{}", "🍀 Options:".bold().cyan());
