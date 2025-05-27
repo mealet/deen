@@ -67,8 +67,9 @@ impl<'ctx> CodeGen<'ctx> {
                 "ident",
                 &context.metadata_node(&[context
                     .metadata_string(&format!(
-                        "deen compiler version {}",
-                        env!("CARGO_PKG_VERSION")
+                        "deen compiler v{} {}",
+                        env!("CARGO_PKG_VERSION"),
+                        env!("GIT_HASH").chars().take(8).collect::<String>()
                     ))
                     .into()]),
             )
