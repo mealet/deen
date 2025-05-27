@@ -773,9 +773,69 @@ impl<'ctx> CodeGen<'ctx> {
                         self.builder.build_conditional_branch(iter_cmp, statements_block, after_block).unwrap();
                     },
 
+                    Type::Alias(alias) => {
+                        // allocating iterator status
+                        let status_varname = format!("@deen_iterator_status_{}", &binding);
+                        
+                        let iterator_fn = self.scope.get_function(format!("struct_{}__{}", alias, "iterate")).unwrap();
+                        let iter_status_alloca = self.builder.build_alloca(self.context.bool_type(), &status_varname).unwrap();
+                        
+                        self.scope.set_variable(status_varname, Variable {
+                            datatype: Type::Bool,
+                            llvm_type: self.context.bool_type().into(),
+                            ptr: iter_status_alloca,
+                        });
+
+                        let iterator_struct: BasicMetadataValueEnum = if compiled_iterator.1.is_pointer_value() {
+                            compiled_iterator.1.into()
+                        } else {
+                            let alloca = self.builder.build_alloca(compiled_iterator.1.get_type(), "").unwrap();
+                            let _ = self.builder.build_store(alloca, compiled_iterator.1).unwrap();
+                            alloca.into()
+                        };
+
+                        // calling iterator function
+
+                        let output = self
+                            .builder
+                            .build_call(iterator_fn.value, &[iterator_struct], "")
+                            .unwrap()
+                            .try_as_basic_value()
+                            .left()
+                            .unwrap();
+
+                        // allocating result
+
+                        let tuple_alloca = self.builder.build_alloca(output.get_type(), "").unwrap();
+                        self.builder.build_store(tuple_alloca, output).unwrap();
+
+                        // storing iterator status
+
+                        let status_field_ptr = self.builder.build_struct_gep(output.get_type(), tuple_alloca, 1, "").unwrap();
+                        let status = self.builder.build_load(self.context.bool_type(), status_field_ptr, "").unwrap();
+
+                        self.builder.build_store(iter_status_alloca, status).unwrap();
+
+                        // storing binding value
+
+                        let binding_field_ptr = self.builder.build_struct_gep(output.get_type(), tuple_alloca, 0, "").unwrap();
+                        let iter_value = self.builder.build_load(basic_binding_type, binding_field_ptr, "").unwrap();
+
+                        self.builder.build_store(binding_ptr, iter_value).unwrap();
+
+                        // condition block
+
+                        let _ = self
+                            .builder
+                            .build_unconditional_branch(iterator_block)
+                            .unwrap();
+                        self.builder.position_at_end(iterator_block);
+
+                        let status = self.builder.build_load(self.context.bool_type(), iter_status_alloca, "").unwrap();
+                        self.builder.build_conditional_branch(status.into_int_value(), statements_block, after_block).unwrap();
+                    },
                     Type::Array(_, _) => {},
                     Type::DynamicArray(_) => {},
-                    Type::Alias(_) => {},
 
                     _ => unreachable!()
                 }
@@ -801,9 +861,50 @@ impl<'ctx> CodeGen<'ctx> {
                         self.builder.build_store(binding_ptr, incremented_value).unwrap();
                     }
 
+                    Type::Alias(alias) => {
+                        let status_varname = format!("@deen_iterator_status_{}", &binding);
+                        let status_alloca = self.scope.get_variable(status_varname).unwrap().ptr;
+                        
+                        let iterator_fn = self.scope.get_function(format!("struct_{}__{}", alias, "iterate")).unwrap();
+                        let iterator_struct: BasicMetadataValueEnum = if compiled_iterator.1.is_pointer_value() {
+                            compiled_iterator.1.into()
+                        } else {
+                            let alloca = self.builder.build_alloca(compiled_iterator.1.get_type(), "").unwrap();
+                            let _ = self.builder.build_store(alloca, compiled_iterator.1).unwrap();
+                            alloca.into()
+                        };
+
+                        // calling iterator function
+
+                        let output = self
+                            .builder
+                            .build_call(iterator_fn.value, &[iterator_struct], "")
+                            .unwrap()
+                            .try_as_basic_value()
+                            .left()
+                            .unwrap();
+
+                        // allocating result
+
+                        let tuple_alloca = self.builder.build_alloca(output.get_type(), "").unwrap();
+                        self.builder.build_store(tuple_alloca, output).unwrap();
+
+                        // storing iterator status
+
+                        let status_field_ptr = self.builder.build_struct_gep(output.get_type(), tuple_alloca, 1, "").unwrap();
+                        let status = self.builder.build_load(self.context.bool_type(), status_field_ptr, "").unwrap();
+
+                        self.builder.build_store(status_alloca, status).unwrap();
+
+                        // storing binding value
+
+                        let binding_field_ptr = self.builder.build_struct_gep(output.get_type(), tuple_alloca, 0, "").unwrap();
+                        let iter_value = self.builder.build_load(basic_binding_type, binding_field_ptr, "").unwrap();
+
+                        self.builder.build_store(binding_ptr, iter_value).unwrap();
+                    },
                     Type::Array(_, _) => {},
                     Type::DynamicArray(_) => {},
-                    Type::Alias(_) => {},
 
 
                     _ => unreachable!()
