@@ -1,5 +1,5 @@
 use crate::{
-    enumeration::Enumeration,
+enumeration::Enumeration,
     function::Function,
     macros::StandartMacros,
     structure::{Field, Structure},
@@ -672,11 +672,154 @@ impl<'ctx> CodeGen<'ctx> {
                 let _ = self.breaks.pop();
             }
             Statements::ForStatement {
-                binding: _,
-                iterator: _,
-                block: _,
-                span: _,
-            } => todo!(),
+                binding,
+                iterator,
+                block,
+                span,
+            } => {
+                // blocks definition
+                let iterator_block = self.context.append_basic_block(self.function.unwrap(), "for_iterator");
+                let statements_block = self.context.append_basic_block(self.function.unwrap(), "for_block");
+                let after_block = self.context.append_basic_block(self.function.unwrap(), "for_after");
+
+                // binding initialization
+
+                let mut compiled_iterator = self.compile_expression(iterator, Some(Type::Pointer(Box::new(Type::Void))));
+                if let Type::Pointer(ptr_type) = compiled_iterator.0 {
+                    compiled_iterator.0 = *ptr_type.clone();
+                }
+                
+                let binding_type = match compiled_iterator.0.clone() {
+                    typ if deen_semantic::Analyzer::is_integer(&typ) => typ,
+
+                    Type::Array(typ, _) => *typ, 
+                    Type::DynamicArray(typ) => *typ,
+                    Type::Alias(alias) => {
+                        let iterator_fn = self.scope.get_function(format!("struct_{}__{}", alias, "iterate")).unwrap();
+                        if let Type::Tuple(types) = iterator_fn.datatype {
+                            types[0].clone()
+                        } else { unreachable!() }
+                    },
+
+                    _ => unreachable!()
+                };
+
+                let basic_binding_type = self.get_basic_type(binding_type.clone());
+                let binding_ptr = self.builder.build_alloca(basic_binding_type, &binding).unwrap();
+
+                let old_variable = self.scope.get_variable(&binding);
+                self.scope.set_variable(binding.clone(), Variable { datatype: binding_type, llvm_type: basic_binding_type, ptr: binding_ptr });
+                self.breaks.push(after_block);
+
+                match compiled_iterator.0.clone() {
+                    typ if deen_semantic::Analyzer::is_integer(&typ) => {
+                        // runtime checker for negative number
+                        if !deen_semantic::Analyzer::is_unsigned_integer(&typ) {
+                            if compiled_iterator.1.into_int_value().get_sign_extended_constant().unwrap_or(-1) < 0 {
+                                let checker_block = self.context.insert_basic_block_after(self.builder.get_insert_block().unwrap(), "int_checker");
+                                let err_block = self.context.insert_basic_block_after(checker_block, "int_integer_panic");
+                                let ok_block = self.context.insert_basic_block_after(err_block, "int_checker_ok");
+
+                                self.builder.build_unconditional_branch(checker_block).unwrap();
+                                self.builder.position_at_end(checker_block);
+
+                                let zero = self.context.i64_type().const_zero();
+                                let cmp = self.builder.build_int_compare(
+                                    inkwell::IntPredicate::SGE,
+                                    compiled_iterator.1.into_int_value(),
+                                    zero,
+                                    ""
+                                ).unwrap();
+
+                                self.builder.build_conditional_branch(cmp, ok_block, err_block).unwrap();
+                                self.builder.position_at_end(err_block);
+
+                                let specifier = self.type_specifier(&typ);
+                                self.build_panic(
+                                    format!("Loop `for` handled negative number: {}", specifier),
+                                    vec![
+                                        compiled_iterator.1.into()
+                                    ],
+                                    self.get_source_line(span.0)
+                                );
+
+                                self.builder.position_at_end(ok_block);
+                            }
+                        }
+
+                        // initial binding value
+
+                        self.builder.build_store(
+                            binding_ptr,
+                            self.get_basic_type(typ.clone()).const_zero()
+                        ).unwrap();
+
+                        // condition block
+
+                        let _ = self
+                            .builder
+                            .build_unconditional_branch(iterator_block)
+                            .unwrap();
+                        self.builder.position_at_end(iterator_block);
+
+                        let binding_value = self.builder.build_load(self.get_basic_type(typ), binding_ptr, "").unwrap();
+                        let iter_cmp = self.builder.build_int_compare(
+                            inkwell::IntPredicate::SLT,
+                            binding_value.into_int_value(),
+                            compiled_iterator.1.into_int_value(),
+                            ""
+                        ).unwrap();
+
+                        self.builder.build_conditional_branch(iter_cmp, statements_block, after_block).unwrap();
+                    },
+
+                    Type::Array(_, _) => {},
+                    Type::DynamicArray(_) => {},
+                    Type::Alias(_) => {},
+
+                    _ => unreachable!()
+                }
+
+                // statements block
+
+                self.builder.position_at_end(statements_block);
+                block
+                    .into_iter()
+                    .for_each(|statement| self.compile_statement(statement, prefix.clone()));
+
+                // making iteration
+
+                match compiled_iterator.0 {
+                    typ if deen_semantic::Analyzer::is_integer(&typ) => {
+                        let current_value = self.builder.build_load(basic_binding_type, binding_ptr, "itertmp").unwrap();
+                        let incremented_value = self.builder.build_int_add(
+                            current_value.into_int_value(),
+                            basic_binding_type.into_int_type().const_int(1, false),
+                            "iterinc"
+                        ).unwrap();
+                        
+                        self.builder.build_store(binding_ptr, incremented_value).unwrap();
+                    }
+
+                    Type::Array(_, _) => {},
+                    Type::DynamicArray(_) => {},
+                    Type::Alias(_) => {},
+
+
+                    _ => unreachable!()
+                }
+
+                let _ = self.builder.build_unconditional_branch(iterator_block);
+
+                // exit
+
+                self.builder.position_at_end(after_block);
+                let _ = self.breaks.pop();
+
+                if let Some(old_variable) = old_variable {
+                    self.scope.set_variable(binding, old_variable);
+                }
+            },
 
             Statements::BreakStatements { span: _ } => {
                 let break_block = self.breaks.last().unwrap();
