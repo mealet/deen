@@ -86,14 +86,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                     // output.
                                     let self_val: BasicMetadataValueEnum =
                                         if arg.1.is_pointer_value() {
-                                            self.builder
-                                                .build_load(
-                                                    self.get_basic_type(arg.0),
-                                                    arg.1.into_pointer_value(),
-                                                    "",
-                                                )
-                                                .unwrap()
-                                                .into()
+                                            arg.1.into()
                                         } else {
                                             let alloca = self.builder.build_alloca(arg.1.get_type(), "").unwrap();
                                             let _ = self.builder.build_store(alloca, arg.1).unwrap();
@@ -194,14 +187,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
 
                                     let self_val: BasicMetadataValueEnum =
                                         if arg.1.is_pointer_value() {
-                                            self.builder
-                                                .build_load(
-                                                    self.get_basic_type(arg.0),
-                                                    arg.1.into_pointer_value(),
-                                                    "",
-                                                )
-                                                .unwrap()
-                                                .into()
+                                            arg.1.into()
                                         } else {
                                             arg.1.into()
                                         };
@@ -334,14 +320,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
 
                                     let self_val: BasicMetadataValueEnum =
                                         if arg.1.is_pointer_value() {
-                                            self.builder
-                                                .build_load(
-                                                    self.get_basic_type(arg.0),
-                                                    arg.1.into_pointer_value(),
-                                                    "",
-                                                )
-                                                .unwrap()
-                                                .into()
+                                            arg.1.into()
                                         } else {
                                             arg.1.into()
                                         };
