@@ -332,13 +332,13 @@ impl Lexer {
 
         while !self.is_eof() {
             match self.char {
-                '\0' => self.getc(),
-                '\n' | ' ' => self.getc(),
+                '\n' | '\0' => self.getc(),
+                _ if self.char.is_whitespace() => self.getc(),
                 '/' => {
                     self.getc();
                     if self.char == '/' {
-                        while self.char != '\n' {
-                            self.getc();
+                        while self.char != '\n' && self.char != '\0' {
+                           self.getc();
                         }
                         continue;
                     }
@@ -580,7 +580,7 @@ impl Lexer {
                     }
                 }
                 _ => {
-                    self.error(String::from("Undefined char found"), (self.position - 1, 1));
+                    self.error(format!("Undefined char found: {}", self.char), (self.position - 1, 1));
                     self.getc();
                 }
             }
