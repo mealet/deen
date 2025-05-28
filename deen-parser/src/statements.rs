@@ -401,6 +401,7 @@ impl Parser {
                 ),
                 (span_start, self.current().span.1),
             );
+            let _ = self.next();
             return Statements::None;
         }
 

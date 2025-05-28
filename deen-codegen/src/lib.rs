@@ -686,8 +686,13 @@ impl<'ctx> CodeGen<'ctx> {
                 // binding initialization
 
                 let mut compiled_iterator = self.compile_expression(iterator, Some(Type::Pointer(Box::new(Type::Void))));
+
                 if let Type::Pointer(ptr_type) = compiled_iterator.0 {
                     compiled_iterator.0 = *ptr_type.clone();
+
+                    if let Type::Array(_, _) = *ptr_type {
+                        compiled_iterator.1 = self.builder.build_load(self.context.ptr_type(AddressSpace::default()), compiled_iterator.1.into_pointer_value(), "").unwrap();
+                    }
                 }
                 
                 let binding_type = match compiled_iterator.0.clone() {
@@ -835,7 +840,51 @@ impl<'ctx> CodeGen<'ctx> {
                         let status = self.builder.build_load(self.context.bool_type(), iter_status_alloca, "").unwrap();
                         self.builder.build_conditional_branch(status.into_int_value(), statements_block, after_block).unwrap();
                     },
-                    Type::Array(_, _) => {},
+                    Type::Array(arrtype, len) => {
+                        // allocating iterator position
+                        let iterator_position_varname = format!("@deen_iterator_position_{}", &binding);
+                        let iterator_position_alloca = self.builder.build_alloca(self.context.i64_type(), &iterator_position_varname).unwrap();
+
+                        self.scope.set_variable(iterator_position_varname, Variable {
+                            datatype: Type::USIZE,
+                            llvm_type: self.context.i64_type().into(),
+                            ptr: iterator_position_alloca,
+                        });
+
+                        // assigning first element
+                        
+                        let basic_type = self.get_basic_type(*arrtype);
+                        let ptr = unsafe {
+                            self.builder.build_gep(
+                                basic_type,
+                                compiled_iterator.1.into_pointer_value(),
+                                &[
+                                    self.context.i64_type().const_zero()
+                                ],
+                                ""
+                            ).unwrap()
+                        };
+
+                        let value = self.builder.build_load(basic_type, ptr, "").unwrap();
+                        self.builder.build_store(binding_ptr, value).unwrap();
+
+                        // condition block
+
+                        let _  = self.builder.build_unconditional_branch(iterator_block).unwrap();
+                        self.builder.position_at_end(iterator_block);
+
+                        let iterator_position = self.builder.build_load(self.context.i64_type(), iterator_position_alloca, "").unwrap();
+                        let array_len_value = self.context.i64_type().const_int(len as u64, false);
+
+                        let cmp = self.builder.build_int_compare(
+                            inkwell::IntPredicate::ULT,
+                            iterator_position.into_int_value(),
+                            array_len_value,
+                            ""
+                        ).unwrap();
+
+                        self.builder.build_conditional_branch(cmp, statements_block, after_block).unwrap();
+                    },
                     Type::DynamicArray(_) => {},
 
                     _ => unreachable!()
@@ -904,7 +953,37 @@ impl<'ctx> CodeGen<'ctx> {
 
                         self.builder.build_store(binding_ptr, iter_value).unwrap();
                     },
-                    Type::Array(_, _) => {},
+                    Type::Array(arrtype, _) => {
+                        // incrementing iterator position
+                        let iterator_position_varname = format!("@deen_iterator_position_{}", &binding);
+                        let iterator_position_ptr = self.scope.get_variable(iterator_position_varname).unwrap().ptr;
+
+                        let value = self.builder.build_load(self.context.i64_type(), iterator_position_ptr, "").unwrap();
+                        let incremented_value = self.builder.build_int_add(
+                            value.into_int_value(),
+                            self.context.i64_type().const_int(1, false),
+                            ""
+                        ).unwrap();
+
+                        self.builder.build_store(iterator_position_ptr, incremented_value).unwrap();
+
+                        // storing value to the binding
+
+                        let basic_type = self.get_basic_type(*arrtype);
+                        let ptr = unsafe {
+                            self.builder.build_gep(
+                                basic_type,
+                                compiled_iterator.1.into_pointer_value(),
+                                &[
+                                    incremented_value
+                                ],
+                                ""
+                            ).unwrap()
+                        };
+                        
+                        let value = self.builder.build_load(basic_type, ptr, "").unwrap();
+                        self.builder.build_store(binding_ptr, value).unwrap();
+                    },
                     Type::DynamicArray(_) => {},
 
 
