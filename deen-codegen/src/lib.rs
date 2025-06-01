@@ -189,78 +189,92 @@ impl<'ctx> CodeGen<'ctx> {
                 value,
                 span,
             } => {
-                let (instance_type, instance_ptr) = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
-                let (item_type, len) = match instance_type.clone() {
-                    Type::Array(tty, len) => (*tty, len),
+                let obj = self.compile_expression(object, None);
+                let idx = self.compile_expression(index, Some(Type::USIZE));
 
-                    _ => unreachable!(),
-                };
+                match obj.0 {
+                    Type::Array(item_type, len) => {
+                        let value = self.compile_expression(value, Some(*item_type.clone()));
 
-                let compiled_value = self.compile_expression(value, Some(item_type.clone()));
-                let compiled_idx = self.compile_expression(index, Some(Type::USIZE));
+                        // checking for the right index
+                        let checker_block = self
+                            .context
+                            .append_basic_block(self.function.unwrap(), "__idxcb"); // idxcb - index checker block
+                        let error_block = self
+                            .context
+                            .append_basic_block(self.function.unwrap(), "__idxcb_err");
+                        let ok_block = self
+                            .context
+                            .append_basic_block(self.function.unwrap(), "__idxcb_ok");
 
-                // checking for the right index
-                let checker_block = self
-                    .context
-                    .append_basic_block(self.function.unwrap(), "__idxcb"); // idxcb - index checker block
-                let error_block = self
-                    .context
-                    .append_basic_block(self.function.unwrap(), "__idxcb_err");
-                let ok_block = self
-                    .context
-                    .append_basic_block(self.function.unwrap(), "__idxcb_ok");
+                        self.builder
+                            .build_unconditional_branch(checker_block)
+                            .unwrap();
+                        self.builder.position_at_end(checker_block);
 
-                self.builder
-                    .build_unconditional_branch(checker_block)
-                    .unwrap();
-                self.builder.position_at_end(checker_block);
+                        let expected_basic_value =
+                            self.context.i64_type().const_int(len as u64, false);
+                        let provided_basic_value = idx.1.into_int_value();
 
-                let expected_basic_value =
-                    self.context.i64_type().const_int(len as u64, false);
-                let provided_basic_value = compiled_idx.1.into_int_value();
+                        let cmp_value = self
+                            .builder
+                            .build_int_compare(
+                                inkwell::IntPredicate::SLT,
+                                provided_basic_value,
+                                expected_basic_value,
+                                "",
+                            )
+                            .unwrap();
+                        self.builder
+                            .build_conditional_branch(cmp_value, ok_block, error_block)
+                            .unwrap();
 
-                let cmp_value = self
-                    .builder
-                    .build_int_compare(
-                        inkwell::IntPredicate::SLT,
-                        provided_basic_value,
-                        expected_basic_value,
-                        "",
-                    )
-                    .unwrap();
-                self.builder
-                    .build_conditional_branch(cmp_value, ok_block, error_block)
-                    .unwrap();
+                        self.builder.position_at_end(error_block);
 
-                self.builder.position_at_end(error_block);
+                        self.build_panic(
+                            "Array has len %ld, but index is %ld",
+                            vec![expected_basic_value.into(), provided_basic_value.into()],
+                            self.get_source_line(span.0)
+                        );
+                        self.builder.build_unconditional_branch(ok_block).unwrap();
+                        self.builder.position_at_end(ok_block);
 
-                self.build_panic(
-                    "Array has len %ld, but index is %ld",
-                    vec![expected_basic_value.into(), provided_basic_value.into()],
-                    self.get_source_line(span.0)
-                );
-                self.builder.build_unconditional_branch(ok_block).unwrap();
-                self.builder.position_at_end(ok_block);
+                        // getting ptr
 
-                // getting ptr
+                        let ptr = unsafe {
+                            self.builder
+                                .build_in_bounds_gep(
+                                    self.get_basic_type(*item_type),
+                                    obj.1.into_pointer_value(),
+                                    &[idx.1.into_int_value()],
+                                    "",
+                                )
+                                .unwrap()
+                        };
 
-                let array_ptr = self
-                    .builder
-                    .build_load(self.context.ptr_type(AddressSpace::default()), instance_ptr.into_pointer_value(), "")
-                    .unwrap();
-                let ptr = unsafe {
-                    self.builder
-                        .build_gep(
-                            self.get_basic_type(item_type),
-                            array_ptr.into_pointer_value(),
-                            &[compiled_idx.1.into_int_value()],
-                            "",
-                        )
-                        .unwrap()
-                };
+                        // storing value
+                        self.builder.build_store(ptr, value.1).unwrap();
+                    },
+                    Type::Pointer(ptr_type) => {
+                        // compiling value and ptr
+                        let value = self.compile_expression(value, Some(*ptr_type.clone()));
+                        let ptr = unsafe {
+                            self.builder
+                                .build_in_bounds_gep(
+                                    self.get_basic_type(*ptr_type),
+                                    obj.1.into_pointer_value(),
+                                    &[idx.1.into_int_value()],
+                                    ""
+                                )
+                                .unwrap()
+                        };
 
-                // storing value
-                self.builder.build_store(ptr, compiled_value.1).unwrap();
+                        // storing value
+                        self.builder.build_store(ptr, value.1).unwrap();
+                    },
+
+                    _ => unreachable!()
+                }
             }
             Statements::FieldAssignStatement {
                 object,
@@ -1119,9 +1133,17 @@ impl<'ctx> CodeGen<'ctx> {
                                 .into(),
                         )
                     });
+                
+                let mut return_type = function.datatype;
+
+                if let Type::Pointer(ref return_ptr_type) = return_type {
+                    if let (Some(Type::Pointer(expected_ptr_type)), true) = (expected, **return_ptr_type == Type::Void) {
+                        return_type = Type::Pointer(expected_ptr_type);
+                    }
+                }
 
                 (
-                    function.datatype,
+                    return_type,
                     self.builder
                         .build_call(function.value, &args, "")
                         .unwrap()
@@ -1941,6 +1963,15 @@ impl<'ctx> CodeGen<'ctx> {
 
                         let ret_value = self.builder.build_load(basic_ret_type, ptr, "").unwrap();
                         (*ret_type, ret_value)
+                    }
+                    Type::Pointer(ptr_type) => {
+                        let basic_ret_type = self.get_basic_type(*ptr_type.clone());
+                        let ptr = unsafe {
+                            self.builder.build_in_bounds_gep(basic_ret_type, obj.1.into_pointer_value(), &[idx.1.into_int_value()], "").unwrap()
+                        };
+
+                        let ret_value = self.builder.build_load(basic_ret_type, ptr, "").unwrap();
+                        (*ptr_type, ret_value)
                     }
                     _ => unreachable!(),
                 }
