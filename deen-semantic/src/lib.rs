@@ -347,6 +347,16 @@ impl Analyzer {
                             );
                         }
                     }
+                    Type::Pointer(ptr_type) => {
+                        let value_type = self.visit_expression(value, Some(*ptr_type.clone()));
+
+                        if value_type != *ptr_type {
+                            self.error(
+                                format!("Pointer has type `{}`, but found `{}`", ptr_type, value_type),
+                                *span
+                            );
+                        }
+                    }
                     _ => {
                         self.error(
                             format!("Unable to apply slicing to `{}` type", instance),
@@ -584,7 +594,19 @@ impl Analyzer {
 
                     call_args.iter().enumerate().zip(func_args).for_each(
                         |((ind, provided), expected)| {
-                            if &expected != provided {
+                            let is_void_ptr = {
+                                if let Type::Pointer(expected_ptr_type) = expected.clone() {
+                                    if let (Type::Pointer(_), true) = (provided, *expected_ptr_type == Type::Void) {
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    false
+                                }
+                            };
+
+                            if &expected != provided && !is_void_ptr {
                                 self.error(
                                     format!(
                                         "Argument #{} must be `{}`, but found `{}`",
@@ -1693,7 +1715,7 @@ impl Analyzer {
                 if func == Type::Void {
                     return func;
                 };
-                if let Type::Function(func_args, func_type, is_var_args) = func {
+                if let Type::Function(func_args, mut func_type, is_var_args) = func {
                     let call_args = arguments
                         .iter()
                         .zip(func_args.clone())
@@ -1717,7 +1739,19 @@ impl Analyzer {
 
                     call_args.iter().enumerate().zip(func_args).for_each(
                         |((ind, provided), expected)| {
-                            if &expected != provided {
+                            let is_void_ptr = {
+                                if let Type::Pointer(expected_ptr_type) = expected.clone() {
+                                    if let (Type::Pointer(_), true) = (provided, *expected_ptr_type == Type::Void) {
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    false
+                                }
+                            };
+
+                            if &expected != provided && !is_void_ptr {
                                 self.error(
                                     format!(
                                         "Argument #{} must be `{}`, but found `{}`",
@@ -1730,6 +1764,13 @@ impl Analyzer {
                             }
                         },
                     );
+
+                    // yeah, i know this looks like a shit, but i need it
+                    if let Type::Pointer(func_ptr_type) = *func_type.clone() {
+                        if let (Some(Type::Pointer(expected_ptr_type)), true) = (expected, *func_ptr_type == Type::Void) {
+                            *func_type = Type::Pointer(expected_ptr_type);
+                        }
+                    }
 
                     *func_type
                 } else {
@@ -1825,6 +1866,7 @@ impl Analyzer {
                         }
                     }
                     Type::Array(tty, _) => *tty,
+                    Type::Pointer(ptr_type) => *ptr_type,
                     Type::DynamicArray(tty) => *tty,
 
                     _ => {
