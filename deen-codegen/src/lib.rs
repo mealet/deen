@@ -1844,7 +1844,7 @@ impl<'ctx> CodeGen<'ctx> {
                     .for_each(|(ind, (_, basic_value))| {
                         let ptr = unsafe {
                             self.builder
-                                .build_gep(
+                                .build_in_bounds_gep(
                                     arr_basic_type,
                                     arr_alloca,
                                     &[self.context.i64_type().const_int(ind as u64, false)],
@@ -1973,7 +1973,7 @@ impl<'ctx> CodeGen<'ctx> {
                         let basic_ret_type = self.get_basic_type(*ret_type.clone());
                         let ptr = unsafe {
                             self.builder
-                                .build_gep(
+                                .build_in_bounds_gep(
                                     basic_ret_type,
                                     obj.1.into_pointer_value(),
                                     &[idx.1.into_int_value()],
