@@ -366,7 +366,12 @@ impl Lexer {
                                         'n' => captured_string.push('\n'),
                                         'r' => captured_string.push('\r'),
                                         't' => captured_string.push('\t'),
+                                        '\\' => captured_string.push('\\'),
                                         _ => {
+                                            self.error(
+                                                String::from("Unknown character escape found"),
+                                                (self.position - 2, 2)
+                                            );
                                             continue;
                                         }
                                     }
