@@ -41,24 +41,19 @@ impl Lexer {
                 std_symbol!('*', TokenType::Multiply),
                 std_symbol!('/', TokenType::Divide),
                 std_symbol!('%', TokenType::Modulus),
-
                 std_symbol!('=', TokenType::Equal),
-
                 std_symbol!('!', TokenType::Not),
                 std_symbol!('^', TokenType::Xor),
                 std_symbol!('>', TokenType::Bt),
                 std_symbol!('<', TokenType::Lt),
-
                 std_symbol!('.', TokenType::Dot),
                 std_symbol!(',', TokenType::Comma),
                 std_symbol!('"', TokenType::DoubleQuote),
                 std_symbol!('\'', TokenType::SingleQuote),
-
                 std_symbol!(':', TokenType::DoubleDots),
                 std_symbol!(';', TokenType::Semicolon),
                 std_symbol!('&', TokenType::Ampersand),
                 std_symbol!('|', TokenType::Verbar),
-                
                 std_symbol!('(', TokenType::LParen),
                 std_symbol!(')', TokenType::RParen),
                 std_symbol!('[', TokenType::LBrack),
@@ -344,7 +339,7 @@ impl Lexer {
                     self.getc();
                     if self.char == '/' {
                         while self.char != '\n' && self.char != '\0' {
-                           self.getc();
+                            self.getc();
                         }
                         continue;
                     }
@@ -376,7 +371,7 @@ impl Lexer {
                                         _ => {
                                             self.error(
                                                 String::from("Unknown character escape found"),
-                                                (self.position - 2, 2)
+                                                (self.position - 2, 2),
                                             );
                                             continue;
                                         }
@@ -529,12 +524,12 @@ impl Lexer {
                                         output.push(Token::new(
                                             String::from("&"),
                                             TokenType::Ref,
-                                            (span_start, self.position - 2)
+                                            (span_start, self.position - 2),
                                         ));
                                         output.push(Token::new(
                                             String::from("&"),
                                             TokenType::Ref,
-                                            (span_start + 1, self.position - 1)
+                                            (span_start + 1, self.position - 1),
                                         ));
                                     }
                                 }
@@ -591,7 +586,10 @@ impl Lexer {
                     }
                 }
                 _ => {
-                    self.error(format!("Undefined char found: {}", self.char), (self.position - 1, 1));
+                    self.error(
+                        format!("Undefined char found: {}", self.char),
+                        (self.position - 1, 1),
+                    );
                     self.getc();
                 }
             }

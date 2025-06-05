@@ -2,8 +2,8 @@ use deen_parser::{expressions::Expressions, types::Type, value::Value};
 use inkwell::{
     AddressSpace,
     module::Linkage,
+    types::BasicType,
     values::{BasicMetadataValueEnum, BasicValueEnum},
-    types::BasicType
 };
 
 use crate::CodeGen;
@@ -78,7 +78,10 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 "struct" => {
                                     let display_function = self
                                         .scope
-                                        .get_function(format!("{}_{}__{}", alias_type, alias, "display"))
+                                        .get_function(format!(
+                                            "{}_{}__{}",
+                                            alias_type, alias, "display"
+                                        ))
                                         .unwrap();
 
                                     // NOTE: Method `display(&self) *char` won`t give mutability of
@@ -88,8 +91,12 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         if arg.1.is_pointer_value() {
                                             arg.1.into()
                                         } else {
-                                            let alloca = self.builder.build_alloca(arg.1.get_type(), "").unwrap();
-                                            let _ = self.builder.build_store(alloca, arg.1).unwrap();
+                                            let alloca = self
+                                                .builder
+                                                .build_alloca(arg.1.get_type(), "")
+                                                .unwrap();
+                                            let _ =
+                                                self.builder.build_store(alloca, arg.1).unwrap();
                                             alloca.into()
                                         };
 
@@ -182,15 +189,13 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 "struct" => {
                                     let display_function = self
                                         .scope
-                                        .get_function(format!("{}_{}__{}", alias_type, alias, "display"))
+                                        .get_function(format!(
+                                            "{}_{}__{}",
+                                            alias_type, alias, "display"
+                                        ))
                                         .unwrap();
 
-                                    let self_val: BasicMetadataValueEnum =
-                                        if arg.1.is_pointer_value() {
-                                            arg.1.into()
-                                        } else {
-                                            arg.1.into()
-                                        };
+                                    let self_val: BasicMetadataValueEnum = arg.1.into();
 
                                     let output: BasicMetadataValueEnum = self
                                         .builder
@@ -221,27 +226,38 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
 
                 let first_call_args = [
                     vec![
-                        self.context.ptr_type(AddressSpace::default()).const_null().into(),
+                        self.context
+                            .ptr_type(AddressSpace::default())
+                            .const_null()
+                            .into(),
                         self.context.i64_type().const_zero().into(),
                         global_literal,
                     ],
-                    format_values.clone()
-                ].concat();
+                    format_values.clone(),
+                ]
+                .concat();
 
-                let length = self.builder.build_call(
-                    snprintf_fn,
-                    &first_call_args,
-                    ""
-                ).unwrap().try_as_basic_value().left().unwrap();
+                let length = self
+                    .builder
+                    .build_call(snprintf_fn, &first_call_args, "")
+                    .unwrap()
+                    .try_as_basic_value()
+                    .left()
+                    .unwrap();
 
                 let buffer = {
-                    let buffer_size = self.builder.build_int_add(
-                        length.into_int_value(),
-                        self.context.i32_type().const_int(1, false),
-                        ""
-                    ).unwrap();
+                    let buffer_size = self
+                        .builder
+                        .build_int_add(
+                            length.into_int_value(),
+                            self.context.i32_type().const_int(1, false),
+                            "",
+                        )
+                        .unwrap();
 
-                    self.builder.build_array_alloca(self.context.i8_type(), buffer_size, "").unwrap()
+                    self.builder
+                        .build_array_alloca(self.context.i8_type(), buffer_size, "")
+                        .unwrap()
                 };
 
                 // second call for the final format
@@ -269,10 +285,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
             "panic" => {
                 let (mut literal, call_line) =
                     if let Some(Expressions::Value(Value::String(str), span)) = arguments.first() {
-                        (
-                            str.clone(),
-                            self.get_source_line(span.0)
-                        )
+                        (str.clone(), self.get_source_line(span.0))
                     } else {
                         (String::default(), 0)
                     };
@@ -315,15 +328,13 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 "struct" => {
                                     let display_function = self
                                         .scope
-                                        .get_function(format!("{}_{}__{}", alias_type, alias, "display"))
+                                        .get_function(format!(
+                                            "{}_{}__{}",
+                                            alias_type, alias, "display"
+                                        ))
                                         .unwrap();
 
-                                    let self_val: BasicMetadataValueEnum =
-                                        if arg.1.is_pointer_value() {
-                                            arg.1.into()
-                                        } else {
-                                            arg.1.into()
-                                        };
+                                    let self_val: BasicMetadataValueEnum = arg.1.into();
 
                                     let output: BasicMetadataValueEnum = self
                                         .builder
@@ -342,14 +353,19 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                         _ => arg.1.into(),
                     })
                     .collect::<Vec<BasicMetadataValueEnum<'ctx>>>();
-                
+
                 self.build_panic(literal, format_values, call_line);
                 (Type::Void, self.context.bool_type().const_zero().into())
-            },
+            }
             "sizeof" => {
                 let instance = arguments.first().unwrap();
                 let basic_type = {
-                    if let Expressions::Argument { name: _, r#type, span: _ } = instance {
+                    if let Expressions::Argument {
+                        name: _,
+                        r#type,
+                        span: _,
+                    } = instance
+                    {
                         self.get_basic_type(r#type.clone())
                     } else {
                         self.compile_expression(instance.clone(), None).1.get_type()
@@ -357,10 +373,10 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                 };
 
                 (Type::USIZE, basic_type.size_of().unwrap().into())
-            },
+            }
             _ => {
                 panic!("Provided macros is under development stage: `{}!()`", id)
-            },
+            }
         }
     }
 }

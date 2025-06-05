@@ -22,7 +22,9 @@ fn assign_statement() {
         }) => {
             if let Expressions::Value(Value::Identifier(identifier), _) = object {
                 assert_eq!(identifier, "some_var");
-            } else { panic!("Wrong obj expr parsed") }
+            } else {
+                panic!("Wrong obj expr parsed")
+            }
 
             if let Expressions::Value(Value::Integer(5), _) = value {
             } else {

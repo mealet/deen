@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::function::Function;
 use inkwell::types::BasicTypeEnum;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Enumeration<'ctx> {

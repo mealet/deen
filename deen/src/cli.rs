@@ -23,7 +23,7 @@ pub struct Args {
     pub llvm: bool,
 
     #[arg(short, long, action, help = "Include C library to linker")]
-    pub include: Vec<PathBuf>
+    pub include: Vec<PathBuf>,
 }
 
 pub fn error(message: &str) {

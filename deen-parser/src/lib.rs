@@ -22,7 +22,7 @@ const BINARY_OPERATORS: [TokenType; 5] = [
     TokenType::Minus,    // -
     TokenType::Divide,   // /
     TokenType::Multiply, // *
-    TokenType::Modulus, // %
+    TokenType::Modulus,  // %
 ];
 
 const BOOLEAN_OPERATORS: [TokenType; 6] = [
@@ -42,7 +42,8 @@ const BITWISE_OPERATORS: [TokenType; 5] = [
     TokenType::Xor,       // ^
 ];
 
-const PRIORITY_BINARY_OPERATORS: [TokenType; 3] = [TokenType::Multiply, TokenType::Divide, TokenType::Modulus];
+const PRIORITY_BINARY_OPERATORS: [TokenType; 3] =
+    [TokenType::Multiply, TokenType::Divide, TokenType::Modulus];
 const PRIORITY_BOOLEAN_OPERATORS: [TokenType; 2] = [TokenType::Or, TokenType::And];
 
 const END_STATEMENT: TokenType = TokenType::Semicolon;
@@ -346,8 +347,7 @@ impl Parser {
                             return self.struct_expression(current.value.clone());
                         }
                         self.position -= 1;
-                        return output
-
+                        return output;
                     }
                     TokenType::Not => {
                         let _ = self.next();
@@ -371,7 +371,7 @@ impl Parser {
                     _ => {}
                 }
 
-                return output;
+                output
             }
 
             TokenType::Ref => Expressions::Reference {
@@ -440,7 +440,11 @@ impl Parser {
 
             TokenType::Type => {
                 let datatype = self.get_basic_type(current.value, current.span);
-                Expressions::Argument { name: "@deen_type".to_string(), r#type: datatype, span: current.span }
+                Expressions::Argument {
+                    name: "@deen_type".to_string(),
+                    r#type: datatype,
+                    span: current.span,
+                }
             }
 
             _ => {
@@ -623,33 +627,56 @@ impl Parser {
                                 value,
                                 span,
                             },
-                            Statements::FieldAssignStatement { object, value, span } => Statements::DerefAssignStatement { object, value, span },
-                            Statements::BinaryAssignStatement { object, operand, value, span } => Statements::DerefAssignStatement {
+                            Statements::FieldAssignStatement {
+                                object,
+                                value,
+                                span,
+                            } => Statements::DerefAssignStatement {
+                                object,
+                                value,
+                                span,
+                            },
+                            Statements::BinaryAssignStatement {
+                                object,
+                                operand,
+                                value,
+                                span,
+                            } => Statements::DerefAssignStatement {
                                 object: object.clone(),
                                 value: Expressions::Binary {
                                     operand,
                                     lhs: Box::new(object),
                                     rhs: Box::new(value),
-                                    span
+                                    span,
                                 },
-                                span
+                                span,
                             },
-                            Statements::SliceAssignStatement { object, index, value, span } => Statements::DerefAssignStatement {
+                            Statements::SliceAssignStatement {
+                                object,
+                                index,
+                                value,
+                                span,
+                            } => Statements::DerefAssignStatement {
                                 object: Expressions::Slice {
                                     object: Box::new(object),
                                     index: Box::new(index),
-                                    span
+                                    span,
                                 },
                                 value,
-                                span
+                                span,
                             },
-                            Statements::DerefAssignStatement { object, value, span } => {
-                                Statements::DerefAssignStatement {
-                                    object: Expressions::Dereference { object: Box::new(object), span },
-                                    value,
-                                    span
-                                }
-                            }
+                            Statements::DerefAssignStatement {
+                                object,
+                                value,
+                                span,
+                            } => Statements::DerefAssignStatement {
+                                object: Expressions::Dereference {
+                                    object: Box::new(object),
+                                    span,
+                                },
+                                value,
+                                span,
+                            },
                             _ => {
                                 self.error(
                                     String::from("Unsupported for dereference statement found"),
@@ -671,7 +698,10 @@ impl Parser {
             TokenType::Identifier => {
                 let next = self.next();
                 match next.token_type {
-                    TokenType::Equal => self.assign_statement(Expressions::Value(Value::Identifier(current.value), current.span), current.span),
+                    TokenType::Equal => self.assign_statement(
+                        Expressions::Value(Value::Identifier(current.value), current.span),
+                        current.span,
+                    ),
                     TokenType::Not => self.macrocall_statement(current.value, current.span),
                     TokenType::Dot => {
                         let sub_expr = self.subelement_expression(
@@ -695,14 +725,19 @@ impl Parser {
                                     span: (current.span.0, span_end),
                                 }
                             }
-                            TokenType::Plus | TokenType::Minus | TokenType::Multiply | TokenType::Divide => {
+                            TokenType::Plus
+                            | TokenType::Minus
+                            | TokenType::Multiply
+                            | TokenType::Divide => {
                                 let operand = self.current().value;
                                 let _ = self.next();
 
                                 if !self.expect(TokenType::Equal) {
                                     self.error(
-                                        String::from("Unexpected binary expression after subelement"),
-                                        (current.span.0, self.current().span.1)
+                                        String::from(
+                                            "Unexpected binary expression after subelement",
+                                        ),
+                                        (current.span.0, self.current().span.1),
                                     );
                                     return Statements::None;
                                 }
@@ -716,7 +751,7 @@ impl Parser {
                                     object: sub_expr,
                                     operand,
                                     value,
-                                    span: (current.span.0, span_end)
+                                    span: (current.span.0, span_end),
                                 }
                             }
                             TokenType::Semicolon => {
@@ -737,12 +772,17 @@ impl Parser {
                         }
                     }
                     TokenType::LParen => self.call_statement(current.value, current.span),
-                    TokenType::LBrack => self.slice_assign_statement(Expressions::Value(Value::Identifier(current.value), current.span), current.span),
+                    TokenType::LBrack => self.slice_assign_statement(
+                        Expressions::Value(Value::Identifier(current.value), current.span),
+                        current.span,
+                    ),
 
                     tty if BINARY_OPERATORS.contains(&tty) => match self.next().token_type {
-                        TokenType::Equal => {
-                            self.binary_assign_statement(Expressions::Value(Value::Identifier(current.value), current.span), next.value, current.span)
-                        }
+                        TokenType::Equal => self.binary_assign_statement(
+                            Expressions::Value(Value::Identifier(current.value), current.span),
+                            next.value,
+                            current.span,
+                        ),
                         TokenType::Plus | TokenType::Minus => {
                             let span_start = next.span.0;
                             let span_end = self.current().span.1;
@@ -762,7 +802,10 @@ impl Parser {
                             self.skip_eos();
 
                             Statements::BinaryAssignStatement {
-                                object: Expressions::Value(Value::Identifier(current.value), current.span),
+                                object: Expressions::Value(
+                                    Value::Identifier(current.value),
+                                    current.span,
+                                ),
                                 operand: op1,
                                 value: Expressions::Value(
                                     Value::Integer(1),

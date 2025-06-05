@@ -12,23 +12,22 @@ fn main() {
 
         match e.kind() {
             clap::error::ErrorKind::DisplayVersion => {
-
                 eprintln!("{}", "🚀 Deen Programming Language".bold().cyan());
                 eprintln!("| - version: {}", version_fmt);
                 eprintln!("| - authors: {}", env!("CARGO_PKG_AUTHORS"));
 
                 std::process::exit(0);
-            },
+            }
             _ => {
                 eprintln!("{}", "🚀 Deen Programming Language".bold().cyan());
                 eprintln!("| - version: {}", version_fmt);
                 eprintln!("| - authors: {}", env!("CARGO_PKG_AUTHORS"));
-                eprintln!("");
+                eprintln!();
                 eprintln!("{}", "🍀 Options:".bold().cyan());
 
                 command.print_help().unwrap();
 
-                eprintln!("");
+                eprintln!();
                 eprintln!("{}", "🎓 Examples of usage:".bold().cyan());
                 eprintln!("  deen example.dn output");
                 eprintln!("  deen example.dn output --no-warns");
@@ -40,12 +39,12 @@ fn main() {
                 std::process::exit(1);
             }
         }
-
     });
 
     let no_warns = args.no_warns;
 
-    let fname = args.path
+    let fname = args
+        .path
         .file_name()
         .unwrap_or_else(|| {
             cli::error("Unable to find source file");
@@ -257,11 +256,18 @@ fn main() {
         )
     } else {
         deen_linker::compiler::ObjectCompiler::compile_module(module_ref, &module_name);
-        deen_linker::linker::ObjectLinker::link(&module_name, &args.output.to_str().unwrap(), args.include).unwrap_or_else(|err| {
+        deen_linker::linker::ObjectLinker::link(
+            &module_name,
+            args.output.to_str().unwrap(),
+            args.include,
+        )
+        .unwrap_or_else(|err| {
             cli::error("Linker catched an error!");
             println!("\n{}\n", err);
 
-            cli::error("Please make sure you linked all the necessary libraries (check the '-i' argument)");
+            cli::error(
+                "Please make sure you linked all the necessary libraries (check the '-i' argument)",
+            );
             std::process::exit(1);
         });
 

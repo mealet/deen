@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default)]
 pub struct SymbolTable {
-    pub imports: HashMap<String, Import>
+    pub imports: HashMap<String, Import>,
 }
 
 #[derive(Debug, Clone)]

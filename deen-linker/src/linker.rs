@@ -9,7 +9,10 @@ impl ObjectLinker {
             output_path = format!("{output_path}.exe");
         }
 
-        let includes_formatted = includes.iter().map(|inc| inc.as_os_str()).collect::<Vec<_>>();
+        let includes_formatted = includes
+            .iter()
+            .map(|inc| inc.as_os_str())
+            .collect::<Vec<_>>();
         let input = format!("{module_name}.o");
 
         let linker_output = std::process::Command::new("cc")
@@ -23,8 +26,8 @@ impl ObjectLinker {
 
         let output = linker_output.unwrap();
         if output.status.success() {
-            return Ok(())
+            return Ok(());
         }
-        return Err(String::from_utf8_lossy(&output.stderr).to_string())
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }

@@ -19,6 +19,6 @@ license = "BSD-3-Clause"
 
 [profile.release]
 lto = true
+strip = true
 opt-level = "z"
 codegen-units = 1
-strip = true

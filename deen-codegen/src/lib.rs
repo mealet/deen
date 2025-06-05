@@ -2,13 +2,19 @@ use crate::{
     enumeration::Enumeration,
     function::Function,
     macros::StandartMacros,
+    scope::Scope,
     structure::{Field, Structure},
     variable::Variable,
-    scope::Scope,
 };
 use deen_parser::{expressions::Expressions, statements::Statements, types::Type, value::Value};
 use inkwell::{
-    basic_block::BasicBlock, builder::Builder, context::Context, module::{Linkage, Module}, types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType}, values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, PointerValue}, AddressSpace
+    AddressSpace,
+    basic_block::BasicBlock,
+    builder::Builder,
+    context::Context,
+    module::{Linkage, Module},
+    types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType},
+    values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, PointerValue},
 };
 
 use deen_semantic::symtable::SymbolTable;
@@ -17,9 +23,9 @@ use std::collections::HashMap;
 mod enumeration;
 mod function;
 mod macros;
+mod scope;
 mod structure;
 mod variable;
-mod scope;
 
 pub struct CodeGen<'ctx> {
     source: String,
@@ -97,28 +103,64 @@ impl<'ctx> CodeGen<'ctx> {
         statements: Vec<Statements>,
         prefix: Option<String>,
     ) -> (&Module<'ctx>, ModuleContent<'ctx>) {
-        let pre_statements = statements.iter().filter(|stmt| {
-            match stmt {
-                Statements::StructDefineStatement { name: _, fields: _, functions: _, public: _, span: _ } => true,
-                Statements::EnumDefineStatement { name: _, fields: _, functions: _, public: _, span: _ } => true,
-                Statements::TypedefStatement { alias: _, datatype: _, span: _ } => true,
+        let pre_statements = statements
+            .iter()
+            .filter(|stmt| match stmt {
+                Statements::StructDefineStatement {
+                    name: _,
+                    fields: _,
+                    functions: _,
+                    public: _,
+                    span: _,
+                } => true,
+                Statements::EnumDefineStatement {
+                    name: _,
+                    fields: _,
+                    functions: _,
+                    public: _,
+                    span: _,
+                } => true,
+                Statements::TypedefStatement {
+                    alias: _,
+                    datatype: _,
+                    span: _,
+                } => true,
                 Statements::ImportStatement { path: _, span: _ } => true,
-                Statements::FunctionDefineStatement { name, datatype: _, arguments: _, block: _, public: _, span: _, header_span: _ } => name != "main",
-                _ => false
-            }
-        }).collect::<Vec<&Statements>>();
+                Statements::FunctionDefineStatement {
+                    name,
+                    datatype: _,
+                    arguments: _,
+                    block: _,
+                    public: _,
+                    span: _,
+                    header_span: _,
+                } => name != "main",
+                _ => false,
+            })
+            .collect::<Vec<&Statements>>();
 
-        let after_statements = statements.iter().filter(|stmt| !pre_statements.contains(stmt));
+        let after_statements = statements
+            .iter()
+            .filter(|stmt| !pre_statements.contains(stmt));
 
-        pre_statements.clone().into_iter().for_each(|stmt| self.compile_statement(stmt.clone(), prefix.clone()));
-        after_statements.into_iter().for_each(|stmt| self.compile_statement(stmt.clone(), prefix.clone()));
+        pre_statements
+            .clone()
+            .into_iter()
+            .for_each(|stmt| self.compile_statement(stmt.clone(), prefix.clone()));
+        after_statements
+            .into_iter()
+            .for_each(|stmt| self.compile_statement(stmt.clone(), prefix.clone()));
 
         let module_content = {
             let functions = self.scope.stricted_functions();
             let structures = self.scope.stricted_structs();
             let enumerations = self.scope.stricted_enums();
 
-            ModuleContent { functions, structures, enumerations }
+            ModuleContent {
+                functions,
+                structures,
+                enumerations,
+            }
         };
 
         (&self.module, module_content)
@@ -139,10 +181,13 @@ impl<'ctx> CodeGen<'ctx> {
 
                     self.builder.build_store(var.ptr, compiled_value.1).unwrap();
                 } else {
-                    let ptr = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
+                    let ptr =
+                        self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
                     let value = self.compile_expression(value, None);
 
-                    let _ = self.builder.build_store(ptr.1.into_pointer_value(), value.1);
+                    let _ = self
+                        .builder
+                        .build_store(ptr.1.into_pointer_value(), value.1);
                 }
             }
             Statements::BinaryAssignStatement {
@@ -234,7 +279,7 @@ impl<'ctx> CodeGen<'ctx> {
                         self.build_panic(
                             "Array has len %ld, but index is %ld",
                             vec![expected_basic_value.into(), provided_basic_value.into()],
-                            self.get_source_line(span.0)
+                            self.get_source_line(span.0),
                         );
                         self.builder.build_unconditional_branch(ok_block).unwrap();
                         self.builder.position_at_end(ok_block);
@@ -254,7 +299,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                         // storing value
                         self.builder.build_store(ptr, value.1).unwrap();
-                    },
+                    }
                     Type::Pointer(ptr_type) => {
                         // compiling value and ptr
                         let value = self.compile_expression(value, Some(*ptr_type.clone()));
@@ -264,16 +309,16 @@ impl<'ctx> CodeGen<'ctx> {
                                     self.get_basic_type(*ptr_type),
                                     obj.1.into_pointer_value(),
                                     &[idx.1.into_int_value()],
-                                    ""
+                                    "",
                                 )
                                 .unwrap()
                         };
 
                         // storing value
                         self.builder.build_store(ptr, value.1).unwrap();
-                    },
+                    }
 
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
             }
             Statements::FieldAssignStatement {
@@ -284,7 +329,6 @@ impl<'ctx> CodeGen<'ctx> {
                 let compiled_object =
                     self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
                 let compiled_value = self.compile_expression(value, Some(compiled_object.0));
-
 
                 self.builder
                     .build_store(compiled_object.1.into_pointer_value(), compiled_value.1)
@@ -324,7 +368,8 @@ impl<'ctx> CodeGen<'ctx> {
                         let basic_type = self.get_basic_type(datatype.clone());
 
                         if !empty_binding {
-                            let alloca = self.builder.build_alloca(basic_type, &identifier).unwrap();
+                            let alloca =
+                                self.builder.build_alloca(basic_type, &identifier).unwrap();
 
                             self.scope.set_variable(
                                 identifier,
@@ -370,18 +415,22 @@ impl<'ctx> CodeGen<'ctx> {
                 header_span: _,
             } => {
                 let module_name = self.module.get_name().to_str().unwrap();
-                let name = format!(
-                    "{}{}",
-                    prefix.clone().unwrap_or_default(),
-                    raw_name,
-                );
+                let name = format!("{}{}", prefix.clone().unwrap_or_default(), raw_name,);
 
                 let llvm_ir_name = format!(
                     "{}{}{}({})",
-                    if module_name == "main" { "".to_owned() } else { format!("{}.", module_name) },
+                    if module_name == "main" {
+                        "".to_owned()
+                    } else {
+                        format!("{}.", module_name)
+                    },
                     prefix.clone().unwrap_or_default(),
                     raw_name,
-                    arguments.iter().map(|arg| arg.1.to_string()).collect::<Vec<String>>().join(", ")
+                    arguments
+                        .iter()
+                        .map(|arg| arg.1.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", ")
                 );
 
                 let mut args: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
@@ -391,9 +440,13 @@ impl<'ctx> CodeGen<'ctx> {
 
                 let fn_type = self.get_fn_type(datatype.clone(), &args, false);
                 let function = self.module.add_function(
-                    if name == "main" { "main" } else { &llvm_ir_name },
+                    if name == "main" {
+                        "main"
+                    } else {
+                        &llvm_ir_name
+                    },
                     fn_type,
-                    None
+                    None,
                 );
                 let entry = self.context.append_basic_block(function, "entry");
 
@@ -420,8 +473,8 @@ impl<'ctx> CodeGen<'ctx> {
                             let alias = alias.split("__").collect::<Vec<&str>>()[0];
 
                             Type::Alias(alias.to_owned())
-                        },
-                        _ => arg.1.clone()
+                        }
+                        _ => arg.1.clone(),
                     };
 
                     self.scope.set_variable(
@@ -477,7 +530,8 @@ impl<'ctx> CodeGen<'ctx> {
 
                 let mut function_args = function.arguments.clone();
                 if function_args[function_args.len() - 1] == Type::Void
-                && function_args[function_args.len() - 2] == Type::Void {
+                    && function_args[function_args.len() - 2] == Type::Void
+                {
                     function_args.resize(arguments.len(), Type::Void);
                 }
 
@@ -509,7 +563,12 @@ impl<'ctx> CodeGen<'ctx> {
                 span: _,
             } => {
                 let name = format!("{}{}", prefix.clone().unwrap_or_default(), raw_name);
-                let llvm_name = format!("{}.{}{}", self.module.get_name().to_str().unwrap(), prefix.unwrap_or_default(), raw_name);
+                let llvm_name = format!(
+                    "{}.{}{}",
+                    self.module.get_name().to_str().unwrap(),
+                    prefix.unwrap_or_default(),
+                    raw_name
+                );
 
                 let struct_type = self.context.opaque_struct_type(&llvm_name);
                 let mut compiled_fields = Vec::new();
@@ -551,16 +610,23 @@ impl<'ctx> CodeGen<'ctx> {
                         Some(format!("struct_{}__", name)),
                     );
 
-                    let (mut function_id, mut function_value) = self.scope.stricted_functions().into_iter().last().unwrap();
+                    let (mut function_id, mut function_value) =
+                        self.scope.stricted_functions().into_iter().last().unwrap();
                     self.exit_scope_raw();
 
                     if let Some(Type::SelfRef) = function_value.arguments.first() {
-                        *function_value.arguments.first_mut().unwrap() = Type::Pointer(Box::new(Type::Alias(name.clone())));
+                        *function_value.arguments.first_mut().unwrap() =
+                            Type::Pointer(Box::new(Type::Alias(name.clone())));
                     }
-                    self.scope.set_function(function_id.clone(), function_value.clone());
+                    self.scope
+                        .set_function(function_id.clone(), function_value.clone());
 
                     function_id = function_id.replace(&format!("struct_{}__", name), "");
-                    self.scope.get_mut_struct(&name).unwrap().functions.insert(function_id, function_value);
+                    self.scope
+                        .get_mut_struct(&name)
+                        .unwrap()
+                        .functions
+                        .insert(function_id, function_value);
                 });
             }
             Statements::EnumDefineStatement {
@@ -593,11 +659,16 @@ impl<'ctx> CodeGen<'ctx> {
                         Some(format!("enum_{}__", name)),
                     );
 
-                    let (mut function_id, function_value) = self.scope.stricted_functions().into_iter().last().unwrap();
+                    let (mut function_id, function_value) =
+                        self.scope.stricted_functions().into_iter().last().unwrap();
                     self.exit_scope_raw();
 
                     function_id = function_id.replace(&format!("struct_{}__", name), "");
-                    self.scope.get_mut_enum(&name).unwrap().functions.insert(function_id, function_value);
+                    self.scope
+                        .get_mut_enum(&name)
+                        .unwrap()
+                        .functions
+                        .insert(function_id, function_value);
                 });
             }
             Statements::TypedefStatement {
@@ -706,86 +777,131 @@ impl<'ctx> CodeGen<'ctx> {
                 span,
             } => {
                 // blocks definition
-                let iterator_block = self.context.append_basic_block(self.function.unwrap(), "for_iterator");
-                let statements_block = self.context.append_basic_block(self.function.unwrap(), "for_block");
-                let after_block = self.context.append_basic_block(self.function.unwrap(), "for_after");
+                let iterator_block = self
+                    .context
+                    .append_basic_block(self.function.unwrap(), "for_iterator");
+                let statements_block = self
+                    .context
+                    .append_basic_block(self.function.unwrap(), "for_block");
+                let after_block = self
+                    .context
+                    .append_basic_block(self.function.unwrap(), "for_after");
 
                 // binding initialization
 
-                let mut compiled_iterator = self.compile_expression(iterator, Some(Type::Pointer(Box::new(Type::Void))));
+                let mut compiled_iterator =
+                    self.compile_expression(iterator, Some(Type::Pointer(Box::new(Type::Void))));
 
                 if let Type::Pointer(ptr_type) = compiled_iterator.0 {
                     compiled_iterator.0 = *ptr_type.clone();
 
                     if let Type::Array(_, _) = *ptr_type {
-                        compiled_iterator.1 = self.builder.build_load(self.context.ptr_type(AddressSpace::default()), compiled_iterator.1.into_pointer_value(), "").unwrap();
+                        compiled_iterator.1 = self
+                            .builder
+                            .build_load(
+                                self.context.ptr_type(AddressSpace::default()),
+                                compiled_iterator.1.into_pointer_value(),
+                                "",
+                            )
+                            .unwrap();
                     }
                 }
-                
+
                 let binding_type = match compiled_iterator.0.clone() {
                     typ if deen_semantic::Analyzer::is_integer(&typ) => typ,
 
-                    Type::Array(typ, _) => *typ, 
+                    Type::Array(typ, _) => *typ,
                     Type::DynamicArray(typ) => *typ,
                     Type::Alias(alias) => {
-                        let iterator_fn = self.scope.get_function(format!("struct_{}__{}", alias, "iterate")).unwrap();
+                        let iterator_fn = self
+                            .scope
+                            .get_function(format!("struct_{}__{}", alias, "iterate"))
+                            .unwrap();
                         if let Type::Tuple(types) = iterator_fn.datatype {
                             types[0].clone()
-                        } else { unreachable!() }
-                    },
+                        } else {
+                            unreachable!()
+                        }
+                    }
 
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 };
 
                 let basic_binding_type = self.get_basic_type(binding_type.clone());
-                let binding_ptr = self.builder.build_alloca(basic_binding_type, &binding).unwrap();
+                let binding_ptr = self
+                    .builder
+                    .build_alloca(basic_binding_type, &binding)
+                    .unwrap();
 
                 let old_variable = self.scope.get_variable(&binding);
-                self.scope.set_variable(binding.clone(), Variable { datatype: binding_type, llvm_type: basic_binding_type, ptr: binding_ptr });
+                self.scope.set_variable(
+                    binding.clone(),
+                    Variable {
+                        datatype: binding_type,
+                        llvm_type: basic_binding_type,
+                        ptr: binding_ptr,
+                    },
+                );
                 self.breaks.push(after_block);
 
                 match compiled_iterator.0.clone() {
                     typ if deen_semantic::Analyzer::is_integer(&typ) => {
                         // runtime checker for negative number
-                        if !deen_semantic::Analyzer::is_unsigned_integer(&typ) {
-                            if compiled_iterator.1.into_int_value().get_sign_extended_constant().unwrap_or(-1) < 0 {
-                                let checker_block = self.context.insert_basic_block_after(self.builder.get_insert_block().unwrap(), "int_checker");
-                                let err_block = self.context.insert_basic_block_after(checker_block, "int_integer_panic");
-                                let ok_block = self.context.insert_basic_block_after(err_block, "int_checker_ok");
+                        if !deen_semantic::Analyzer::is_unsigned_integer(&typ)
+                            && compiled_iterator
+                                .1
+                                .into_int_value()
+                                .get_sign_extended_constant()
+                                .unwrap_or(-1)
+                                < 0
+                        {
+                            let checker_block = self.context.insert_basic_block_after(
+                                self.builder.get_insert_block().unwrap(),
+                                "int_checker",
+                            );
+                            let err_block = self
+                                .context
+                                .insert_basic_block_after(checker_block, "int_integer_panic");
+                            let ok_block = self
+                                .context
+                                .insert_basic_block_after(err_block, "int_checker_ok");
 
-                                self.builder.build_unconditional_branch(checker_block).unwrap();
-                                self.builder.position_at_end(checker_block);
+                            self.builder
+                                .build_unconditional_branch(checker_block)
+                                .unwrap();
+                            self.builder.position_at_end(checker_block);
 
-                                let zero = self.context.i64_type().const_zero();
-                                let cmp = self.builder.build_int_compare(
+                            let zero = self.context.i64_type().const_zero();
+                            let cmp = self
+                                .builder
+                                .build_int_compare(
                                     inkwell::IntPredicate::SGE,
                                     compiled_iterator.1.into_int_value(),
                                     zero,
-                                    ""
-                                ).unwrap();
+                                    "",
+                                )
+                                .unwrap();
 
-                                self.builder.build_conditional_branch(cmp, ok_block, err_block).unwrap();
-                                self.builder.position_at_end(err_block);
+                            self.builder
+                                .build_conditional_branch(cmp, ok_block, err_block)
+                                .unwrap();
+                            self.builder.position_at_end(err_block);
 
-                                let specifier = self.type_specifier(&typ);
-                                self.build_panic(
-                                    format!("Loop `for` handled negative number: {}", specifier),
-                                    vec![
-                                        compiled_iterator.1.into()
-                                    ],
-                                    self.get_source_line(span.0)
-                                );
+                            let specifier = self.type_specifier(&typ);
+                            self.build_panic(
+                                format!("Loop `for` handled negative number: {}", specifier),
+                                vec![compiled_iterator.1.into()],
+                                self.get_source_line(span.0),
+                            );
 
-                                self.builder.position_at_end(ok_block);
-                            }
+                            self.builder.position_at_end(ok_block);
                         }
 
                         // initial binding value
 
-                        self.builder.build_store(
-                            binding_ptr,
-                            self.get_basic_type(typ.clone()).const_zero()
-                        ).unwrap();
+                        self.builder
+                            .build_store(binding_ptr, self.get_basic_type(typ.clone()).const_zero())
+                            .unwrap();
 
                         // condition block
 
@@ -795,37 +911,61 @@ impl<'ctx> CodeGen<'ctx> {
                             .unwrap();
                         self.builder.position_at_end(iterator_block);
 
-                        let binding_value = self.builder.build_load(self.get_basic_type(typ), binding_ptr, "").unwrap();
-                        let iter_cmp = self.builder.build_int_compare(
-                            inkwell::IntPredicate::SLT,
-                            binding_value.into_int_value(),
-                            compiled_iterator.1.into_int_value(),
-                            ""
-                        ).unwrap();
+                        let binding_value = self
+                            .builder
+                            .build_load(self.get_basic_type(typ), binding_ptr, "")
+                            .unwrap();
+                        let iter_cmp = self
+                            .builder
+                            .build_int_compare(
+                                inkwell::IntPredicate::SLT,
+                                binding_value.into_int_value(),
+                                compiled_iterator.1.into_int_value(),
+                                "",
+                            )
+                            .unwrap();
 
-                        self.builder.build_conditional_branch(iter_cmp, statements_block, after_block).unwrap();
-                    },
+                        self.builder
+                            .build_conditional_branch(iter_cmp, statements_block, after_block)
+                            .unwrap();
+                    }
 
                     Type::Alias(alias) => {
                         // allocating iterator status
                         let status_varname = format!("@deen_iterator_status_{}", &binding);
-                        
-                        let iterator_fn = self.scope.get_function(format!("struct_{}__{}", alias, "iterate")).unwrap();
-                        let iter_status_alloca = self.builder.build_alloca(self.context.bool_type(), &status_varname).unwrap();
-                        
-                        self.scope.set_variable(status_varname, Variable {
-                            datatype: Type::Bool,
-                            llvm_type: self.context.bool_type().into(),
-                            ptr: iter_status_alloca,
-                        });
 
-                        let iterator_struct: BasicMetadataValueEnum = if compiled_iterator.1.is_pointer_value() {
-                            compiled_iterator.1.into()
-                        } else {
-                            let alloca = self.builder.build_alloca(compiled_iterator.1.get_type(), "").unwrap();
-                            let _ = self.builder.build_store(alloca, compiled_iterator.1).unwrap();
-                            alloca.into()
-                        };
+                        let iterator_fn = self
+                            .scope
+                            .get_function(format!("struct_{}__{}", alias, "iterate"))
+                            .unwrap();
+                        let iter_status_alloca = self
+                            .builder
+                            .build_alloca(self.context.bool_type(), &status_varname)
+                            .unwrap();
+
+                        self.scope.set_variable(
+                            status_varname,
+                            Variable {
+                                datatype: Type::Bool,
+                                llvm_type: self.context.bool_type().into(),
+                                ptr: iter_status_alloca,
+                            },
+                        );
+
+                        let iterator_struct: BasicMetadataValueEnum =
+                            if compiled_iterator.1.is_pointer_value() {
+                                compiled_iterator.1.into()
+                            } else {
+                                let alloca = self
+                                    .builder
+                                    .build_alloca(compiled_iterator.1.get_type(), "")
+                                    .unwrap();
+                                let _ = self
+                                    .builder
+                                    .build_store(alloca, compiled_iterator.1)
+                                    .unwrap();
+                                alloca.into()
+                            };
 
                         // calling iterator function
 
@@ -839,20 +979,35 @@ impl<'ctx> CodeGen<'ctx> {
 
                         // allocating result
 
-                        let tuple_alloca = self.builder.build_alloca(output.get_type(), "").unwrap();
+                        let tuple_alloca =
+                            self.builder.build_alloca(output.get_type(), "").unwrap();
                         self.builder.build_store(tuple_alloca, output).unwrap();
 
                         // storing iterator status
 
-                        let status_field_ptr = self.builder.build_struct_gep(output.get_type(), tuple_alloca, 1, "").unwrap();
-                        let status = self.builder.build_load(self.context.bool_type(), status_field_ptr, "").unwrap();
+                        let status_field_ptr = self
+                            .builder
+                            .build_struct_gep(output.get_type(), tuple_alloca, 1, "")
+                            .unwrap();
+                        let status = self
+                            .builder
+                            .build_load(self.context.bool_type(), status_field_ptr, "")
+                            .unwrap();
 
-                        self.builder.build_store(iter_status_alloca, status).unwrap();
+                        self.builder
+                            .build_store(iter_status_alloca, status)
+                            .unwrap();
 
                         // storing binding value
 
-                        let binding_field_ptr = self.builder.build_struct_gep(output.get_type(), tuple_alloca, 0, "").unwrap();
-                        let iter_value = self.builder.build_load(basic_binding_type, binding_field_ptr, "").unwrap();
+                        let binding_field_ptr = self
+                            .builder
+                            .build_struct_gep(output.get_type(), tuple_alloca, 0, "")
+                            .unwrap();
+                        let iter_value = self
+                            .builder
+                            .build_load(basic_binding_type, binding_field_ptr, "")
+                            .unwrap();
 
                         self.builder.build_store(binding_ptr, iter_value).unwrap();
 
@@ -864,32 +1019,48 @@ impl<'ctx> CodeGen<'ctx> {
                             .unwrap();
                         self.builder.position_at_end(iterator_block);
 
-                        let status = self.builder.build_load(self.context.bool_type(), iter_status_alloca, "").unwrap();
-                        self.builder.build_conditional_branch(status.into_int_value(), statements_block, after_block).unwrap();
-                    },
+                        let status = self
+                            .builder
+                            .build_load(self.context.bool_type(), iter_status_alloca, "")
+                            .unwrap();
+                        self.builder
+                            .build_conditional_branch(
+                                status.into_int_value(),
+                                statements_block,
+                                after_block,
+                            )
+                            .unwrap();
+                    }
                     Type::Array(arrtype, len) => {
                         // allocating iterator position
-                        let iterator_position_varname = format!("@deen_iterator_position_{}", &binding);
-                        let iterator_position_alloca = self.builder.build_alloca(self.context.i64_type(), &iterator_position_varname).unwrap();
+                        let iterator_position_varname =
+                            format!("@deen_iterator_position_{}", &binding);
+                        let iterator_position_alloca = self
+                            .builder
+                            .build_alloca(self.context.i64_type(), &iterator_position_varname)
+                            .unwrap();
 
-                        self.scope.set_variable(iterator_position_varname, Variable {
-                            datatype: Type::USIZE,
-                            llvm_type: self.context.i64_type().into(),
-                            ptr: iterator_position_alloca,
-                        });
+                        self.scope.set_variable(
+                            iterator_position_varname,
+                            Variable {
+                                datatype: Type::USIZE,
+                                llvm_type: self.context.i64_type().into(),
+                                ptr: iterator_position_alloca,
+                            },
+                        );
 
                         // assigning first element
-                        
+
                         let basic_type = self.get_basic_type(*arrtype);
                         let ptr = unsafe {
-                            self.builder.build_gep(
-                                basic_type,
-                                compiled_iterator.1.into_pointer_value(),
-                                &[
-                                    self.context.i64_type().const_zero()
-                                ],
-                                ""
-                            ).unwrap()
+                            self.builder
+                                .build_gep(
+                                    basic_type,
+                                    compiled_iterator.1.into_pointer_value(),
+                                    &[self.context.i64_type().const_zero()],
+                                    "",
+                                )
+                                .unwrap()
                         };
 
                         let value = self.builder.build_load(basic_type, ptr, "").unwrap();
@@ -897,24 +1068,35 @@ impl<'ctx> CodeGen<'ctx> {
 
                         // condition block
 
-                        let _  = self.builder.build_unconditional_branch(iterator_block).unwrap();
+                        let _ = self
+                            .builder
+                            .build_unconditional_branch(iterator_block)
+                            .unwrap();
                         self.builder.position_at_end(iterator_block);
 
-                        let iterator_position = self.builder.build_load(self.context.i64_type(), iterator_position_alloca, "").unwrap();
+                        let iterator_position = self
+                            .builder
+                            .build_load(self.context.i64_type(), iterator_position_alloca, "")
+                            .unwrap();
                         let array_len_value = self.context.i64_type().const_int(len as u64, false);
 
-                        let cmp = self.builder.build_int_compare(
-                            inkwell::IntPredicate::ULT,
-                            iterator_position.into_int_value(),
-                            array_len_value,
-                            ""
-                        ).unwrap();
+                        let cmp = self
+                            .builder
+                            .build_int_compare(
+                                inkwell::IntPredicate::ULT,
+                                iterator_position.into_int_value(),
+                                array_len_value,
+                                "",
+                            )
+                            .unwrap();
 
-                        self.builder.build_conditional_branch(cmp, statements_block, after_block).unwrap();
-                    },
-                    Type::DynamicArray(_) => {},
+                        self.builder
+                            .build_conditional_branch(cmp, statements_block, after_block)
+                            .unwrap();
+                    }
+                    Type::DynamicArray(_) => {}
 
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
 
                 // statements block
@@ -928,28 +1110,46 @@ impl<'ctx> CodeGen<'ctx> {
 
                 match compiled_iterator.0 {
                     typ if deen_semantic::Analyzer::is_integer(&typ) => {
-                        let current_value = self.builder.build_load(basic_binding_type, binding_ptr, "itertmp").unwrap();
-                        let incremented_value = self.builder.build_int_add(
-                            current_value.into_int_value(),
-                            basic_binding_type.into_int_type().const_int(1, false),
-                            "iterinc"
-                        ).unwrap();
-                        
-                        self.builder.build_store(binding_ptr, incremented_value).unwrap();
+                        let current_value = self
+                            .builder
+                            .build_load(basic_binding_type, binding_ptr, "itertmp")
+                            .unwrap();
+                        let incremented_value = self
+                            .builder
+                            .build_int_add(
+                                current_value.into_int_value(),
+                                basic_binding_type.into_int_type().const_int(1, false),
+                                "iterinc",
+                            )
+                            .unwrap();
+
+                        self.builder
+                            .build_store(binding_ptr, incremented_value)
+                            .unwrap();
                     }
 
                     Type::Alias(alias) => {
                         let status_varname = format!("@deen_iterator_status_{}", &binding);
                         let status_alloca = self.scope.get_variable(status_varname).unwrap().ptr;
-                        
-                        let iterator_fn = self.scope.get_function(format!("struct_{}__{}", alias, "iterate")).unwrap();
-                        let iterator_struct: BasicMetadataValueEnum = if compiled_iterator.1.is_pointer_value() {
-                            compiled_iterator.1.into()
-                        } else {
-                            let alloca = self.builder.build_alloca(compiled_iterator.1.get_type(), "").unwrap();
-                            let _ = self.builder.build_store(alloca, compiled_iterator.1).unwrap();
-                            alloca.into()
-                        };
+
+                        let iterator_fn = self
+                            .scope
+                            .get_function(format!("struct_{}__{}", alias, "iterate"))
+                            .unwrap();
+                        let iterator_struct: BasicMetadataValueEnum =
+                            if compiled_iterator.1.is_pointer_value() {
+                                compiled_iterator.1.into()
+                            } else {
+                                let alloca = self
+                                    .builder
+                                    .build_alloca(compiled_iterator.1.get_type(), "")
+                                    .unwrap();
+                                let _ = self
+                                    .builder
+                                    .build_store(alloca, compiled_iterator.1)
+                                    .unwrap();
+                                alloca.into()
+                            };
 
                         // calling iterator function
 
@@ -963,58 +1163,83 @@ impl<'ctx> CodeGen<'ctx> {
 
                         // allocating result
 
-                        let tuple_alloca = self.builder.build_alloca(output.get_type(), "").unwrap();
+                        let tuple_alloca =
+                            self.builder.build_alloca(output.get_type(), "").unwrap();
                         self.builder.build_store(tuple_alloca, output).unwrap();
 
                         // storing iterator status
 
-                        let status_field_ptr = self.builder.build_struct_gep(output.get_type(), tuple_alloca, 1, "").unwrap();
-                        let status = self.builder.build_load(self.context.bool_type(), status_field_ptr, "").unwrap();
+                        let status_field_ptr = self
+                            .builder
+                            .build_struct_gep(output.get_type(), tuple_alloca, 1, "")
+                            .unwrap();
+                        let status = self
+                            .builder
+                            .build_load(self.context.bool_type(), status_field_ptr, "")
+                            .unwrap();
 
                         self.builder.build_store(status_alloca, status).unwrap();
 
                         // storing binding value
 
-                        let binding_field_ptr = self.builder.build_struct_gep(output.get_type(), tuple_alloca, 0, "").unwrap();
-                        let iter_value = self.builder.build_load(basic_binding_type, binding_field_ptr, "").unwrap();
+                        let binding_field_ptr = self
+                            .builder
+                            .build_struct_gep(output.get_type(), tuple_alloca, 0, "")
+                            .unwrap();
+                        let iter_value = self
+                            .builder
+                            .build_load(basic_binding_type, binding_field_ptr, "")
+                            .unwrap();
 
                         self.builder.build_store(binding_ptr, iter_value).unwrap();
-                    },
+                    }
                     Type::Array(arrtype, _) => {
                         // incrementing iterator position
-                        let iterator_position_varname = format!("@deen_iterator_position_{}", &binding);
-                        let iterator_position_ptr = self.scope.get_variable(iterator_position_varname).unwrap().ptr;
+                        let iterator_position_varname =
+                            format!("@deen_iterator_position_{}", &binding);
+                        let iterator_position_ptr = self
+                            .scope
+                            .get_variable(iterator_position_varname)
+                            .unwrap()
+                            .ptr;
 
-                        let value = self.builder.build_load(self.context.i64_type(), iterator_position_ptr, "").unwrap();
-                        let incremented_value = self.builder.build_int_add(
-                            value.into_int_value(),
-                            self.context.i64_type().const_int(1, false),
-                            ""
-                        ).unwrap();
+                        let value = self
+                            .builder
+                            .build_load(self.context.i64_type(), iterator_position_ptr, "")
+                            .unwrap();
+                        let incremented_value = self
+                            .builder
+                            .build_int_add(
+                                value.into_int_value(),
+                                self.context.i64_type().const_int(1, false),
+                                "",
+                            )
+                            .unwrap();
 
-                        self.builder.build_store(iterator_position_ptr, incremented_value).unwrap();
+                        self.builder
+                            .build_store(iterator_position_ptr, incremented_value)
+                            .unwrap();
 
                         // storing value to the binding
 
                         let basic_type = self.get_basic_type(*arrtype);
                         let ptr = unsafe {
-                            self.builder.build_gep(
-                                basic_type,
-                                compiled_iterator.1.into_pointer_value(),
-                                &[
-                                    incremented_value
-                                ],
-                                ""
-                            ).unwrap()
+                            self.builder
+                                .build_gep(
+                                    basic_type,
+                                    compiled_iterator.1.into_pointer_value(),
+                                    &[incremented_value],
+                                    "",
+                                )
+                                .unwrap()
                         };
-                        
+
                         let value = self.builder.build_load(basic_type, ptr, "").unwrap();
                         self.builder.build_store(binding_ptr, value).unwrap();
-                    },
-                    Type::DynamicArray(_) => {},
+                    }
+                    Type::DynamicArray(_) => {}
 
-
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
 
                 let _ = self.builder.build_unconditional_branch(iterator_block);
@@ -1027,7 +1252,7 @@ impl<'ctx> CodeGen<'ctx> {
                 if let Some(old_variable) = old_variable {
                     self.scope.set_variable(binding, old_variable);
                 }
-            },
+            }
 
             Statements::BreakStatements { span: _ } => {
                 let break_block = self.breaks.last().unwrap();
@@ -1043,11 +1268,24 @@ impl<'ctx> CodeGen<'ctx> {
                 }
             }
 
-            Statements::ExternStatement { identifier, arguments, return_type, extern_type: _, is_var_args, public: _, span: _ } => {
-                let basic_arguments = arguments.iter().map(|arg| self.get_basic_type(arg.clone()).into()).collect::<Vec<BasicMetadataTypeEnum>>();
+            Statements::ExternStatement {
+                identifier,
+                arguments,
+                return_type,
+                extern_type: _,
+                is_var_args,
+                public: _,
+                span: _,
+            } => {
+                let basic_arguments = arguments
+                    .iter()
+                    .map(|arg| self.get_basic_type(arg.clone()).into())
+                    .collect::<Vec<BasicMetadataTypeEnum>>();
 
                 let fn_type = self.get_fn_type(return_type.clone(), &basic_arguments, is_var_args);
-                let fn_value = self.module.add_function(&identifier, fn_type, Some(Linkage::External));
+                let fn_value =
+                    self.module
+                        .add_function(&identifier, fn_type, Some(Linkage::External));
 
                 // little hack cuz i dont wanna add `is_var_args` argument to function structure
                 // and fix the whole code for the only one usage
@@ -1063,10 +1301,10 @@ impl<'ctx> CodeGen<'ctx> {
                     Function {
                         datatype: return_type,
                         value: fn_value,
-                        arguments
-                    }
+                        arguments,
+                    },
                 )
-            },
+            }
 
             Statements::ImportStatement { path, span: _ } => {
                 let path = if let Expressions::Value(Value::String(path), _) = path {
@@ -1085,7 +1323,12 @@ impl<'ctx> CodeGen<'ctx> {
                     .map(|n| n.to_string())
                     .unwrap_or(fname.replace(".dn", ""));
 
-                let import = self.symtable.imports.get(&module_name).cloned().unwrap_or_default();
+                let import = self
+                    .symtable
+                    .imports
+                    .get(&module_name)
+                    .cloned()
+                    .unwrap_or_default();
                 let mut codegen = Self::new(
                     self.context,
                     &module_name,
@@ -1096,11 +1339,25 @@ impl<'ctx> CodeGen<'ctx> {
                 let (_module, mut module_content) = codegen.compile(import.ast.clone(), None);
 
                 module_content.functions.iter_mut().for_each(|func| {
-                    let args_fmt = func.1.arguments.iter().map(|typ| typ.to_string()).collect::<Vec<String>>();
-                    let args = func.1.arguments.iter().map(|typ| self.get_basic_type(typ.clone()).into()).collect::<Vec<BasicMetadataTypeEnum<'ctx>>>();
+                    let args_fmt = func
+                        .1
+                        .arguments
+                        .iter()
+                        .map(|typ| typ.to_string())
+                        .collect::<Vec<String>>();
+                    let args = func
+                        .1
+                        .arguments
+                        .iter()
+                        .map(|typ| self.get_basic_type(typ.clone()).into())
+                        .collect::<Vec<BasicMetadataTypeEnum<'ctx>>>();
                     let fn_type = self.get_fn_type(func.1.datatype.clone(), &args, false);
 
-                    let declared_fn = self.module.add_function(&format!("{}.{}({})", &module_name, func.0, args_fmt.join(", ")), fn_type, Some(Linkage::External));
+                    let declared_fn = self.module.add_function(
+                        &format!("{}.{}({})", &module_name, func.0, args_fmt.join(", ")),
+                        fn_type,
+                        Some(Linkage::External),
+                    );
                     func.1.value = declared_fn;
                 });
 
@@ -1111,7 +1368,7 @@ impl<'ctx> CodeGen<'ctx> {
                 block
                     .iter()
                     .for_each(|stmt| self.compile_statement(stmt.clone(), None));
-                
+
                 self.exit_scope();
             }
 
@@ -1146,11 +1403,13 @@ impl<'ctx> CodeGen<'ctx> {
                                 .into(),
                         )
                     });
-                
+
                 let mut return_type = function.datatype;
 
                 if let Type::Pointer(ref return_ptr_type) = return_type {
-                    if let (Some(Type::Pointer(expected_ptr_type)), true) = (expected, **return_ptr_type == Type::Void) {
+                    if let (Some(Type::Pointer(expected_ptr_type)), true) =
+                        (expected, **return_ptr_type == Type::Void)
+                    {
                         return_type = Type::Pointer(expected_ptr_type);
                     }
                 }
@@ -1170,18 +1429,20 @@ impl<'ctx> CodeGen<'ctx> {
                 name,
                 arguments,
                 span: _,
-            } => {
-                self.build_macro_call(&name, arguments)
-            },
+            } => self.build_macro_call(&name, arguments),
 
             Expressions::Reference { object, span: _ } => match *object {
                 Expressions::Value(Value::Identifier(id), _) => {
                     let var = self.scope.get_variable(&id).unwrap();
 
-                    (Type::Pointer(Box::new(var.datatype.clone())), var.ptr.into())
+                    (
+                        Type::Pointer(Box::new(var.datatype.clone())),
+                        var.ptr.into(),
+                    )
                 }
                 _ => {
-                    let value = self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Void))));
+                    let value =
+                        self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Void))));
                     let alloca = self.builder.build_alloca(value.1.get_type(), "").unwrap();
                     let _ = self.builder.build_store(alloca, value.1);
 
@@ -1260,7 +1521,13 @@ impl<'ctx> CodeGen<'ctx> {
                 rhs,
                 span: _,
             } => {
-                let expected = expected.and_then(|typ| if let Type::Pointer(_) = typ { None } else { Some(typ) });
+                let expected = expected.and_then(|typ| {
+                    if let Type::Pointer(_) = typ {
+                        None
+                    } else {
+                        Some(typ)
+                    }
+                });
 
                 let lhs_value = self.compile_expression(*lhs, expected.clone());
                 let rhs_value = self.compile_expression(*rhs, expected);
@@ -1285,9 +1552,7 @@ impl<'ctx> CodeGen<'ctx> {
                         }
                     }
 
-                    Type::Pointer(_) => {
-                        lhs_value.0
-                    }
+                    Type::Pointer(_) => lhs_value.0,
 
                     _ => panic!("Unreachable type found: {}", lhs_value.0.clone()),
                 };
@@ -1400,7 +1665,9 @@ impl<'ctx> CodeGen<'ctx> {
                             }
                         }
 
-                        _ => panic!("Unsupported for codegen operator found! Please open issue on Github!"),
+                        _ => panic!(
+                            "Unsupported for codegen operator found! Please open issue on Github!"
+                        ),
                     },
                     typ if deen_semantic::Analyzer::is_float(&typ) => match operand.as_str() {
                         "+" => self
@@ -1444,15 +1711,16 @@ impl<'ctx> CodeGen<'ctx> {
                     },
 
                     Type::Pointer(ptr_type) => unsafe {
-                        self.builder.build_in_bounds_gep(
-                            self.get_basic_type(*ptr_type.clone()),
-                            lhs_value.1.into_pointer_value(),
-                            &[
-                                rhs_value.1.into_int_value()
-                            ],
-                            ""
-                        ).unwrap()
-                    }.as_basic_value_enum(),
+                        self.builder
+                            .build_in_bounds_gep(
+                                self.get_basic_type(*ptr_type.clone()),
+                                lhs_value.1.into_pointer_value(),
+                                &[rhs_value.1.into_int_value()],
+                                "",
+                            )
+                            .unwrap()
+                    }
+                    .as_basic_value_enum(),
 
                     _ => unreachable!(),
                 };
@@ -1620,7 +1888,14 @@ impl<'ctx> CodeGen<'ctx> {
                 if let Type::Pointer(ptr_type) = prev_type.clone() {
                     if let Type::Pointer(ptr_type) = *ptr_type.clone() {
                         prev_type = *ptr_type;
-                        prev_val = self.builder.build_load(self.context.ptr_type(AddressSpace::default()), prev_val.clone().into_pointer_value(), "").unwrap();
+                        prev_val = self
+                            .builder
+                            .build_load(
+                                self.context.ptr_type(AddressSpace::default()),
+                                prev_val.into_pointer_value(),
+                                "",
+                            )
+                            .unwrap();
                     }
                 }
 
@@ -1718,28 +1993,36 @@ impl<'ctx> CodeGen<'ctx> {
 
                         match prev_type.clone() {
                             Type::Alias(alias) => {
-                                let alias_type = self.get_alias_type(prev_type.clone(), None).unwrap();
+                                let alias_type =
+                                    self.get_alias_type(prev_type.clone(), None).unwrap();
 
                                 match alias_type {
                                     "struct" | "enum" => {
                                         let function = self
                                             .scope
-                                            .get_function(format!("{}_{}__{}", alias_type, alias, name))
+                                            .get_function(format!(
+                                                "{}_{}__{}",
+                                                alias_type, alias, name
+                                            ))
                                             .unwrap();
 
                                         let mut arguments = arguments
                                             .iter()
                                             .zip(function.arguments.clone())
                                             .map(|(arg, exp)| {
-                                                self.compile_expression(arg.clone(), Some(exp)).1.into()
+                                                self.compile_expression(arg.clone(), Some(exp))
+                                                    .1
+                                                    .into()
                                             })
                                             .collect::<Vec<BasicMetadataValueEnum>>();
 
-                                        if let Some(Type::Pointer(ptr_type)) = function.arguments.first() {
+                                        if let Some(Type::Pointer(ptr_type)) =
+                                            function.arguments.first()
+                                        {
                                             if let Type::Alias(arg_alias) = *ptr_type.clone() {
                                                 if arg_alias == alias {
                                                     arguments.reverse();
-                                                    arguments.push(prev_val.clone().into());
+                                                    arguments.push(prev_val.into());
                                                     arguments.reverse();
                                                 }
                                             }
@@ -1758,7 +2041,8 @@ impl<'ctx> CodeGen<'ctx> {
                                 }
                             }
                             Type::ImportObject(import_name) => {
-                                let module_content = self.imports.get(&import_name).unwrap().clone();
+                                let module_content =
+                                    self.imports.get(&import_name).unwrap().clone();
                                 let function = module_content.functions.get(name).unwrap();
 
                                 let arguments = arguments
@@ -1779,27 +2063,58 @@ impl<'ctx> CodeGen<'ctx> {
                                     .unwrap_or(self.context.i8_type().const_zero().into());
                             }
                             _ => {
-                                panic!("FnCall `{}()` unreachable type got: `{}`", name, &prev_type);
+                                panic!(
+                                    "FnCall `{}()` unreachable type got: `{}`",
+                                    name, &prev_type
+                                );
                             }
                         }
-                    },
+                    }
 
-                    Expressions::Struct { name, fields, span: _ } => {
+                    Expressions::Struct {
+                        name,
+                        fields,
+                        span: _,
+                    } => {
                         if let Type::ImportObject(import_name) = prev_type.clone() {
-                            let structure = self.imports.get(&import_name).unwrap().structures.get(name).unwrap().clone();
-                            let struct_alloca = self.builder.build_alloca(structure.llvm_type, &format!("struct.{}.init", name)).unwrap();
+                            let structure = self
+                                .imports
+                                .get(&import_name)
+                                .unwrap()
+                                .structures
+                                .get(name)
+                                .unwrap()
+                                .clone();
+                            let struct_alloca = self
+                                .builder
+                                .build_alloca(structure.llvm_type, &format!("struct.{}.init", name))
+                                .unwrap();
 
                             for (field_name, field_expr) in fields {
                                 let struct_field = structure.fields.get(field_name).unwrap();
-                                let field_value = self.compile_expression(field_expr.clone(), Some(struct_field.datatype.clone()));
+                                let field_value = self.compile_expression(
+                                    field_expr.clone(),
+                                    Some(struct_field.datatype.clone()),
+                                );
 
-                                let field_ptr = self.builder.build_struct_gep(structure.llvm_type, struct_alloca, struct_field.nth, "").unwrap();
+                                let field_ptr = self
+                                    .builder
+                                    .build_struct_gep(
+                                        structure.llvm_type,
+                                        struct_alloca,
+                                        struct_field.nth,
+                                        "",
+                                    )
+                                    .unwrap();
                                 let _ = self.builder.build_store(field_ptr, field_value.1).unwrap();
                             }
 
                             let value = match expected {
                                 Some(Type::Pointer(_)) => struct_alloca.into(),
-                                _ => self.builder.build_load(structure.llvm_type, struct_alloca, "").unwrap()
+                                _ => self
+                                    .builder
+                                    .build_load(structure.llvm_type, struct_alloca, "")
+                                    .unwrap(),
                             };
 
                             prev_type = Type::Alias(format!("{}.{}", import_name, name));
@@ -1810,7 +2125,7 @@ impl<'ctx> CodeGen<'ctx> {
                     }
                     _ => {
                         panic!("Unreachable expression found: {:?}", sub)
-                    },
+                    }
                 });
 
                 (prev_type, prev_val)
@@ -1993,7 +2308,7 @@ impl<'ctx> CodeGen<'ctx> {
                         self.build_panic(
                             "Array has len %ld, but index is %ld",
                             vec![expected_basic_value.into(), provided_basic_value.into()],
-                            self.get_source_line(span.0)
+                            self.get_source_line(span.0),
                         );
                         self.builder.build_unconditional_branch(ok_block).unwrap();
 
@@ -2019,7 +2334,14 @@ impl<'ctx> CodeGen<'ctx> {
                     Type::Pointer(ptr_type) => {
                         let basic_ret_type = self.get_basic_type(*ptr_type.clone());
                         let ptr = unsafe {
-                            self.builder.build_in_bounds_gep(basic_ret_type, obj.1.into_pointer_value(), &[idx.1.into_int_value()], "").unwrap()
+                            self.builder
+                                .build_in_bounds_gep(
+                                    basic_ret_type,
+                                    obj.1.into_pointer_value(),
+                                    &[idx.1.into_int_value()],
+                                    "",
+                                )
+                                .unwrap()
                         };
 
                         let ret_value = self.builder.build_load(basic_ret_type, ptr, "").unwrap();
@@ -2049,10 +2371,10 @@ impl<'ctx> CodeGen<'ctx> {
                     //     .i64_type()
                     //     .const_int(struct_field.nth as u64, false);
 
-
-                    let field_ptr = self.builder
-                            .build_struct_gep(structure.llvm_type, struct_alloca, struct_field.nth, "")
-                            .unwrap();
+                    let field_ptr = self
+                        .builder
+                        .build_struct_gep(structure.llvm_type, struct_alloca, struct_field.nth, "")
+                        .unwrap();
 
                     let _ = self.builder.build_store(field_ptr, field_value.1).unwrap();
                 }
@@ -2085,7 +2407,11 @@ impl<'ctx> CodeGen<'ctx> {
         match value {
             Value::Integer(int) => {
                 if deen_semantic::Analyzer::is_integer(&expected.clone().unwrap_or(Type::Void)) {
-                    let exp = if let Some(exp) = expected.clone() { exp } else { unreachable!() };
+                    let exp = if let Some(exp) = expected.clone() {
+                        exp
+                    } else {
+                        unreachable!()
+                    };
                     let (expected_type, signed) = match exp {
                         Type::I8 => (self.context.i8_type(), true),
                         Type::I16 => (self.context.i16_type(), true),
@@ -2100,7 +2426,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                         _ => {
                             panic!("Unreachable type expected: {}", exp);
-                        },
+                        }
                     };
 
                     return (
@@ -2159,40 +2485,39 @@ impl<'ctx> CodeGen<'ctx> {
             ),
             Value::Identifier(id) => {
                 // current module objects
-                if let Some(_) = self.scope.get_struct(&id) {
-                    return (Type::Alias(id), self.context.i8_type().const_zero().into())
+                if self.scope.get_struct(&id).is_some() {
+                    return (Type::Alias(id), self.context.i8_type().const_zero().into());
                 }
                 if let Some(typedef) = self.scope.get_typedef(&id) {
                     return (typedef.clone(), self.context.i8_type().const_zero().into());
                 }
                 if self.scope.get_enum(&id).is_some() {
-                    return (
-                        Type::Alias(id),
-                        self.context.i8_type().const_zero().into(),
-                    );
+                    return (Type::Alias(id), self.context.i8_type().const_zero().into());
                 }
 
                 // seeking through imports
-                if let Some(_) = self.imports.get(&id) {
+                if self.imports.contains_key(&id) {
                     return (
                         Type::ImportObject(id),
                         self.context.i8_type().const_zero().into(),
-                    )
+                    );
                 }
 
                 let variable = self.scope.get_variable(&id).unwrap(); // already checked by semantic analyzer
                 let value = match expected.clone() {
                     Some(Type::Pointer(ptr_type)) => {
                         if let Type::Pointer(_) = variable.datatype {
-                            self.builder.build_load(variable.llvm_type, variable.ptr, "").unwrap()
+                            self.builder
+                                .build_load(variable.llvm_type, variable.ptr, "")
+                                .unwrap()
+                        } else if *ptr_type == Type::Char {
+                            self.builder
+                                .build_load(variable.llvm_type, variable.ptr, "")
+                                .unwrap()
                         } else {
-                            if *ptr_type == Type::Char {
-                                self.builder.build_load(variable.llvm_type, variable.ptr, "").unwrap()
-                            } else {
-                                variable.ptr.into()
-                            }
+                            variable.ptr.into()
                         }
-                    },
+                    }
                     _ => self
                         .builder
                         .build_load(variable.llvm_type, variable.ptr, "")
@@ -2205,19 +2530,17 @@ impl<'ctx> CodeGen<'ctx> {
 
                         if *ptr_type == Type::Char {
                             variable.datatype.clone()
+                        } else if id == "self" {
+                            Type::Pointer(Box::new(Type::Pointer(Box::new(
+                                variable.datatype.clone(),
+                            ))))
+                        } else if let Type::Pointer(_) = variable.datatype {
+                            Type::Pointer(Box::new(variable.datatype.clone()))
                         } else {
-                            if id == "self" {
-                                Type::Pointer(Box::new(Type::Pointer(Box::new(variable.datatype.clone()))))
-                            } else {
-                                if let Type::Pointer(_) = variable.datatype {
-                                    Type::Pointer(Box::new(variable.datatype.clone()))
-                                } else {
-                                    Type::Pointer(Box::new(variable.datatype.clone()))
-                                }
-                            }
+                            Type::Pointer(Box::new(variable.datatype.clone()))
                         }
-                    },
-                    _ => variable.datatype.clone()
+                    }
+                    _ => variable.datatype.clone(),
                 };
 
                 (datatype, value)
@@ -2242,12 +2565,23 @@ impl<'ctx> CodeGen<'ctx> {
             .get_function("__deen_panic")
             .unwrap_or_else(|| self.create_panic_function());
 
-        if message.chars().last().unwrap_or(' ') != '\n' { message.push('\n') }
+        if message.chars().last().unwrap_or(' ') != '\n' {
+            message.push('\n')
+        }
 
-        let message_ptr = self.builder.build_global_string_ptr(
-            &format!("Runtime Panic at `{}.dn` <line {}>\n{}", self.module.get_name().to_str().unwrap(), call_line, message),
-            "panic_formatter"
-        ).unwrap().as_pointer_value();
+        let message_ptr = self
+            .builder
+            .build_global_string_ptr(
+                &format!(
+                    "Runtime Panic at `{}.dn` <line {}>\n{}",
+                    self.module.get_name().to_str().unwrap(),
+                    call_line,
+                    message
+                ),
+                "panic_formatter",
+            )
+            .unwrap()
+            .as_pointer_value();
 
         let args: Vec<BasicMetadataValueEnum> = [vec![message_ptr.into()], specifiers].concat();
         self.builder.build_call(panic_fn, &args, "").unwrap();
@@ -2349,7 +2683,7 @@ impl<'ctx> CodeGen<'ctx> {
             }
             Type::Alias(alias) => {
                 if alias == "_" {
-                    return self.context.bool_type().as_basic_type_enum()
+                    return self.context.bool_type().as_basic_type_enum();
                 }
 
                 let struct_type = self.scope.get_struct(&alias);
@@ -2366,7 +2700,10 @@ impl<'ctx> CodeGen<'ctx> {
                     return self.get_basic_type(typedef_type.to_owned());
                 };
 
-                panic!("Compiler's semantic didn't catch undefined alias: `{}`", alias)
+                panic!(
+                    "Compiler's semantic didn't catch undefined alias: `{}`",
+                    alias
+                )
             }
 
             Type::Function(_, _, _) => unreachable!(),
@@ -2435,19 +2772,25 @@ impl<'ctx> CodeGen<'ctx> {
 
                 None
             } else {
-                *self.imports.iter().map(|(_, import)| {
-                    let struct_type = import.structures.get(&alias);
-                    let enum_type = import.enumerations.get(&alias);
+                *self
+                    .imports
+                    .values()
+                    .map(|import| {
+                        let struct_type = import.structures.get(&alias);
+                        let enum_type = import.enumerations.get(&alias);
 
-                    if struct_type.is_some() {
-                        return Some("struct");
-                    };
-                    if enum_type.is_some() {
-                        return Some("enum");
-                    };
+                        if struct_type.is_some() {
+                            return Some("struct");
+                        };
+                        if enum_type.is_some() {
+                            return Some("enum");
+                        };
 
-                    None
-                }).collect::<Vec<Option<&str>>>().first().unwrap()
+                        None
+                    })
+                    .collect::<Vec<Option<&str>>>()
+                    .first()
+                    .unwrap()
             }
         } else {
             None
@@ -2455,10 +2798,12 @@ impl<'ctx> CodeGen<'ctx> {
     }
 
     fn get_source_line(&self, position: usize) -> usize {
-        self.source.char_indices()
+        self.source
+            .char_indices()
             .take_while(|&(pos, _)| pos < position)
             .filter(|&(_, chr)| chr == '\n')
-            .count() + 1
+            .count()
+            + 1
     }
 
     fn build_branch(&mut self, block: BasicBlock<'ctx>) {

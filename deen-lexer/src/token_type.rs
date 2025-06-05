@@ -15,7 +15,7 @@ pub enum TokenType {
     Minus,    // -
     Multiply, // *
     Divide,   // /
-    Modulus,   // %
+    Modulus,  // %
 
     Lt,  // <
     Bt,  // >

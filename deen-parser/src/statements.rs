@@ -110,7 +110,7 @@ pub enum Statements {
         extern_type: String,
         is_var_args: bool,
         public: bool,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     BreakStatements {
@@ -477,7 +477,9 @@ impl Parser {
 
                     if let Expressions::Reference { object, span: _ } = arg {
                         if let Expressions::Value(Value::Identifier(id), _) = *object.clone() {
-                            if id == "self" { return (id, Type::SelfRef) }
+                            if id == "self" {
+                                return (id, Type::SelfRef);
+                            }
                         }
                     }
 
@@ -606,7 +608,11 @@ impl Parser {
         }
     }
 
-    pub fn slice_assign_statement(&mut self, object: Expressions, span: (usize, usize)) -> Statements {
+    pub fn slice_assign_statement(
+        &mut self,
+        object: Expressions,
+        span: (usize, usize),
+    ) -> Statements {
         let brackets_span_start = self.current().span.0;
         if self.expect(TokenType::LBrack) {
             let _ = self.next();
@@ -967,7 +973,7 @@ impl Parser {
         if !self.expect(TokenType::Keyword) && self.current().value != "fn" {
             self.error(
                 String::from("Extern statement supports only functions declarations"),
-                self.current().span
+                self.current().span,
             );
             self.skip_statement();
         }
@@ -978,7 +984,7 @@ impl Parser {
         } else {
             self.error(
                 String::from("Expected extern function identifier after keyword"),
-                self.current().span
+                self.current().span,
             );
             "undefined".to_string()
         };
@@ -987,7 +993,7 @@ impl Parser {
         if !self.expect(TokenType::LParen) {
             self.error(
                 String::from("Expected arguments types block for external function"),
-                self.current().span
+                self.current().span,
             );
         }
 
@@ -998,21 +1004,26 @@ impl Parser {
         while !self.expect(TokenType::RParen) {
             if self.expect(TokenType::Dot) {
                 if self.next().token_type == TokenType::Dot
-                && self.next().token_type == TokenType::Dot {
+                    && self.next().token_type == TokenType::Dot
+                {
                     is_var_args = true;
                     let _ = self.next();
                 } else {
                     self.position -= 1;
                     self.error(
                         String::from("Unexpected argument declaration found"),
-                        self.current().span
+                        self.current().span,
                     );
                 }
                 continue;
             }
 
-            if self.expect(TokenType::RParen) { break }
-            if self.expect(TokenType::Semicolon) { break }
+            if self.expect(TokenType::RParen) {
+                break;
+            }
+            if self.expect(TokenType::Semicolon) {
+                break;
+            }
             if self.expect(TokenType::Comma) {
                 let _ = self.next();
                 continue;
@@ -1033,6 +1044,14 @@ impl Parser {
         let span_end = self.current().span.1;
         self.skip_eos();
 
-        Statements::ExternStatement { identifier, arguments, return_type, extern_type, public, is_var_args, span: (span_start, span_end) }
+        Statements::ExternStatement {
+            identifier,
+            arguments,
+            return_type,
+            extern_type,
+            public,
+            is_var_args,
+            span: (span_start, span_end),
+        }
     }
 }
