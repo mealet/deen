@@ -1184,6 +1184,16 @@ impl Analyzer {
                     return;
                 }
 
+                if let Type::Alias(_) = return_type {
+                    let _ = self.unwrap_alias(&return_type).unwrap_or_else(|err| {
+                        self.error(
+                            err,
+                            *span
+                        );
+                        Type::Void
+                    });
+                }
+
                 self.scope.add_fn(
                     identifier.clone(),
                     Type::Function(

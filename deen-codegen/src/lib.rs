@@ -1,5 +1,5 @@
 use crate::{
-enumeration::Enumeration,
+    enumeration::Enumeration,
     function::Function,
     macros::StandartMacros,
     structure::{Field, Structure},
@@ -296,56 +296,69 @@ impl<'ctx> CodeGen<'ctx> {
                 datatype,
                 value,
                 span: _,
-            } => match (datatype, value) {
-                (Some(datatype), Some(value)) => {
-                    let value = self.compile_expression(value, Some(datatype));
-                    let alloca = self
-                        .builder
-                        .build_alloca(value.1.get_type(), &identifier)
-                        .unwrap();
+            } => {
+                let empty_binding = identifier == "_";
 
-                    self.scope.set_variable(
-                        identifier,
-                        Variable {
-                            datatype: value.0,
-                            llvm_type: value.1.get_type(),
-                            ptr: alloca,
-                        },
-                    );
-                    let _ = self.builder.build_store(alloca, value.1).unwrap();
-                }
-                (Some(datatype), _) => {
-                    let basic_type = self.get_basic_type(datatype.clone());
-                    let alloca = self.builder.build_alloca(basic_type, &identifier).unwrap();
+                match (datatype, value) {
+                    (Some(datatype), Some(value)) => {
+                        let value = self.compile_expression(value, Some(datatype));
 
-                    self.scope.set_variable(
-                        identifier,
-                        Variable {
-                            datatype,
-                            llvm_type: basic_type,
-                            ptr: alloca,
-                        },
-                    );
-                }
-                (_, Some(value)) => {
-                    let compiled_value = self.compile_expression(value, None);
-                    let alloca = self
-                        .builder
-                        .build_alloca(compiled_value.1.get_type(), &identifier)
-                        .unwrap();
+                        if !empty_binding {
+                            let alloca = self
+                                .builder
+                                .build_alloca(value.1.get_type(), &identifier)
+                                .unwrap();
 
-                    self.scope.set_variable(
-                        identifier,
-                        Variable {
-                            datatype: compiled_value.0,
-                            llvm_type: compiled_value.1.get_type(),
-                            ptr: alloca,
-                        },
-                    );
-                    let _ = self.builder.build_store(alloca, compiled_value.1).unwrap();
-                }
-                _ => unreachable!(),
-            },
+                            self.scope.set_variable(
+                                identifier,
+                                Variable {
+                                    datatype: value.0,
+                                    llvm_type: value.1.get_type(),
+                                    ptr: alloca,
+                                },
+                            );
+                            let _ = self.builder.build_store(alloca, value.1).unwrap();
+                        }
+                    }
+                    (Some(datatype), _) => {
+                        let basic_type = self.get_basic_type(datatype.clone());
+
+                        if !empty_binding {
+                            let alloca = self.builder.build_alloca(basic_type, &identifier).unwrap();
+
+                            self.scope.set_variable(
+                                identifier,
+                                Variable {
+                                    datatype,
+                                    llvm_type: basic_type,
+                                    ptr: alloca,
+                                },
+                            );
+                        }
+                    }
+                    (_, Some(value)) => {
+                        let compiled_value = self.compile_expression(value, None);
+
+                        if !empty_binding {
+                            let alloca = self
+                                .builder
+                                .build_alloca(compiled_value.1.get_type(), &identifier)
+                                .unwrap();
+
+                            self.scope.set_variable(
+                                identifier,
+                                Variable {
+                                    datatype: compiled_value.0,
+                                    llvm_type: compiled_value.1.get_type(),
+                                    ptr: alloca,
+                                },
+                            );
+                            let _ = self.builder.build_store(alloca, compiled_value.1).unwrap();
+                        }
+                    }
+                    _ => unreachable!(),
+                };
+            }
 
             Statements::FunctionDefineStatement {
                 name: raw_name,
@@ -2335,6 +2348,10 @@ impl<'ctx> CodeGen<'ctx> {
                     .as_basic_type_enum()
             }
             Type::Alias(alias) => {
+                if alias == "_" {
+                    return self.context.bool_type().as_basic_type_enum()
+                }
+
                 let struct_type = self.scope.get_struct(&alias);
                 let enum_type = self.scope.get_enum(&alias);
                 let typedef_type = self.scope.get_typedef(&alias);
@@ -2349,7 +2366,7 @@ impl<'ctx> CodeGen<'ctx> {
                     return self.get_basic_type(typedef_type.to_owned());
                 };
 
-                unreachable!()
+                panic!("Compiler's semantic didn't catch undefined alias: `{}`", alias)
             }
 
             Type::Function(_, _, _) => unreachable!(),
