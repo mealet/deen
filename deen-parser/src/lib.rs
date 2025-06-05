@@ -17,11 +17,12 @@ pub mod value;
 type ParserOk = (Vec<Statements>, Vec<ParserWarning>);
 type ParserErr = (Vec<ParserError>, Vec<ParserWarning>);
 
-const BINARY_OPERATORS: [TokenType; 4] = [
+const BINARY_OPERATORS: [TokenType; 5] = [
     TokenType::Plus,     // +
     TokenType::Minus,    // -
     TokenType::Divide,   // /
     TokenType::Multiply, // *
+    TokenType::Modulus, // %
 ];
 
 const BOOLEAN_OPERATORS: [TokenType; 6] = [
@@ -41,7 +42,7 @@ const BITWISE_OPERATORS: [TokenType; 5] = [
     TokenType::Xor,       // ^
 ];
 
-const PRIORITY_BINARY_OPERATORS: [TokenType; 2] = [TokenType::Multiply, TokenType::Divide];
+const PRIORITY_BINARY_OPERATORS: [TokenType; 3] = [TokenType::Multiply, TokenType::Divide, TokenType::Modulus];
 const PRIORITY_BOOLEAN_OPERATORS: [TokenType; 2] = [TokenType::Or, TokenType::And];
 
 const END_STATEMENT: TokenType = TokenType::Semicolon;

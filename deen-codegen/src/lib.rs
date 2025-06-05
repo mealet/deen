@@ -1359,8 +1359,29 @@ impl<'ctx> CodeGen<'ctx> {
                                     .as_basic_value_enum()
                             }
                         }
+                        "%" => {
+                            if deen_semantic::Analyzer::is_unsigned_integer(&typ) {
+                                self.builder
+                                    .build_int_unsigned_rem(
+                                        lhs_value.1.into_int_value(),
+                                        rhs_value.1.into_int_value(),
+                                        "",
+                                    )
+                                    .unwrap()
+                                    .as_basic_value_enum()
+                            } else {
+                                self.builder
+                                    .build_int_signed_rem(
+                                        lhs_value.1.into_int_value(),
+                                        rhs_value.1.into_int_value(),
+                                        "",
+                                    )
+                                    .unwrap()
+                                    .as_basic_value_enum()
+                            }
+                        }
 
-                        _ => unreachable!(),
+                        _ => panic!("Unsupported for codegen operator found! Please open issue on Github!"),
                     },
                     typ if deen_semantic::Analyzer::is_float(&typ) => match operand.as_str() {
                         "+" => self
