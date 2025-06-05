@@ -969,6 +969,7 @@ impl Parser {
                 String::from("Extern statement supports only functions declarations"),
                 self.current().span
             );
+            self.skip_statement();
         }
 
         let _ = self.next();
