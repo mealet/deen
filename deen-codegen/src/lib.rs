@@ -1247,6 +1247,8 @@ impl<'ctx> CodeGen<'ctx> {
                 rhs,
                 span: _,
             } => {
+                let expected = expected.and_then(|typ| if let Type::Pointer(_) = typ { None } else { Some(typ) });
+
                 let lhs_value = self.compile_expression(*lhs, expected.clone());
                 let rhs_value = self.compile_expression(*rhs, expected);
 
@@ -1268,6 +1270,10 @@ impl<'ctx> CodeGen<'ctx> {
                         } else {
                             rhs_value.0
                         }
+                    }
+
+                    Type::Pointer(_) => {
+                        lhs_value.0
                     }
 
                     _ => panic!("Unreachable type found: {}", lhs_value.0.clone()),
@@ -1423,6 +1429,18 @@ impl<'ctx> CodeGen<'ctx> {
 
                         _ => unreachable!(),
                     },
+
+                    Type::Pointer(ptr_type) => unsafe {
+                        self.builder.build_in_bounds_gep(
+                            self.get_basic_type(*ptr_type.clone()),
+                            lhs_value.1.into_pointer_value(),
+                            &[
+                                rhs_value.1.into_int_value()
+                            ],
+                            ""
+                        ).unwrap()
+                    }.as_basic_value_enum(),
+
                     _ => unreachable!(),
                 };
 

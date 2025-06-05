@@ -1287,6 +1287,18 @@ impl Analyzer {
                         }
                     }
 
+                    (Type::Pointer(_), r) if Self::is_integer(&r) => {
+                        if operand != "+"
+                        && operand != "-" {
+                            self.error(
+                                "Unexpected binary operator for pointer found".to_string(),
+                                *span
+                            );
+                        }
+
+                        left
+                    }
+
                     _ => {
                         self.error(
                             format!(
