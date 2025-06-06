@@ -184,7 +184,7 @@ impl<'ctx> CodeGen<'ctx> {
                     self.builder.build_store(var.ptr, compiled_value.1).unwrap();
                 } else {
                     let ptr =
-                        self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
+                        self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Undefined))));
                     let value = self.compile_expression(value, None);
 
                     let _ = self
@@ -329,7 +329,7 @@ impl<'ctx> CodeGen<'ctx> {
                 span: _,
             } => {
                 let compiled_object =
-                    self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
+                    self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Undefined))));
                 let compiled_value = self.compile_expression(value, Some(compiled_object.0));
 
                 self.builder
@@ -792,7 +792,7 @@ impl<'ctx> CodeGen<'ctx> {
                 // binding initialization
 
                 let mut compiled_iterator =
-                    self.compile_expression(iterator, Some(Type::Pointer(Box::new(Type::Void))));
+                    self.compile_expression(iterator, Some(Type::Pointer(Box::new(Type::Undefined))));
 
                 if let Type::Pointer(ptr_type) = compiled_iterator.0 {
                     compiled_iterator.0 = *ptr_type.clone();
@@ -1444,7 +1444,7 @@ impl<'ctx> CodeGen<'ctx> {
                 }
                 _ => {
                     let value =
-                        self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Void))));
+                        self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Undefined))));
                     let alloca = self.builder.build_alloca(value.1.get_type(), "").unwrap();
                     let _ = self.builder.build_store(alloca, value.1);
 
@@ -1879,7 +1879,7 @@ impl<'ctx> CodeGen<'ctx> {
                 span: _,
             } => {
                 let compiled_head =
-                    self.compile_expression(*head, Some(Type::Pointer(Box::new(Type::Void))));
+                    self.compile_expression(*head, Some(Type::Pointer(Box::new(Type::Undefined))));
 
                 let mut prev_val = compiled_head.1;
                 let mut prev_type = compiled_head.0;
@@ -1925,8 +1925,12 @@ impl<'ctx> CodeGen<'ctx> {
                                         )
                                         .unwrap();
 
-                                    let value = if let Some(Type::Pointer(_)) = expected {
-                                        ptr.as_basic_value_enum()
+                                    let value = if let Some(Type::Pointer(ptr_type)) = expected.clone() {
+                                        if *ptr_type == Type::Undefined {
+                                            ptr.as_basic_value_enum()
+                                        } else {
+                                            self.builder.build_load(field.llvm_type, ptr, "").unwrap()
+                                        }
                                     } else {
                                         self.builder.build_load(field.llvm_type, ptr, "").unwrap()
                                     };
@@ -1972,8 +1976,12 @@ impl<'ctx> CodeGen<'ctx> {
                                 )
                                 .unwrap();
 
-                            let value = if let Some(Type::Pointer(_)) = expected {
-                                ptr.as_basic_value_enum()
+                            let value = if let Some(Type::Pointer(ptr_type)) = expected.clone() {
+                                if *ptr_type == Type::Undefined {
+                                    ptr.as_basic_value_enum()
+                                } else {
+                                    self.builder.build_load(field_basic_type, ptr, "").unwrap()
+                                }
                             } else {
                                 self.builder.build_load(field_basic_type, ptr, "").unwrap()
                             };
@@ -2508,16 +2516,12 @@ impl<'ctx> CodeGen<'ctx> {
                 let variable = self.scope.get_variable(&id).unwrap(); // already checked by semantic analyzer
                 let value = match expected.clone() {
                     Some(Type::Pointer(ptr_type)) => {
-                        if let Type::Pointer(_) = variable.datatype {
-                            self.builder
-                                .build_load(variable.llvm_type, variable.ptr, "")
-                                .unwrap()
-                        } else if *ptr_type == Type::Char {
-                            self.builder
-                                .build_load(variable.llvm_type, variable.ptr, "")
-                                .unwrap()
-                        } else {
+                        if *ptr_type == Type::Undefined {
                             variable.ptr.into()
+                        } else {
+                            self.builder
+                                .build_load(variable.llvm_type, variable.ptr, "")
+                                .unwrap()
                         }
                     }
                     _ => self
@@ -2527,19 +2531,12 @@ impl<'ctx> CodeGen<'ctx> {
                 };
                 let datatype = match expected {
                     Some(Type::Pointer(ptr_type)) => {
-                        // yep, i know this if-else constructions looks too complicated, but i just
-                        // cannot use `return` keyword due rust analyzer errors
-
-                        if *ptr_type == Type::Char {
-                            variable.datatype.clone()
-                        } else if id == "self" {
-                            Type::Pointer(Box::new(Type::Pointer(Box::new(
-                                variable.datatype.clone(),
-                            ))))
-                        } else if let Type::Pointer(_) = variable.datatype {
+                        if id == "self" {
+                            Type::Pointer(Box::new(Type::Pointer(Box::new(variable.datatype.clone()))))
+                        } else if *ptr_type == Type::Undefined {
                             Type::Pointer(Box::new(variable.datatype.clone()))
                         } else {
-                            Type::Pointer(Box::new(variable.datatype.clone()))
+                            variable.datatype.clone()
                         }
                     }
                     _ => variable.datatype.clone(),
@@ -2710,6 +2707,7 @@ impl<'ctx> CodeGen<'ctx> {
 
             Type::Function(_, _, _) => unreachable!(),
             Type::ImportObject(_) => unreachable!(),
+            Type::Undefined => unreachable!(),
             Type::Struct(fields, _) => self
                 .context
                 .struct_type(

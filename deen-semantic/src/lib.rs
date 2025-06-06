@@ -1745,7 +1745,6 @@ impl Analyzer {
                                                         format!("Field `{}` expected to be type `{}`, but found `{}`", field.0, field_type, provided_type),
                                                         *span
                                                     );
-                                                    return;
                                                 }
 
                                                 let _ = assigned_fields.insert(field.0, true);
