@@ -127,10 +127,14 @@ impl Parser {
             "u64" => Type::U64,
             "usize" => Type::USIZE,
 
+
+            "f32" => Type::F32,
+            "f64" => Type::F64,
+            "bool" => Type::Bool,
+
             "string" => Type::String,
             "char" => Type::Char,
 
-            "bool" => Type::Bool,
             "void" => Type::Void,
 
             _ => {

@@ -83,14 +83,20 @@ impl Lexer {
                 std_type!("i16"),
                 std_type!("i32"),
                 std_type!("i64"),
+
                 std_type!("u8"),
                 std_type!("u16"),
                 std_type!("u32"),
                 std_type!("u64"),
                 std_type!("usize"),
+
+                std_type!("f32"),
+                std_type!("f64"),
+                std_type!("bool"),
+
                 std_type!("string"),
                 std_type!("char"),
-                std_type!("bool"),
+
                 std_type!("void"),
                 // Values
                 std_token!("true", TokenType::Boolean),

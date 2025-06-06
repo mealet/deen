@@ -71,6 +71,9 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 .unwrap()
                                 .into()
                         }
+                        Type::F32 => {
+                            self.builder.build_float_ext(arg.1.into_float_value(), self.context.f64_type(), "").unwrap().into()
+                        }
                         Type::Alias(alias) => {
                             let alias_type = self.get_alias_type(arg.0.clone(), None).unwrap();
 

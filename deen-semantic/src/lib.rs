@@ -2130,6 +2130,10 @@ impl Analyzer {
                 Ok(Type::I32)
             }
             Value::Float(float) => {
+                if expected.is_some() && Self::is_float(expected.as_ref().unwrap()) {
+                    return Ok(expected.unwrap())
+                }
+
                 if float > f32::MAX as f64 {
                     return Ok(Type::F64);
                 }
