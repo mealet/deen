@@ -119,7 +119,18 @@ impl Analyzer {
                         alias: _,
                         datatype: _,
                         span: _
-                    } | Statements::ImportStatement { path: _, span: _ }
+                    } | Statements::ImportStatement {
+                        path: _,
+                        span: _
+                    } | Statements::ExternStatement {
+                        identifier: _,
+                        arguments: _,
+                        return_type: _,
+                        extern_type: _,
+                        is_var_args: _,
+                        public: _,
+                        span: _
+                    }
                 )
             })
             .collect::<Vec<&Statements>>();
@@ -1784,13 +1795,14 @@ impl Analyzer {
                 arguments,
                 span,
             } => {
+                // dbg!(&self.scope);
                 let func = self.scope.get_fn(name).unwrap_or_else(|| {
                     self.error(format!("Function `{}` is not defined here", name), *span);
                     Type::Void
                 });
 
                 if func == Type::Void {
-                    return func;
+                    return expected.unwrap_or(Type::Void);
                 };
                 if let Type::Function(func_args, mut func_type, is_var_args) = func {
                     let call_args = arguments

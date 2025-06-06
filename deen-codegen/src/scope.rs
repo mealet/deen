@@ -161,11 +161,11 @@ impl<'ctx> CodeGen<'ctx> {
         scope_variables.into_iter().for_each(|(_, var)| {
             match var.datatype.clone() {
                 Type::Alias(alias) => {
-                    if let Some("struct") = self.get_alias_type(var.datatype, None) {
+                    if let Some("struct") = self.get_alias_type(var.datatype.clone(), None) {
                         let structure = self.scope.get_struct(alias).unwrap();
 
                         if let Some(destructor) = structure.functions.get("drop") {
-                            if destructor.arguments == vec![Type::SelfRef] {
+                            if destructor.arguments == vec![Type::Pointer(Box::new(var.datatype))] {
                                 let _ = self.builder.build_call(
                                     destructor.value,
                                     &[
