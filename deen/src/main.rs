@@ -271,9 +271,13 @@ fn main() {
             std::process::exit(1);
         });
 
+        let formatted_output = if cfg!(windows) && !args.output.display().to_string().contains(".exe") {
+            format!("{}.exe", args.output.display())
+        } else { args.output.display().to_string() };
+
         cli::info(
             "Successfully",
-            &format!("compiled to binary: `{}`", args.output.display()),
+            &format!("compiled to binary: `{}`", formatted_output),
         )
     };
 }
