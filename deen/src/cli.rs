@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use colored::Colorize;
 use std::path::PathBuf;
 
@@ -8,9 +8,8 @@ use std::path::PathBuf;
     version,
     about = "Compiler for Deen Programming Language",
     long_about = None,
-    help_template = "\
-{options}
-"
+    help_template = "{options}",
+    disable_version_flag = true
 )]
 pub struct Args {
     pub path: PathBuf,
@@ -24,6 +23,9 @@ pub struct Args {
 
     #[arg(short, long, action, help = "Include C library to linker")]
     pub include: Vec<PathBuf>,
+
+    #[arg(short = 'v', long = "version", action = ArgAction::Version, help = "Print compiler version")]
+    version: bool,
 }
 
 pub fn error(message: &str) {
