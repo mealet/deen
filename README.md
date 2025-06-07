@@ -62,9 +62,6 @@ The project is divided into submodules using a virtual workspace environment:
 4. Go to its directory and run: `cargo build --release`
 5. The executable file will be in the `target/release` folder.
 
-## 📎 Official Documentation
-_Coming soon..._
-
 ## 🧊 Examples
 
 Basic Functions and Standart Output
@@ -152,6 +149,9 @@ fn main() {
 
 
 
-## 👮 License
+## 👮 Repository
 The project is licensed under the BSD-3 Clause License. <br>
 For more information see [License File](https://github.com/mealet/deen/blob/master/LICENSE)
+
+You can check contribution guide by: [CONTRIBUTING.md](https://github.com/mealet/deen/blob/master/CONTRIBUTING.md) <br/>
+Official documentation will be provided soon, please wait.
