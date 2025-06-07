@@ -4,7 +4,7 @@ pub struct ObjectLinker;
 
 impl ObjectLinker {
     fn detect_compiler() -> Option<String> {
-        const COMPILERS: [&str; 3] = ["clang", "gcc", "cc"];
+        const COMPILERS: [&str; 3] = ["clang", "cc"];
 
         for compiler in COMPILERS {
             if std::process::Command::new(compiler).arg("--version").output().is_ok() {
@@ -44,6 +44,6 @@ impl ObjectLinker {
 
             return Err(String::from_utf8_lossy(&output.stderr).to_string());
         }
-        return Err(String::from("No supported C compilers found in system. Please install: `gcc`, or `clang`"));
+        return Err(String::from("No supported C compilers found in system. Please install `clang` from official site!"));
     }
 }
