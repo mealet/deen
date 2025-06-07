@@ -158,10 +158,10 @@ impl<'ctx> CodeGen<'ctx> {
     pub fn cleanup_variables(&mut self) {
         let scope_variables = self.scope.stricted_variables();
 
-        scope_variables.into_iter().for_each(|(_, var)| {
+        scope_variables.into_iter().for_each(|(name, var)| {
             match var.datatype.clone() {
                 Type::Alias(alias) => {
-                    if let Some("struct") = self.get_alias_type(var.datatype.clone(), None) {
+                    if matches!(self.get_alias_type(var.datatype.clone(), None), Some("struct")) && name != "self" {
                         let structure = self.scope.get_struct(alias).unwrap();
 
                         if let Some(destructor) = structure.functions.get("drop") {
@@ -200,6 +200,8 @@ impl<'ctx> CodeGen<'ctx> {
                 self.cleanup_variables();
 
                 self.builder.position_at_end(insert_block);
+            } else {
+                self.cleanup_variables();
             }
 
             self.scope = parent;

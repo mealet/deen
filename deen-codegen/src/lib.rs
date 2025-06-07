@@ -713,18 +713,25 @@ impl<'ctx> CodeGen<'ctx> {
                     .unwrap();
                 self.builder.position_at_end(then_basic_block);
 
+                self.enter_new_scope();
+
                 then_block
                     .into_iter()
                     .for_each(|stmt| self.compile_statement(stmt, None));
 
+                self.exit_scope();
                 self.build_branch(after_basic_block);
 
                 if let Some(else_basic_block) = else_basic_block {
+                    self.enter_new_scope();
+
                     self.builder.position_at_end(else_basic_block);
                     else_block
                         .unwrap()
                         .into_iter()
                         .for_each(|stmt| self.compile_statement(stmt, None));
+
+                    self.exit_scope();
                     self.build_branch(after_basic_block);
                 }
 
@@ -760,10 +767,14 @@ impl<'ctx> CodeGen<'ctx> {
                     after_block,
                 );
 
+                self.enter_new_scope();
+
                 self.builder.position_at_end(statements_block);
                 block
                     .into_iter()
                     .for_each(|statement| self.compile_statement(statement, prefix.clone()));
+
+                self.exit_scope();
 
                 let _ = self
                     .builder
@@ -835,7 +846,8 @@ impl<'ctx> CodeGen<'ctx> {
                     .build_alloca(basic_binding_type, &binding)
                     .unwrap();
 
-                let old_variable = self.scope.get_variable(&binding);
+                self.enter_new_scope();
+
                 self.scope.set_variable(
                     binding.clone(),
                     Variable {
@@ -1103,10 +1115,14 @@ impl<'ctx> CodeGen<'ctx> {
 
                 // statements block
 
+                self.enter_new_scope();
+
                 self.builder.position_at_end(statements_block);
                 block
                     .into_iter()
                     .for_each(|statement| self.compile_statement(statement, prefix.clone()));
+
+                self.exit_scope();
 
                 // making iteration
 
@@ -1251,16 +1267,15 @@ impl<'ctx> CodeGen<'ctx> {
                 self.builder.position_at_end(after_block);
                 let _ = self.breaks.pop();
 
-                if let Some(old_variable) = old_variable {
-                    self.scope.set_variable(binding, old_variable);
-                }
+                self.exit_scope();
             }
 
             Statements::BreakStatements { span: _ } => {
-                let break_block = self.breaks.last().unwrap();
+                let break_block = self.breaks.last().cloned().unwrap();
+
                 let _ = self
                     .builder
-                    .build_unconditional_branch(*break_block)
+                    .build_unconditional_branch(break_block)
                     .unwrap();
             }
             Statements::ReturnStatement { value, span: _ } => {
