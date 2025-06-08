@@ -2587,7 +2587,7 @@ impl<'ctx> CodeGen<'ctx> {
             .builder
             .build_global_string_ptr(
                 &format!(
-                    "Runtime Panic at `{}.dn` <line {}>\n{}",
+                    "\n* Runtime Panic at `{}.dn` <line {}>\n{}",
                     self.module.get_name().to_str().unwrap(),
                     call_line,
                     message
