@@ -4,7 +4,7 @@ pub struct ObjectLinker;
 
 impl ObjectLinker {
     fn detect_compiler() -> Option<String> {
-        const COMPILERS: [&str; 3] = ["clang", "cc"];
+        const COMPILERS: [&str; 2] = ["clang", "cc"];
 
         for compiler in COMPILERS {
             if std::process::Command::new(compiler).arg("--version").output().is_ok() {
