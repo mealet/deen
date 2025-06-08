@@ -496,6 +496,7 @@ impl<'ctx> CodeGen<'ctx> {
                         datatype: datatype.clone(),
                         value: function,
                         arguments: typed_args.clone(),
+                        called: false
                     },
                 );
                 block
@@ -519,6 +520,7 @@ impl<'ctx> CodeGen<'ctx> {
                         datatype: datatype.clone(),
                         value: function,
                         arguments: typed_args,
+                        called: false
                     },
                 );
             }
@@ -527,6 +529,11 @@ impl<'ctx> CodeGen<'ctx> {
                 arguments,
                 span: _,
             } => {
+                {
+                    let mut_fn = self.scope.get_mut_function(&name).unwrap();
+                    mut_fn.called = true
+                }
+
                 let function = self.scope.get_function(&name).unwrap();
                 let mut basic_args: Vec<BasicMetadataValueEnum> = Vec::new();
 
@@ -1319,6 +1326,7 @@ impl<'ctx> CodeGen<'ctx> {
                         datatype: return_type,
                         value: fn_value,
                         arguments,
+                        called: false
                     },
                 )
             }
@@ -1408,6 +1416,11 @@ impl<'ctx> CodeGen<'ctx> {
                 arguments,
                 span: _,
             } => {
+                {
+                    let mut_fn = self.scope.get_mut_function(&name).unwrap();
+                    mut_fn.called = true
+                }
+
                 let function = self.scope.get_function(&name).unwrap();
                 let mut args: Vec<BasicMetadataValueEnum> = Vec::new();
                 arguments
@@ -2019,7 +2032,7 @@ impl<'ctx> CodeGen<'ctx> {
                         match prev_type.clone() {
                             Type::Alias(alias) => {
                                 let alias_type =
-                                    self.get_alias_type(prev_type.clone(), None).unwrap();
+                                    self.get_alias_type(prev_type.clone(), None).clone().unwrap();
 
                                 match alias_type {
                                     "struct" | "enum" => {
@@ -2030,6 +2043,11 @@ impl<'ctx> CodeGen<'ctx> {
                                                 alias_type, alias, name
                                             ))
                                             .unwrap();
+
+                                        {
+                                            let mut_fn = self.scope.get_mut_function(format!("{}_{}__{}", alias_type, alias, name)).unwrap();
+                                            mut_fn.called = true;
+                                        }
 
                                         let mut arguments = arguments
                                             .iter()
