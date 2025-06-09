@@ -1584,6 +1584,8 @@ impl<'ctx> CodeGen<'ctx> {
 
                     Type::Pointer(_) => lhs_value.0,
 
+                    Type::Alias(alias) => Type::Alias(alias),
+
                     _ => panic!("Unreachable type found: {}", lhs_value.0.clone()),
                 };
 
@@ -1751,6 +1753,30 @@ impl<'ctx> CodeGen<'ctx> {
                             .unwrap()
                     }
                     .as_basic_value_enum(),
+
+                    Type::Alias(alias) => {
+                        let structure = self.scope.get_struct(alias).unwrap();
+                        let binary_function = structure.functions.get("binary").unwrap();
+                        
+                        let left_ptr: BasicMetadataValueEnum = lhs_value.1.into();
+                        let right_ptr: BasicMetadataValueEnum = lhs_value.1.into();
+                        let operand: BasicMetadataValueEnum = self
+                            .builder
+                            .build_global_string_ptr(&operand, "@deen_operand")
+                            .unwrap().as_basic_value_enum().into();
+
+                        self
+                            .builder
+                            .build_call(
+                                binary_function.value,
+                                &[left_ptr, right_ptr, operand],
+                                "@deen_binop_call",
+                            )
+                            .unwrap()
+                            .try_as_basic_value()
+                            .left()
+                            .unwrap()
+                    }
 
                     _ => unreachable!(),
                 };

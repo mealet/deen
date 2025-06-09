@@ -1383,6 +1383,53 @@ impl Analyzer {
                         left
                     }
 
+                    (Type::Alias(left), Type::Alias(right)) => {
+                        let struct_type =
+                            self.scope.get_struct(&left).unwrap_or_else(|| {
+                                self.error(
+                                    format!("Type `{}` isn't avaible for binary operations", &left),
+                                    *span
+                                );
+                                Type::Void
+                            });
+
+                        if struct_type == Type::Void {
+                            return Type::Alias(left);
+                        }
+
+                        if left != right {
+                            self.error(
+                                format!("Cannot apply binary \"{}\" to different types `{}` and `{}`", operand, left, right),
+                                *span
+                            );
+                            return Type::Alias(left);
+                        }
+
+                        if let Type::Struct(_, functions) = struct_type {
+                            if let Some(Type::Function(args, datatype, _)) = functions.get("binary") {
+                                if !(
+                                    *args == vec![Type::Alias(left.clone()), Type::Alias(left.clone()), Type::Pointer(Box::new(Type::Char))]
+                                    && *datatype.clone() == Type::Alias(left.clone())
+                                ) {
+                                    self.error(
+                                        format!("Type `{}` has wrong implementation for binary: fn binary(&self, other: {}, operand: *char) {}", left, left, left),
+                                        *span
+                                    );
+                                }
+
+                                *datatype.clone()
+                            } else {
+                                self.error(
+                                    format!("Type `{}` has no implementation for binary operations: fn binary(&self, other: {}, operand: *char) {}", left, left, left),
+                                    *span
+                                );
+                                Type::Alias(left)
+                            }
+                        } else {
+                            unreachable!()
+                        }
+                    }
+
                     _ => {
                         self.error(
                             format!(
