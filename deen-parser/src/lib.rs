@@ -25,9 +25,11 @@ const BINARY_OPERATORS: [TokenType; 5] = [
     TokenType::Modulus,  // %
 ];
 
-const BOOLEAN_OPERATORS: [TokenType; 6] = [
+const BOOLEAN_OPERATORS: [TokenType; 8] = [
     TokenType::Lt,  // <
     TokenType::Bt,  // >
+    TokenType::Leq, // <=, =<
+    TokenType::Beq, // >=, =>
     TokenType::Eq,  // ==
     TokenType::Ne,  // !
     TokenType::Or,  // ||

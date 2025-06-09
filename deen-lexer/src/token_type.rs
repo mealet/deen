@@ -19,6 +19,8 @@ pub enum TokenType {
 
     Lt,  // <
     Bt,  // >
+    Leq, // <=, =<
+    Beq, // >=, =>
     Eq,  // ==
     Ne,  // !=
     Or,  // ||

@@ -425,18 +425,37 @@ impl Lexer {
                             let span_start = self.position;
                             self.getc();
 
-                            if self.char == '=' {
-                                output.push(Token::new(
-                                    String::from("=="),
-                                    TokenType::Eq,
-                                    (span_start - 1, self.position - 1),
-                                ));
-                                self.getc();
-                            } else {
-                                let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start - 1, self.position - 1);
+                            match self.char {
+                                '=' => {
+                                    output.push(Token::new(
+                                        String::from("=="),
+                                        TokenType::Eq,
+                                        (span_start - 1, self.position - 1),
+                                    ));
+                                    self.getc();
+                                }
+                                '>' => {
+                                    output.push(Token::new(
+                                        String::from("=>"),
+                                        TokenType::Beq,
+                                        (span_start - 1, self.position - 1),
+                                    ));
+                                    self.getc();
+                                }
+                                '<' => {
+                                    output.push(Token::new(
+                                        String::from("=<"),
+                                        TokenType::Leq,
+                                        (span_start - 1, self.position - 1),
+                                    ));
+                                    self.getc();
+                                }
+                                _ => {
+                                    let mut formatted_token = matched_token;
+                                    formatted_token.span = (span_start - 1, self.position - 1);
 
-                                output.push(formatted_token);
+                                    output.push(formatted_token);
+                                }
                             }
                         }
                         TokenType::Lt => {
@@ -447,7 +466,15 @@ impl Lexer {
                                     output.push(Token::new(
                                         String::from("<<"),
                                         TokenType::LShift,
-                                        (span_start, self.position - 1),
+                                        (span_start, self.position),
+                                    ));
+                                    self.getc();
+                                }
+                                '=' => {
+                                    output.push(Token::new(
+                                        String::from("<="),
+                                        TokenType::Leq,
+                                        (span_start, self.position)
                                     ));
                                     self.getc();
                                 }
@@ -467,7 +494,15 @@ impl Lexer {
                                     output.push(Token::new(
                                         String::from(">>"),
                                         TokenType::RShift,
-                                        (span_start, self.position - 1),
+                                        (span_start, self.position),
+                                    ));
+                                    self.getc();
+                                }
+                                '=' => {
+                                    output.push(Token::new(
+                                        String::from(">="),
+                                        TokenType::Beq,
+                                        (span_start, self.position)
                                     ));
                                     self.getc();
                                 }
