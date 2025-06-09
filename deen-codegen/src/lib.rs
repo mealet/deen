@@ -1873,7 +1873,45 @@ impl<'ctx> CodeGen<'ctx> {
                         )
                     }
                     Type::Pointer(ptr_type) if *ptr_type == Type::Char => {
-                        todo!()
+                        let strcmp_fn = self.module.get_function("strcmp").unwrap_or_else(|| {
+                            let fn_type = self.context.i32_type().fn_type(&[
+                                self.context.ptr_type(AddressSpace::default()).into(),
+                                self.context.ptr_type(AddressSpace::default()).into()
+                            ], false);
+
+                            self.module.add_function("strcmp", fn_type, None)
+                        });
+
+                        let cmp_value = self
+                            .builder
+                            .build_call(strcmp_fn, &[lhs_value.1.into(), rhs_value.1.into()], "")
+                            .unwrap()
+                            .try_as_basic_value()
+                            .left()
+                            .unwrap();
+
+                        let int_predicate = match operand.as_str() {
+                            ">" => inkwell::IntPredicate::SGT,
+                            "<" => inkwell::IntPredicate::SLT,
+                            "<=" | "=<" => inkwell::IntPredicate::SLE,
+                            ">=" | "=>" => inkwell::IntPredicate::SGE,
+                            "==" => inkwell::IntPredicate::EQ,
+                            "!=" => inkwell::IntPredicate::NE,
+                            _ => unreachable!(),
+                        };
+
+                        (
+                            Type::Bool,
+                            self.builder
+                                .build_int_compare(
+                                    int_predicate,
+                                    cmp_value.into_int_value(),
+                                    self.context.i32_type().const_zero(),
+                                    "",
+                                )
+                                .unwrap()
+                                .as_basic_value_enum(),
+                        )
                     }
 
                     _ => unreachable!(),
