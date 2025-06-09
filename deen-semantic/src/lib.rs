@@ -1408,11 +1408,19 @@ impl Analyzer {
                         if let Type::Struct(_, functions) = struct_type {
                             if let Some(Type::Function(args, datatype, _)) = functions.get("binary") {
                                 if !(
-                                    *args == vec![Type::Alias(left.clone()), Type::Alias(left.clone()), Type::Pointer(Box::new(Type::Char))]
+                                    *args == vec![
+                                        Type::Alias(left.clone()),
+                                        Type::Pointer(
+                                            Box::new(
+                                                Type::Alias(left.clone())
+                                            )
+                                        ),
+                                        Type::Pointer(Box::new(Type::Char))
+                                    ]
                                     && *datatype.clone() == Type::Alias(left.clone())
                                 ) {
                                     self.error(
-                                        format!("Type `{}` has wrong implementation for binary: fn binary(&self, other: {}, operand: *char) {}", left, left, left),
+                                        format!("Type `{}` has wrong implementation for binary: fn binary(&self, other: *{}, operand: *char) {}", left, left, left),
                                         *span
                                     );
                                 }
@@ -1420,7 +1428,7 @@ impl Analyzer {
                                 *datatype.clone()
                             } else {
                                 self.error(
-                                    format!("Type `{}` has no implementation for binary operations: fn binary(&self, other: {}, operand: *char) {}", left, left, left),
+                                    format!("Type `{}` has no implementation for binary operations: fn binary(&self, other: *{}, operand: *char) {}", left, left, left),
                                     *span
                                 );
                                 Type::Alias(left)

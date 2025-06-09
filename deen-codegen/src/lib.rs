@@ -1559,8 +1559,8 @@ impl<'ctx> CodeGen<'ctx> {
                     }
                 });
 
-                let lhs_value = self.compile_expression(*lhs, expected.clone());
-                let rhs_value = self.compile_expression(*rhs, expected);
+                let lhs_value = self.compile_expression(*lhs.clone(), expected.clone());
+                let rhs_value = self.compile_expression(*rhs.clone(), expected);
 
                 let senior_type = match lhs_value.0.clone() {
                     typ if deen_semantic::Analyzer::is_integer(&typ) => {
@@ -1755,11 +1755,25 @@ impl<'ctx> CodeGen<'ctx> {
                     .as_basic_value_enum(),
 
                     Type::Alias(alias) => {
+                        // let exp = Some(Type::Pointer(Box::new(Type::Undefined)));
+                        // let lhs_value = self.compile_expression(*lhs, exp.clone());
+                        // let rhs_value = self.compile_expression(*rhs, exp);
+
                         let structure = self.scope.get_struct(alias).unwrap();
                         let binary_function = structure.functions.get("binary").unwrap();
+
+                        let (left_ptr, right_ptr) = {
+                            let left_alloca = self.builder.build_alloca(lhs_value.1.get_type(), "").unwrap();
+                            let right_alloca = self.builder.build_alloca(lhs_value.1.get_type(), "").unwrap();
+
+                            self.builder.build_store(left_alloca, lhs_value.1).unwrap();
+                            self.builder.build_store(right_alloca, rhs_value.1).unwrap();
+
+                            (left_alloca, right_alloca)
+                        };
                         
-                        let left_ptr: BasicMetadataValueEnum = lhs_value.1.into();
-                        let right_ptr: BasicMetadataValueEnum = lhs_value.1.into();
+                        let left_ptr: BasicMetadataValueEnum = left_ptr.into();
+                        let right_ptr: BasicMetadataValueEnum = right_ptr.into();
                         let operand: BasicMetadataValueEnum = self
                             .builder
                             .build_global_string_ptr(&operand, "@deen_operand")
