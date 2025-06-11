@@ -1468,6 +1468,48 @@ impl Analyzer {
                     (typ, "!") if Self::is_integer(typ) => obj,
                     (Type::Bool, "!") => obj,
 
+                    (Type::Alias(alias), _) => {
+                        let struct_type =
+                            self.scope.get_struct(&alias).unwrap_or_else(|| {
+                                self.error(
+                                    format!("Type `{}` isn't avaible for unary operations", &alias),
+                                    *span
+                                );
+                                Type::Void
+                            });
+
+                        if struct_type == Type::Void {
+                            return Type::Alias(alias.clone());
+                        }
+
+                        if let Type::Struct(_, functions) = struct_type {
+                            if let Some(Type::Function(args, datatype, _)) = functions.get("unary") {
+                                if !(
+                                    *args == vec![
+                                        Type::Alias(alias.clone()),
+                                        Type::Pointer(Box::new(Type::Char))
+                                    ]
+                                    && *datatype.clone() == Type::Alias(alias.clone())
+                                ) {
+                                    self.error(
+                                        format!("Type `{}` has wrong implementation for unary: fn unary(&self, operand: *char) {}", alias, alias),
+                                        *span
+                                    );
+                                }
+
+                                *datatype.clone()
+                            } else {
+                                self.error(
+                                    format!("Type `{}` has wrong implementation for unary: fn unary(&self, operand: *char) {}", alias, alias),
+                                    *span
+                                );
+                                Type::Alias(alias.clone())
+                            }
+                        } else {
+                            unreachable!()
+                        }
+                    }
+
                     _ => {
                         self.error(
                             format!("Cannot apply unary \"{}\" to `{}`", operand, obj),

@@ -1505,6 +1505,38 @@ impl<'ctx> CodeGen<'ctx> {
             } => {
                 let object_value = self.compile_expression(*object, expected);
 
+                if let Type::Alias(alias) = &object_value.0 {
+                    let structure = self.scope.get_struct(alias).unwrap();
+                    let unary_function = structure.functions.get("unary").unwrap();
+
+                    let object_ptr = {
+                        let alloca = self.builder.build_alloca(object_value.1.get_type(), "").unwrap();
+                        self.builder.build_store(alloca, object_value.1).unwrap();
+
+                        alloca
+                    };
+
+                    let object_ptr: BasicMetadataValueEnum = object_ptr.into();
+                    let operand: BasicMetadataValueEnum = self
+                        .builder
+                        .build_global_string_ptr(&operand, "@deen_operand")
+                        .unwrap().as_basic_value_enum().into();
+
+                    let function_output = self
+                        .builder
+                        .build_call(
+                            unary_function.value,
+                            &[object_ptr, operand],
+                            "@deen_unop_call"
+                        )
+                        .unwrap()
+                        .try_as_basic_value()
+                        .left()
+                        .unwrap();
+
+                    return (unary_function.datatype.clone(), function_output);
+                }
+
                 match operand.as_str() {
                     "-" => match object_value.0 {
                         Type::I8
