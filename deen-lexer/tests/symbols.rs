@@ -45,8 +45,8 @@ fn bitwise_symbols() {
     assert_eq!(
         tokens,
         vec![
-            Token::new(String::from(">>"), TokenType::RShift, (0, 1)),
-            Token::new(String::from("<<"), TokenType::LShift, (3, 4)),
+            Token::new(String::from(">>"), TokenType::RShift, (0, 2)),
+            Token::new(String::from("<<"), TokenType::LShift, (3, 5)),
             Token::new(String::from("^"), TokenType::Xor, (6, 6)),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]
