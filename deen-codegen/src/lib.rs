@@ -1928,6 +1928,62 @@ impl<'ctx> CodeGen<'ctx> {
                         )
                     }
 
+                    Type::Alias(alias) => {
+                        // calling compare function
+                        let structure = self.scope.get_struct(alias).unwrap();
+                        let compare_function = structure.functions.get("compare").unwrap();
+
+                        let (left_ptr, right_ptr) = {
+                            let left_alloca = self.builder.build_alloca(lhs_value.1.get_type(), "").unwrap();
+                            let right_alloca = self.builder.build_alloca(rhs_value.1.get_type(), "").unwrap();
+
+                            self.builder.build_store(left_alloca, lhs_value.1).unwrap();
+                            self.builder.build_store(right_alloca, rhs_value.1).unwrap();
+
+                            (left_alloca, right_alloca)
+                        };
+
+                        let left_ptr: BasicMetadataValueEnum = left_ptr.into();
+                        let right_ptr: BasicMetadataValueEnum = right_ptr.into();
+                        
+                        let function_output = self
+                            .builder
+                            .build_call(
+                                compare_function.value,
+                                &[left_ptr, right_ptr],
+                                "@deen_cmp_call"
+                            )
+                            .unwrap()
+                            .try_as_basic_value()
+                            .left()
+                            .unwrap();
+
+                        // comparing
+
+                        let int_predicate = match operand.as_str() {
+                            ">" => inkwell::IntPredicate::SGT,
+                            "<" => inkwell::IntPredicate::SLT,
+                            "<=" | "=<" => inkwell::IntPredicate::SLE,
+                            ">=" | "=>" => inkwell::IntPredicate::SGE,
+                            "==" => inkwell::IntPredicate::EQ,
+                            "!=" => inkwell::IntPredicate::NE,
+                            _ => unreachable!(),
+                        };
+
+                        (
+                            Type::Bool,
+                            self.builder
+                                .build_int_compare(
+                                    int_predicate,
+                                    self.context.i32_type().const_zero(),
+                                    function_output.into_int_value(),
+                                    "",
+                                )
+                                .unwrap()
+                                .as_basic_value_enum(),
+                        )
+                    }
+
                     _ => unreachable!(),
                 }
             }

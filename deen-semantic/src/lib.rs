@@ -1496,6 +1496,60 @@ impl Analyzer {
                         Type::Bool
                     }
 
+                    (Type::Alias(left), Type::Alias(right)) => {
+                        let struct_type =
+                            self.scope.get_struct(&left).unwrap_or_else(|| {
+                                self.error(
+                                    format!("Type `{}` isn't avaible for boolean operations", &left),
+                                    *span
+                                );
+                                Type::Void
+                            });
+
+                        if struct_type == Type::Void {
+                            return Type::Alias(left);
+                        }
+
+                        if left != right {
+                            self.error(
+                                format!("Cannot apply boolean \"{}\" to different types `{}` and `{}`", operand, left, right),
+                                *span
+                            );
+                            return Type::Alias(left);
+                        }
+
+                        if let Type::Struct(_, functions) = struct_type {
+                            if let Some(Type::Function(args, datatype, _)) = functions.get("compare") {
+                                if !(
+                                    *args == vec![
+                                        Type::Alias(left.clone()),
+                                        Type::Pointer(
+                                            Box::new(
+                                                Type::Alias(left.clone())
+                                            )
+                                        ),
+                                    ]
+                                    && *datatype.clone() == Type::I32
+                                ) {
+                                    self.error(
+                                        format!("Type `{}` has wrong implementation for comparison: fn compare(&self, other: *{}) i32", left, left),
+                                        *span
+                                    );
+                                }
+
+                                Type::Bool
+                            } else {
+                                self.error(
+                                    format!("Type `{}` has wrong implementation for comparison: fn compare(&self, other: *{}) i32", left, left),
+                                    *span
+                                );
+                                Type::Bool
+                            }
+                        } else {
+                            unreachable!()
+                        }
+                    }
+
                     _ => {
                         self.error(
                             format!(
