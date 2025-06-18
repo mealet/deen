@@ -1,0 +1,12 @@
+services:
+  compiler:
+    build: .
+    volumes:
+      - .:/compiler
+      - cargo_cache:/usr/local/cargo/registry
+    working_dir: /compiler
+    command: cat source.dn
+
+volumes:
+  cargo_cache:
+  source_file:

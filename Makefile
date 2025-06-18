@@ -6,11 +6,12 @@ FMT_COMMAND = fmt
 CLIPPY_COMMAND = clippy
 
 # Compile example and run
-SRC_FILE = example.dn
+SRC_FILE = source.dn
 OUTPUT_FILE = out
 DEEN_ARGS = --no-warns
 CODE_EDITOR = nvim
 
+# Compile to binary/llvm
 run:
 	$(CODE_EDITOR) $(SRC_FILE)
 	$(PACKAGE_MANAGER) $(RUN_COMMAND) -- $(SRC_FILE) $(OUTPUT_FILE) $(DEEN_ARGS)
@@ -41,9 +42,14 @@ CLIPPY_ARGS = --fix --allow-dirty -- -D warnings
 clippy:
 	$(PACKAGE_MANAGER) $(CLIPPY_COMMAND) $(CLIPPY_ARGS)
 
+# With backtrace
 backtrace:
 	$(CODE_EDITOR) $(SRC_FILE)
 	RUST_BACKTRACE=1 $(PACKAGE_MANAGER) $(RUN_COMMAND) -- $(SRC_FILE) $(OUTPUT_FILE) $(DEEN_ARGS)
 
 clean:
 	rm -f $(OUTPUT_FILE) $(OUTPUT_FILE).ll
+
+docker:
+	touch $(SRC_FILE)
+	sudo docker compose up
