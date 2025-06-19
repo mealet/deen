@@ -4,9 +4,11 @@ services:
     volumes:
       - .:/compiler
       - cargo_cache:/usr/local/cargo/registry
+      - llvm_build:/llvm
     working_dir: /compiler
-    command: cat source.dn
+    command: cargo run
 
 volumes:
   cargo_cache:
   source_file:
+  llvm_build:

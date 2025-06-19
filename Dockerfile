@@ -1,27 +1,49 @@
-FROM archlinux:base-devel
+# Minimum Required LLVM Version (1.18.8): https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04.tar.xz
 
-# Dependencies and languages installation
-RUN pacman -Syu --noconfirm
-RUN pacman -S --noconfirm \
-  rustup \
+FROM ubuntu:22.04
+
+# Installing dependencies
+RUN apt update && apt -y upgrade
+RUN apt install -y \
   git \
   cmake \
-  clang \
-  lld \
-  && rustup default stable
+  ninja-build \
+  g++ \
+  python3 \
+  zlib1g-dev \
+  libncurses5 \
+  libncurses5-dev \
+  libxml2-dev \
+  libedit-dev \
+  swig \
+  curl \
+  build-essential \
+  wget \
+  xz-utils \
+  libc6
 
-# LLVM Installation 
-RUN pacman -S --noconfirm llvm18
-ENV LLVM_SYS_180_PREFIX=/usr/lib/llvm18
+# Installing LLVM
+WORKDIR /llvm
+RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04.tar.xz && \
+  tar -xf clang+llvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04.tar.xz && \
+  mv clang+llvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04/* . && \
+  rm clang+llvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04.tar.xz
 
-# Caching up dependencies
+ENV LLVM_SYS_180_PREFIX=/llvm
+ENV PATH="${PATH}:/llvm:/llvm/bin"
+
+# Verify LLVM
+RUN llvm-config --version
+
+# Installing Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+  . "$HOME/.cargo/env"
+
+
+ENV PATH="${PATH}:$HOME/.cargo:$HOME/.cargo/bin"
+
+# Setting up project
 WORKDIR /compiler
-COPY Cargo.toml Cargo.lock ./
-
-RUN mkdir src && echo "fn main() {}" > src/main.rs && \
-  cargo build --release && \
-  rm -rf src
-
-# Copying sources
 COPY . .
+
 CMD ["cargo", "run", "--release"]
