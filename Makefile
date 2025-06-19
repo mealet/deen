@@ -50,6 +50,9 @@ backtrace:
 clean:
 	rm -f $(OUTPUT_FILE) $(OUTPUT_FILE).ll
 
+docker-build:
+	sudo docker-compose build
+
 docker:
-	touch $(SRC_FILE)
-	sudo docker compose up
+	$(CODE_EDITOR) $(SRC_FILE)
+	sudo docker-compose up
