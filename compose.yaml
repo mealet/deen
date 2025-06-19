@@ -6,9 +6,8 @@ services:
       - cargo_cache:/usr/local/cargo/registry
       - llvm_build:/llvm
     working_dir: /compiler
-    command: cargo run
+    command: bash -c 'deen source.dn output && echo -e "\n-- LAUNCHING COMPILED BINARY --\n" && ./output'
 
 volumes:
   cargo_cache:
-  source_file:
   llvm_build:

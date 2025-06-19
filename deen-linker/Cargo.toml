@@ -9,3 +9,4 @@ license.workspace = true
 
 [dependencies]
 inkwell = { version = "0.5.0", features = ["llvm18-0"] }
+llvm-sys = { version = "180", features = ["prefer-static"] }

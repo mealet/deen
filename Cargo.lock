@@ -185,6 +185,7 @@ dependencies = [
  "deen-parser",
  "deen-semantic",
  "inkwell",
+ "llvm-sys",
  "miette",
  "thiserror 2.0.12",
 ]
@@ -196,6 +197,7 @@ dependencies = [
  "deen-parser",
  "deen-semantic",
  "inkwell",
+ "llvm-sys",
  "miette",
  "thiserror 2.0.12",
 ]
@@ -213,6 +215,7 @@ name = "deen-linker"
 version = "0.0.4"
 dependencies = [
  "inkwell",
+ "llvm-sys",
 ]
 
 [[package]]
