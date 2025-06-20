@@ -1,3 +1,29 @@
+//! # Deen Lexical Analyzer
+//! This module provides tools to convert user's source code into abstracted data structures - tokens. <br/>
+//! Read on Wikipedia: <https://en.wikipedia.org/wiki/Lexical_analysis> <br/>
+//!
+//! Main tool here is the [`Lexer`] structure (you can also check examples there)
+//!
+//! ## Usage
+//! ```rust
+//! use deen_lexer::Lexer;
+//!
+//! let input = "1 + 1";
+//! let filename = "example.dn";
+//!
+//! let mut lexer = Lexer::new(input, filename);
+//! let lexer_result = lexer.tokenize();
+//!
+//! assert!(lexer_result.is_ok());
+//!
+//! let (tokens, warns) = lexer_result.unwrap();
+//!
+//! assert!(warns.is_empty());
+//! assert!(tokens.len() == 4); // 3 tokens and EOF (End Of File)
+//!
+//! println!("{:?}", tokens);
+//! ```
+
 use crate::{
     error::{LexerError, LexerWarning},
     macros::{std_keyword, std_symbol, std_token, std_type},
@@ -7,30 +33,45 @@ use crate::{
 use miette::NamedSource;
 use std::collections::HashMap;
 
+/// Error Handling Module
 pub mod error;
+/// Helpful Macros Module
 mod macros;
+/// Token Object and Implementations
 pub mod token;
+/// Token Types Enumeration
 pub mod token_type;
 
 type LexerOk = (Vec<Token>, Vec<LexerWarning>);
 type LexerErr = (Vec<LexerError>, Vec<LexerWarning>);
 
+/// Main lexical analyzer instance
+///
+/// ### Usage example:
 pub struct Lexer {
+    /// Named source code (from [`miette`])
     source: NamedSource<String>,
 
+    // Compiler's reserved symbols
     std_symbols: HashMap<char, Token>,
+    // Compiler's reserved keywords
     std_words: HashMap<String, Token>,
 
+    // Vector of handled Lexer errors
     errors: Vec<error::LexerError>,
+    // Vector of handled Lexer warnings
     warnings: Vec<error::LexerWarning>,
 
+    // Input's characters
     input: Vec<char>,
+    // Current Lexer position
     position: usize,
+    // Current Lexer character
     char: char,
 }
 
 impl Lexer {
-    // basic
+    /// Basic analyzer structure builder
     pub fn new(source: &str, filename: &str) -> Self {
         let mut lexer = Lexer {
             source: NamedSource::new(filename, source.to_owned()),
@@ -83,20 +124,16 @@ impl Lexer {
                 std_type!("i16"),
                 std_type!("i32"),
                 std_type!("i64"),
-
                 std_type!("u8"),
                 std_type!("u16"),
                 std_type!("u32"),
                 std_type!("u64"),
                 std_type!("usize"),
-
                 std_type!("f32"),
                 std_type!("f64"),
                 std_type!("bool"),
-
                 std_type!("string"),
                 std_type!("char"),
-
                 std_type!("void"),
                 // Values
                 std_token!("true", TokenType::Boolean),
@@ -115,7 +152,7 @@ impl Lexer {
         lexer
     }
 
-    // fundamental
+    // Fundamental Lexer functions
 
     fn error(&mut self, message: String, span: (usize, usize)) {
         self.errors.push(error::LexerError {
@@ -142,7 +179,7 @@ impl Lexer {
         }
     }
 
-    // filters
+    // Filters
 
     fn is_eof(&self) -> bool {
         self.char == '\0'
@@ -152,7 +189,7 @@ impl Lexer {
         ['a', 'b', 'c', 'd', 'e', 'f'].contains(&value.to_ascii_lowercase())
     }
 
-    // helpful
+    // Helpful functions
 
     fn get_number(&mut self) -> (String, TokenType) {
         #[derive(PartialEq)]
@@ -332,8 +369,11 @@ impl Lexer {
         }
     }
 
-    // main
+    // Main tokenizer function
 
+    /// Tokenizer function. <br/>
+    /// - **Ok**: tuple of vector with tokens and vector with warnings
+    /// - **Err**: tuple of vector with errors and vector with warnings
     pub fn tokenize(&mut self) -> Result<LexerOk, LexerErr> {
         let mut output = Vec::new();
 
@@ -474,7 +514,7 @@ impl Lexer {
                                     output.push(Token::new(
                                         String::from("<="),
                                         TokenType::Leq,
-                                        (span_start, self.position)
+                                        (span_start, self.position),
                                     ));
                                     self.getc();
                                 }
@@ -502,7 +542,7 @@ impl Lexer {
                                     output.push(Token::new(
                                         String::from(">="),
                                         TokenType::Beq,
-                                        (span_start, self.position)
+                                        (span_start, self.position),
                                     ));
                                     self.getc();
                                 }
