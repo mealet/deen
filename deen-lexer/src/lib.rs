@@ -1,6 +1,6 @@
 //! # Deen Lexical Analyzer
-//! This module provides tools to convert user's source code into abstracted data structures - tokens. <br/>
-//! Read on Wikipedia: <https://en.wikipedia.org/wiki/Lexical_analysis> <br/>
+//! Tools to convert user's source code into abstracted data structures - tokens. <br/>
+//! Wikipedia Explanation: <https://en.wikipedia.org/wiki/Lexical_analysis> <br/>
 //!
 //! Main tool here is the [`Lexer`] structure (you can also check examples there)
 //!
@@ -42,8 +42,8 @@ pub mod token;
 /// Token Types Enumeration
 pub mod token_type;
 
-type LexerOk = (Vec<Token>, Vec<LexerWarning>);
-type LexerErr = (Vec<LexerError>, Vec<LexerWarning>);
+pub type LexerOk = (Vec<Token>, Vec<LexerWarning>);
+pub type LexerErr = (Vec<LexerError>, Vec<LexerWarning>);
 
 /// Main lexical analyzer instance
 ///

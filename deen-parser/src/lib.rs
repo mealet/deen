@@ -1,3 +1,24 @@
+//! # Deen Syntax Analyzer
+//! Toolkit for analyzing and creating Abstract Syntax Tree from [`deen_lexer`] tokens. <br/>
+//! Wikipedia Explanation: <https://en.wikipedia.org/wiki/Parsing>
+//!
+//! Main tool is the [`Parser`] structure
+//!
+//! ## Usage
+//! ```ignore
+//! use deen_parser::Parser;
+//!
+//! let tokens = {
+//!     // ...
+//! };
+//!
+//! let mut parser = Parser::new(tokens, "source code", "source name");
+//! let (ast, warns) = parser.parse().expect("Cannot parse source code");
+//!
+//! println!("{:#?}", ast);
+//! println!("{:#?}", warns);
+//! ```
+
 use crate::{
     error::{ParserError, ParserWarning},
     expressions::Expressions,
@@ -8,14 +29,19 @@ use crate::{
 use deen_lexer::{token::Token, token_type::TokenType};
 use miette::NamedSource;
 
+/// Custom Defined Error Types
 pub mod error;
+/// Expressions Enum
 pub mod expressions;
+/// Statements Enum
 pub mod statements;
+/// Compiler's Types
 pub mod types;
+/// Basic Values Enum
 pub mod value;
 
-type ParserOk = (Vec<Statements>, Vec<ParserWarning>);
-type ParserErr = (Vec<ParserError>, Vec<ParserWarning>);
+pub type ParserOk = (Vec<Statements>, Vec<ParserWarning>);
+pub type ParserErr = (Vec<ParserError>, Vec<ParserWarning>);
 
 const BINARY_OPERATORS: [TokenType; 5] = [
     TokenType::Plus,     // +
@@ -50,6 +76,14 @@ const PRIORITY_BOOLEAN_OPERATORS: [TokenType; 2] = [TokenType::Or, TokenType::An
 
 const END_STATEMENT: TokenType = TokenType::Semicolon;
 
+/// Main Syntax Analyzer Object
+///
+/// **Main Functions:**
+/// - [`Parser::new`] - structure builder
+/// - [`Parser::parse`] - main parser functions
+///
+/// Function [`Parser::get_span_expression`] is used to extract span tuple from
+/// [`expressions::Expressions`] enum
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Parser {
     source: NamedSource<String>,
@@ -65,6 +99,9 @@ pub struct Parser {
 impl Parser {
     // main
 
+    /// **Structure Builder** <br/>
+    /// Requires full ownership for vector of tokens, and source code with filename for error
+    /// handling
     pub fn new(tokens: Vec<Token>, source: &str, filename: &str) -> Self {
         Self {
             source: NamedSource::new(filename, source.to_owned()),
@@ -78,6 +115,8 @@ impl Parser {
         }
     }
 
+    /// **Main Parser Function** <br/>
+    /// Requires new created self instance. **Can be called only once!**
     pub fn parse(&mut self) -> Result<ParserOk, ParserErr> {
         let mut output = Vec::new();
 
@@ -128,7 +167,6 @@ impl Parser {
             "u32" => Type::U32,
             "u64" => Type::U64,
             "usize" => Type::USIZE,
-
 
             "f32" => Type::F32,
             "f64" => Type::F64,
