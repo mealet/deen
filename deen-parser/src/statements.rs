@@ -1,3 +1,11 @@
+//! # Statements
+//! Each statement in Deen has it's own syntax. <br/>
+//! _To see syntax rules for every Statement, check the [`Statements`] enum_
+//!
+//! **Statement** is a syntactic unit of programming language that describes program actions. <br/>
+//! Statement may have internal components named [`Expressions`]. <br/>
+//! Read: <https://en.wikipedia.org/wiki/Statement_(computer_science)>
+
 use crate::{END_STATEMENT, Parser, expressions::Expressions, types::Type, value::Value};
 use deen_lexer::token_type::TokenType;
 use std::collections::HashMap;
@@ -26,7 +34,7 @@ pub enum Statements {
         span: (usize, usize),
     },
 
-    /// `OBJECT[INDEX] = EXPRESSION`
+    /// `OBJECT[EXPRESSION] = EXPRESSION`
     SliceAssignStatement {
         object: Expressions,
         index: Expressions,

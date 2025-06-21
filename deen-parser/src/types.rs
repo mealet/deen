@@ -1,3 +1,9 @@
+//! # Types
+//! **Types** is a designation of data size and it's avaible toolchain. <br/>
+//! Deen has 14 basic types: 4 signed and 5 unsigned integers, 2 floats, char, bool and void types.
+//! <br/>
+//! Other types is _advanced_ (pointers, arrays, structs and etc.)
+
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,11 +25,9 @@ pub enum Type {
     U64,
     USIZE,
 
-    String,
-    Char,
-
     Bool,
     Void,
+    Char,
 
     Pointer(Box<Type>),
     Array(Box<Type>, usize),
@@ -32,7 +36,7 @@ pub enum Type {
     Tuple(Vec<Type>),
     Alias(String),
 
-    // will be used for semantical analyzer
+    // for semantical analyzer
     Function(Vec<Type>, Box<Type>, bool), // fn foo(a: i32, b: u32) string  --->  Function([I32, U32], String)
     Struct(HashMap<String, Type>, HashMap<String, Type>), // struct Abc { a: i32, b: bool, c: *u64 }  ---> Struct([I32, Bool, Pointer(U64)])
     Enum(Vec<String>, HashMap<String, Type>),             // enum Abc { A, B, C } -> Enum([A, B, C])
@@ -60,9 +64,7 @@ impl std::fmt::Display for Type {
             Type::U64 => write!(f, "u64"),
             Type::USIZE => write!(f, "usize"),
 
-            Type::String => write!(f, "string"),
             Type::Char => write!(f, "char"),
-
             Type::Bool => write!(f, "bool"),
             Type::Void => write!(f, "void"),
 

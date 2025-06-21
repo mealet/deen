@@ -38,7 +38,7 @@ impl Analyzer {
             (
                 "print".to_string(),
                 MacrosObject {
-                    arguments: vec![Type::String],
+                    arguments: vec![Type::Undefined],
                     settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
                     return_type: Type::Void,
                 },
@@ -47,7 +47,7 @@ impl Analyzer {
             (
                 "println".to_string(),
                 MacrosObject {
-                    arguments: vec![Type::String],
+                    arguments: vec![Type::Undefined],
                     settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
                     return_type: Type::Void,
                 },
@@ -56,7 +56,7 @@ impl Analyzer {
             (
                 "format".to_string(),
                 MacrosObject {
-                    arguments: vec![Type::String],
+                    arguments: vec![Type::Undefined],
                     settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
                     return_type: Type::Pointer(Box::new(Type::Char)),
                 },
@@ -65,7 +65,7 @@ impl Analyzer {
             (
                 "panic".to_string(),
                 MacrosObject {
-                    arguments: vec![Type::String],
+                    arguments: vec![Type::Undefined],
                     settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
                     return_type: Type::Void,
                 },
@@ -119,18 +119,16 @@ impl Analyzer {
                         alias: _,
                         datatype: _,
                         span: _
-                    } | Statements::ImportStatement {
-                        path: _,
-                        span: _
-                    } | Statements::ExternStatement {
-                        identifier: _,
-                        arguments: _,
-                        return_type: _,
-                        extern_type: _,
-                        is_var_args: _,
-                        public: _,
-                        span: _
-                    }
+                    } | Statements::ImportStatement { path: _, span: _ }
+                        | Statements::ExternStatement {
+                            identifier: _,
+                            arguments: _,
+                            return_type: _,
+                            extern_type: _,
+                            is_var_args: _,
+                            public: _,
+                            span: _
+                        }
                 )
             })
             .collect::<Vec<&Statements>>();
@@ -1384,14 +1382,13 @@ impl Analyzer {
                     }
 
                     (Type::Alias(left), Type::Alias(right)) => {
-                        let struct_type =
-                            self.scope.get_struct(&left).unwrap_or_else(|| {
-                                self.error(
-                                    format!("Type `{}` isn't avaible for binary operations", &left),
-                                    *span
-                                );
-                                Type::Void
-                            });
+                        let struct_type = self.scope.get_struct(&left).unwrap_or_else(|| {
+                            self.error(
+                                format!("Type `{}` isn't avaible for binary operations", &left),
+                                *span,
+                            );
+                            Type::Void
+                        });
 
                         if struct_type == Type::Void {
                             return Type::Alias(left);
@@ -1399,26 +1396,26 @@ impl Analyzer {
 
                         if left != right {
                             self.error(
-                                format!("Cannot apply binary \"{}\" to different types `{}` and `{}`", operand, left, right),
-                                *span
+                                format!(
+                                    "Cannot apply binary \"{}\" to different types `{}` and `{}`",
+                                    operand, left, right
+                                ),
+                                *span,
                             );
                             return Type::Alias(left);
                         }
 
                         if let Type::Struct(_, functions) = struct_type {
-                            if let Some(Type::Function(args, datatype, _)) = functions.get("binary") {
-                                if !(
-                                    *args == vec![
+                            if let Some(Type::Function(args, datatype, _)) = functions.get("binary")
+                            {
+                                if !(*args
+                                    == vec![
                                         Type::Alias(left.clone()),
-                                        Type::Pointer(
-                                            Box::new(
-                                                Type::Alias(left.clone())
-                                            )
-                                        ),
-                                        Type::Pointer(Box::new(Type::Char))
+                                        Type::Pointer(Box::new(Type::Alias(left.clone()))),
+                                        Type::Pointer(Box::new(Type::Char)),
                                     ]
-                                    && *datatype.clone() == Type::Alias(left.clone())
-                                ) {
+                                    && *datatype.clone() == Type::Alias(left.clone()))
+                                {
                                     self.error(
                                         format!("Type `{}` has wrong implementation for binary: fn binary(&self, other: *{}, operand: *char) {}", left, left, left),
                                         *span
@@ -1469,28 +1466,28 @@ impl Analyzer {
                     (Type::Bool, "!") => obj,
 
                     (Type::Alias(alias), _) => {
-                        let struct_type =
-                            self.scope.get_struct(&alias).unwrap_or_else(|| {
-                                self.error(
-                                    format!("Type `{}` isn't avaible for unary operations", &alias),
-                                    *span
-                                );
-                                Type::Void
-                            });
+                        let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
+                            self.error(
+                                format!("Type `{}` isn't avaible for unary operations", &alias),
+                                *span,
+                            );
+                            Type::Void
+                        });
 
                         if struct_type == Type::Void {
                             return Type::Alias(alias.clone());
                         }
 
                         if let Type::Struct(_, functions) = struct_type {
-                            if let Some(Type::Function(args, datatype, _)) = functions.get("unary") {
-                                if !(
-                                    *args == vec![
+                            if let Some(Type::Function(args, datatype, _)) = functions.get("unary")
+                            {
+                                if !(*args
+                                    == vec![
                                         Type::Alias(alias.clone()),
-                                        Type::Pointer(Box::new(Type::Char))
+                                        Type::Pointer(Box::new(Type::Char)),
                                     ]
-                                    && *datatype.clone() == Type::Alias(alias.clone())
-                                ) {
+                                    && *datatype.clone() == Type::Alias(alias.clone()))
+                                {
                                     self.error(
                                         format!("Type `{}` has wrong implementation for unary: fn unary(&self, operand: *char) {}", alias, alias),
                                         *span
@@ -1525,7 +1522,7 @@ impl Analyzer {
                 rhs,
                 span,
             } => {
-                const SUPPORTED_EXTRA_TYPES: [Type; 3] = [Type::String, Type::Bool, Type::Char];
+                const SUPPORTED_EXTRA_TYPES: [Type; 2] = [Type::Bool, Type::Char];
 
                 let left = self.visit_expression(lhs, expected.clone());
                 let right = self.visit_expression(rhs, Some(left.clone()));
@@ -1539,14 +1536,13 @@ impl Analyzer {
                     }
 
                     (Type::Alias(left), Type::Alias(right)) => {
-                        let struct_type =
-                            self.scope.get_struct(&left).unwrap_or_else(|| {
-                                self.error(
-                                    format!("Type `{}` isn't avaible for boolean operations", &left),
-                                    *span
-                                );
-                                Type::Void
-                            });
+                        let struct_type = self.scope.get_struct(&left).unwrap_or_else(|| {
+                            self.error(
+                                format!("Type `{}` isn't avaible for boolean operations", &left),
+                                *span,
+                            );
+                            Type::Void
+                        });
 
                         if struct_type == Type::Void {
                             return Type::Alias(left);
@@ -1554,25 +1550,26 @@ impl Analyzer {
 
                         if left != right {
                             self.error(
-                                format!("Cannot apply boolean \"{}\" to different types `{}` and `{}`", operand, left, right),
-                                *span
+                                format!(
+                                    "Cannot apply boolean \"{}\" to different types `{}` and `{}`",
+                                    operand, left, right
+                                ),
+                                *span,
                             );
                             return Type::Alias(left);
                         }
 
                         if let Type::Struct(_, functions) = struct_type {
-                            if let Some(Type::Function(args, datatype, _)) = functions.get("compare") {
-                                if !(
-                                    *args == vec![
+                            if let Some(Type::Function(args, datatype, _)) =
+                                functions.get("compare")
+                            {
+                                if !(*args
+                                    == vec![
                                         Type::Alias(left.clone()),
-                                        Type::Pointer(
-                                            Box::new(
-                                                Type::Alias(left.clone())
-                                            )
-                                        ),
+                                        Type::Pointer(Box::new(Type::Alias(left.clone()))),
                                     ]
-                                    && *datatype.clone() == Type::I32
-                                ) {
+                                    && *datatype.clone() == Type::I32)
+                                {
                                     self.error(
                                         format!("Type `{}` has wrong implementation for comparison: fn compare(&self, other: *{}) i32", left, left),
                                         *span
@@ -2281,7 +2278,7 @@ impl Analyzer {
             }
             Value::Float(float) => {
                 if expected.is_some() && Self::is_float(expected.as_ref().unwrap()) {
-                    return Ok(expected.unwrap())
+                    return Ok(expected.unwrap());
                 }
 
                 if float > f32::MAX as f64 {

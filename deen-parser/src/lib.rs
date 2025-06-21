@@ -172,9 +172,7 @@ impl Parser {
             "f64" => Type::F64,
             "bool" => Type::Bool,
 
-            "string" => Type::String,
             "char" => Type::Char,
-
             "void" => Type::Void,
 
             _ => {

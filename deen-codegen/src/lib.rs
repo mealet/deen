@@ -150,8 +150,10 @@ impl<'ctx> CodeGen<'ctx> {
         // after_statements
         //     .into_iter()
         //     .for_each(|stmt| self.compile_statement(stmt.clone(), prefix.clone()));
-        
-        statements.into_iter().for_each(|stmt| self.compile_statement(stmt, prefix.clone()));
+
+        statements
+            .into_iter()
+            .for_each(|stmt| self.compile_statement(stmt, prefix.clone()));
 
         let module_content = {
             let functions = self.scope.stricted_functions();
@@ -183,8 +185,8 @@ impl<'ctx> CodeGen<'ctx> {
 
                     self.builder.build_store(var.ptr, compiled_value.1).unwrap();
                 } else {
-                    let ptr =
-                        self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Undefined))));
+                    let ptr = self
+                        .compile_expression(object, Some(Type::Pointer(Box::new(Type::Undefined))));
                     let value = self.compile_expression(value, None);
 
                     let _ = self
@@ -496,7 +498,7 @@ impl<'ctx> CodeGen<'ctx> {
                         datatype: datatype.clone(),
                         value: function,
                         arguments: typed_args.clone(),
-                        called: false
+                        called: false,
                     },
                 );
                 block
@@ -520,7 +522,7 @@ impl<'ctx> CodeGen<'ctx> {
                         datatype: datatype.clone(),
                         value: function,
                         arguments: typed_args,
-                        called: false
+                        called: false,
                     },
                 );
             }
@@ -809,8 +811,8 @@ impl<'ctx> CodeGen<'ctx> {
 
                 // binding initialization
 
-                let mut compiled_iterator =
-                    self.compile_expression(iterator, Some(Type::Pointer(Box::new(Type::Undefined))));
+                let mut compiled_iterator = self
+                    .compile_expression(iterator, Some(Type::Pointer(Box::new(Type::Undefined))));
 
                 if let Type::Pointer(ptr_type) = compiled_iterator.0 {
                     compiled_iterator.0 = *ptr_type.clone();
@@ -1326,7 +1328,7 @@ impl<'ctx> CodeGen<'ctx> {
                         datatype: return_type,
                         value: fn_value,
                         arguments,
-                        called: false
+                        called: false,
                     },
                 )
             }
@@ -1471,8 +1473,10 @@ impl<'ctx> CodeGen<'ctx> {
                     )
                 }
                 _ => {
-                    let value =
-                        self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Undefined))));
+                    let value = self.compile_expression(
+                        *object,
+                        Some(Type::Pointer(Box::new(Type::Undefined))),
+                    );
                     let alloca = self.builder.build_alloca(value.1.get_type(), "").unwrap();
                     let _ = self.builder.build_store(alloca, value.1);
 
@@ -1510,7 +1514,10 @@ impl<'ctx> CodeGen<'ctx> {
                     let unary_function = structure.functions.get("unary").unwrap();
 
                     let object_ptr = {
-                        let alloca = self.builder.build_alloca(object_value.1.get_type(), "").unwrap();
+                        let alloca = self
+                            .builder
+                            .build_alloca(object_value.1.get_type(), "")
+                            .unwrap();
                         self.builder.build_store(alloca, object_value.1).unwrap();
 
                         alloca
@@ -1520,14 +1527,16 @@ impl<'ctx> CodeGen<'ctx> {
                     let operand: BasicMetadataValueEnum = self
                         .builder
                         .build_global_string_ptr(&operand, "@deen_operand")
-                        .unwrap().as_basic_value_enum().into();
+                        .unwrap()
+                        .as_basic_value_enum()
+                        .into();
 
                     let function_output = self
                         .builder
                         .build_call(
                             unary_function.value,
                             &[object_ptr, operand],
-                            "@deen_unop_call"
+                            "@deen_unop_call",
                         )
                         .unwrap()
                         .try_as_basic_value()
@@ -1795,24 +1804,31 @@ impl<'ctx> CodeGen<'ctx> {
                         let binary_function = structure.functions.get("binary").unwrap();
 
                         let (left_ptr, right_ptr) = {
-                            let left_alloca = self.builder.build_alloca(lhs_value.1.get_type(), "").unwrap();
-                            let right_alloca = self.builder.build_alloca(lhs_value.1.get_type(), "").unwrap();
+                            let left_alloca = self
+                                .builder
+                                .build_alloca(lhs_value.1.get_type(), "")
+                                .unwrap();
+                            let right_alloca = self
+                                .builder
+                                .build_alloca(lhs_value.1.get_type(), "")
+                                .unwrap();
 
                             self.builder.build_store(left_alloca, lhs_value.1).unwrap();
                             self.builder.build_store(right_alloca, rhs_value.1).unwrap();
 
                             (left_alloca, right_alloca)
                         };
-                        
+
                         let left_ptr: BasicMetadataValueEnum = left_ptr.into();
                         let right_ptr: BasicMetadataValueEnum = right_ptr.into();
                         let operand: BasicMetadataValueEnum = self
                             .builder
                             .build_global_string_ptr(&operand, "@deen_operand")
-                            .unwrap().as_basic_value_enum().into();
+                            .unwrap()
+                            .as_basic_value_enum()
+                            .into();
 
-                        self
-                            .builder
+                        self.builder
                             .build_call(
                                 binary_function.value,
                                 &[left_ptr, right_ptr, operand],
@@ -1920,10 +1936,13 @@ impl<'ctx> CodeGen<'ctx> {
                     }
                     Type::Pointer(ptr_type) if *ptr_type == Type::Char => {
                         let strcmp_fn = self.module.get_function("strcmp").unwrap_or_else(|| {
-                            let fn_type = self.context.i32_type().fn_type(&[
-                                self.context.ptr_type(AddressSpace::default()).into(),
-                                self.context.ptr_type(AddressSpace::default()).into()
-                            ], false);
+                            let fn_type = self.context.i32_type().fn_type(
+                                &[
+                                    self.context.ptr_type(AddressSpace::default()).into(),
+                                    self.context.ptr_type(AddressSpace::default()).into(),
+                                ],
+                                false,
+                            );
 
                             self.module.add_function("strcmp", fn_type, None)
                         });
@@ -1966,8 +1985,14 @@ impl<'ctx> CodeGen<'ctx> {
                         let compare_function = structure.functions.get("compare").unwrap();
 
                         let (left_ptr, right_ptr) = {
-                            let left_alloca = self.builder.build_alloca(lhs_value.1.get_type(), "").unwrap();
-                            let right_alloca = self.builder.build_alloca(rhs_value.1.get_type(), "").unwrap();
+                            let left_alloca = self
+                                .builder
+                                .build_alloca(lhs_value.1.get_type(), "")
+                                .unwrap();
+                            let right_alloca = self
+                                .builder
+                                .build_alloca(rhs_value.1.get_type(), "")
+                                .unwrap();
 
                             self.builder.build_store(left_alloca, lhs_value.1).unwrap();
                             self.builder.build_store(right_alloca, rhs_value.1).unwrap();
@@ -1977,13 +2002,13 @@ impl<'ctx> CodeGen<'ctx> {
 
                         let left_ptr: BasicMetadataValueEnum = left_ptr.into();
                         let right_ptr: BasicMetadataValueEnum = right_ptr.into();
-                        
+
                         let function_output = self
                             .builder
                             .build_call(
                                 compare_function.value,
                                 &[left_ptr, right_ptr],
-                                "@deen_cmp_call"
+                                "@deen_cmp_call",
                             )
                             .unwrap()
                             .try_as_basic_value()
@@ -2119,11 +2144,15 @@ impl<'ctx> CodeGen<'ctx> {
                                         )
                                         .unwrap();
 
-                                    let value = if let Some(Type::Pointer(ptr_type)) = expected.clone() {
+                                    let value = if let Some(Type::Pointer(ptr_type)) =
+                                        expected.clone()
+                                    {
                                         if *ptr_type == Type::Undefined {
                                             ptr.as_basic_value_enum()
                                         } else {
-                                            self.builder.build_load(field.llvm_type, ptr, "").unwrap()
+                                            self.builder
+                                                .build_load(field.llvm_type, ptr, "")
+                                                .unwrap()
                                         }
                                     } else {
                                         self.builder.build_load(field.llvm_type, ptr, "").unwrap()
@@ -2197,8 +2226,10 @@ impl<'ctx> CodeGen<'ctx> {
 
                         match prev_type.clone() {
                             Type::Alias(alias) => {
-                                let alias_type =
-                                    self.get_alias_type(prev_type.clone(), None).clone().unwrap();
+                                let alias_type = self
+                                    .get_alias_type(prev_type.clone(), None)
+                                    .clone()
+                                    .unwrap();
 
                                 match alias_type {
                                     "struct" | "enum" => {
@@ -2211,7 +2242,13 @@ impl<'ctx> CodeGen<'ctx> {
                                             .unwrap();
 
                                         {
-                                            let mut_fn = self.scope.get_mut_function(format!("{}_{}__{}", alias_type, alias, name)).unwrap();
+                                            let mut_fn = self
+                                                .scope
+                                                .get_mut_function(format!(
+                                                    "{}_{}__{}",
+                                                    alias_type, alias, name
+                                                ))
+                                                .unwrap();
                                             mut_fn.called = true;
                                         }
 
@@ -2731,7 +2768,9 @@ impl<'ctx> CodeGen<'ctx> {
                 let datatype = match expected {
                     Some(Type::Pointer(ptr_type)) => {
                         if id == "self" {
-                            Type::Pointer(Box::new(Type::Pointer(Box::new(variable.datatype.clone()))))
+                            Type::Pointer(Box::new(Type::Pointer(Box::new(
+                                variable.datatype.clone(),
+                            ))))
                         } else if *ptr_type == Type::Undefined {
                             Type::Pointer(Box::new(variable.datatype.clone()))
                         } else {
@@ -2860,7 +2899,6 @@ impl<'ctx> CodeGen<'ctx> {
             Type::F64 => self.context.f64_type().into(),
 
             Type::Void => self.context.i8_type().into(),
-            Type::String => self.context.ptr_type(AddressSpace::default()).into(),
             Type::Char => self.context.custom_width_int_type(8).into(),
             Type::Bool => self.context.bool_type().into(),
 
@@ -3034,7 +3072,6 @@ impl<'ctx> CodeGen<'ctx> {
             Type::F32 => "%f",
             Type::F64 => "%lf",
 
-            Type::String => "%s",
             Type::Char => "%c",
             Type::Pointer(ptr) => match **ptr {
                 Type::Char => "%s",

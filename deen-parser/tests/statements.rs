@@ -569,7 +569,7 @@ fn function_call_advanced_statement() {
 
 #[test]
 fn struct_define_statement() {
-    const SRC: &str = "struct Person { name: string, age: u8 }";
+    const SRC: &str = "struct Person { name: *char, age: u8 }";
     const FILENAME: &str = "test.dn";
 
     let mut lexer = Lexer::new(SRC, "test.dn");
@@ -591,7 +591,7 @@ fn struct_define_statement() {
             assert!(!public);
             assert!(functions.is_empty());
 
-            if let Some(Type::String) = fields.get("name") {
+            if let Some(Type::Pointer(_)) = fields.get("name") {
             } else {
                 panic!("Wrong argument parsed")
             }
@@ -606,7 +606,7 @@ fn struct_define_statement() {
 
 #[test]
 fn struct_define_with_fn_statement() {
-    const SRC: &str = "struct Person { name: string, age: u8, fn foo() {} }";
+    const SRC: &str = "struct Person { name: *char, age: u8, fn foo() {} }";
     const FILENAME: &str = "test.dn";
 
     let mut lexer = Lexer::new(SRC, "test.dn");
@@ -628,7 +628,7 @@ fn struct_define_with_fn_statement() {
             assert!(!public);
             assert!(!functions.is_empty());
 
-            if let Some(Type::String) = fields.get("name") {
+            if let Some(Type::Pointer(_)) = fields.get("name") {
             } else {
                 panic!("Wrong argument parsed")
             }
@@ -657,7 +657,7 @@ fn struct_define_with_fn_statement() {
 
 #[test]
 fn struct_define_public_statement() {
-    const SRC: &str = "pub struct Person { name: string, age: u8, fn foo() {} }";
+    const SRC: &str = "pub struct Person { name: *char, age: u8, fn foo() {} }";
     const FILENAME: &str = "test.dn";
 
     let mut lexer = Lexer::new(SRC, "test.dn");
@@ -679,7 +679,7 @@ fn struct_define_public_statement() {
             assert!(!functions.is_empty());
             assert!(public);
 
-            if let Some(Type::String) = fields.get("name") {
+            if let Some(Type::Pointer(_)) = fields.get("name") {
             } else {
                 panic!("Wrong argument parsed")
             }
