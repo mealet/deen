@@ -45,12 +45,14 @@ COPY . .
 
 RUN cargo build --release
 
-FROM ubuntu:24.04
+FROM ubuntu:jammy
 
 WORKDIR /runner
 COPY ./source.dn .
 
 COPY --from=builder /compiler/target/release/deen /usr/local/bin
 
-RUN apt update && apt install -y clang
+RUN apt -y update
+RUN apt install -y clang
+
 CMD ["deen", "source.dn", "output", "&&", "./output"]
