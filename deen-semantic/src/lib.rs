@@ -859,7 +859,7 @@ impl Analyzer {
 
                 self.scope = *self.scope.parent.clone().unwrap();
 
-                if then_block_type != self.scope.expected {
+                if then_block_type != self.scope.expected && then_block_type != Type::Void {
                     self.error(
                         format!(
                             "Expected type `{}` for scope, but found `{}`",
@@ -870,7 +870,10 @@ impl Analyzer {
                     return;
                 }
 
-                self.scope.returned = then_block_type.clone();
+                if then_block_type != Type::Void {
+                    self.scope.returned = then_block_type.clone();
+                }
+
                 if let Some(else_block) = else_block {
                     let mut new_scope = Scope::new();
                     new_scope.parent = Some(Box::new(self.scope.clone()));
