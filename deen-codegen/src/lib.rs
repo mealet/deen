@@ -3105,7 +3105,7 @@ impl<'ctx> CodeGen<'ctx> {
                 .unwrap()
                 .as_pointer_value(),
             self.builder
-                .build_global_string_ptr("true", "")
+                .build_global_string_ptr("false", "")
                 .unwrap()
                 .as_pointer_value(),
         );
