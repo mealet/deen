@@ -2005,9 +2005,6 @@ impl Analyzer {
                     self.error(format!("Function `{}` is not defined here", name), *span);
                     Type::Void
                 });
-                // WARN: Don't forget to remove
-                println!("{} - {:?}", &name, &func);
-
                 if func == Type::Void {
                     return expected.unwrap_or(Type::Void);
                 };
