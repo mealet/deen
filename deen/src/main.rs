@@ -17,6 +17,10 @@
 //! - [`deen-semantic`](deen_semantic) - semantical analyzer. Recursively checks the AST for type and principle matching
 //! - [`deen-codegen`](deen_codegen) - code generator. Recursively compiles the AST into LLVM IR
 //! - [`deen-linker`](deen_linker) - module linker. Compiles the LLVM IR module to an object file and links it to a binary file.
+//!
+//! # License
+//! Project is licensed under the MIT License. <br/>
+//! See LICENSE file on Github: <https://github.com/mealet/deen/blob/master/LICENSE>
 
 use clap::{CommandFactory, Parser};
 use colored::Colorize;

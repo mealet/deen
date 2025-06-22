@@ -1,11 +1,32 @@
+//! # Symbol Table
+//! A data structure which contains intermediate units for compiler. <br/>
+//! Wikipedia Explanation: <https://en.wikipedia.org/wiki/Symbol_table>
+
 use deen_parser::{statements::Statements, types::Type};
 use std::collections::HashMap;
 
+/// Symbol Table Structure
 #[derive(Debug, Clone, Default)]
 pub struct SymbolTable {
     pub imports: HashMap<String, Import>,
 }
 
+/// User Import Instance
+/// ### Usage
+/// ```rust
+/// use deen_parser::{types::Type, statements::Statements};
+/// use deen_semantic::symtable::Import;
+///
+/// let mut import = Import::new(
+///     vec![Statements::None],
+///     "source code"
+/// );
+/// // or with default
+/// let mut import = Import::default();
+///
+/// import.add_fn(String::from("func"), Type::Undefined);
+/// assert!(import.get_fn("func").is_some());
+/// ```
 #[derive(Debug, Clone)]
 pub struct Import {
     pub functions: HashMap<String, Type>,

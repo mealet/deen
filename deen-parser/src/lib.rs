@@ -13,10 +13,12 @@
 //! };
 //!
 //! let mut parser = Parser::new(tokens, "source code", "source name");
-//! let (ast, warns) = parser.parse().expect("Cannot parse source code");
-//!
-//! println!("{:#?}", ast);
-//! println!("{:#?}", warns);
+//! match parser.parse() {
+//!     Ok((ast, warnings)) => {
+//!         println!("{:#?}", ast);
+//!     },
+//!     Err((errors, warnings)) => {},
+//! }
 //! ```
 
 use crate::{

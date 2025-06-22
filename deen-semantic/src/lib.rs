@@ -1,3 +1,24 @@
+//! # Deen Semantical Analyzer
+//! Toolkit for analyzing and checking statements/expressions from [`deen_parser`]. <br/>
+//! Wikipedia Explanation: <https://en.wikipedia.org/wiki/Semantic_analysis_(compilers)>
+//!
+//! Main tool is the [`Analyzer`] structure
+//!
+//! ## Usage
+//! ```ignore
+//! use deen_semantic::Analyzer
+//! 
+//! let ast = {
+//!     // ...
+//! };
+//!
+//! let mut analyzer = Analyzer::new("source code", "source name", true); // if module is main - true, otherwise - false
+//! match analyzer.analyze(&ast) {
+//!     Ok((symbol_table, warnings)) => {},
+//!     Err((errors, warnings)) => {},
+//! }
+//! ```
+
 use crate::{
     error::{SemanticError, SemanticWarning},
     macros::{MacrosObject, MacrosOption},
@@ -15,11 +36,13 @@ mod element;
 mod error;
 mod macros;
 mod scope;
+/// Semantic Analyzer Symbol Table
 pub mod symtable;
 
-type SemanticOk = (SymbolTable, Vec<SemanticWarning>);
-type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
+pub type SemanticOk = (SymbolTable, Vec<SemanticWarning>);
+pub type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
 
+/// Main Analyzer Struct
 #[derive(Debug)]
 pub struct Analyzer {
     scope: Scope,
@@ -2547,6 +2570,7 @@ impl Analyzer {
 }
 
 impl Analyzer {
+    /// Returns true if provided type is integer
     #[inline]
     pub fn is_integer(typ: &Type) -> bool {
         [
@@ -2563,11 +2587,13 @@ impl Analyzer {
         .contains(typ)
     }
 
+    /// Returns true if provided type is **unsigned** integer
     #[inline]
     pub fn is_unsigned_integer(typ: &Type) -> bool {
         [Type::U8, Type::U16, Type::U32, Type::U64, Type::USIZE].contains(typ)
     }
 
+    /// Converts unsigned integer type to its signed analogue
     #[inline]
     pub fn unsigned_to_signed_integer(typ: &Type) -> Type {
         match typ {
@@ -2587,6 +2613,7 @@ impl Analyzer {
         }
     }
 
+    /// Returns integer order position
     #[inline]
     pub fn integer_order(typ: &Type) -> usize {
         match typ {
@@ -2611,6 +2638,7 @@ impl Analyzer {
         [Type::F32, Type::F64].contains(typ)
     }
 
+    /// Returns float order position
     #[inline]
     pub fn float_order(typ: &Type) -> usize {
         match typ {
