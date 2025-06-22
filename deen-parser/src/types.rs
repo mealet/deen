@@ -4,7 +4,7 @@
 //! <br/>
 //! Other types is _advanced_ (pointers, arrays, structs and etc.)
 
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
@@ -38,8 +38,8 @@ pub enum Type {
 
     // for semantical analyzer
     Function(Vec<Type>, Box<Type>, bool), // fn foo(a: i32, b: u32) string  --->  Function([I32, U32], String)
-    Struct(HashMap<String, Type>, HashMap<String, Type>), // struct Abc { a: i32, b: bool, c: *u64 }  ---> Struct([I32, Bool, Pointer(U64)])
-    Enum(Vec<String>, HashMap<String, Type>),             // enum Abc { A, B, C } -> Enum([A, B, C])
+    Struct(IndexMap<String, Type>, IndexMap<String, Type>), // struct Abc { a: i32, b: bool, c: *u64 }  ---> Struct([I32, Bool, Pointer(U64)])
+    Enum(Vec<String>, IndexMap<String, Type>),             // enum Abc { A, B, C } -> Enum([A, B, C])
 
     ImportObject(String),
 }

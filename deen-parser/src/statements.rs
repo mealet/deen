@@ -8,7 +8,7 @@
 
 use crate::{END_STATEMENT, Parser, expressions::Expressions, types::Type, value::Value};
 use deen_lexer::token_type::TokenType;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statements {
@@ -91,8 +91,8 @@ pub enum Statements {
     /// ```
     StructDefineStatement {
         name: String,
-        fields: HashMap<String, Type>,
-        functions: HashMap<String, Statements>,
+        fields: IndexMap<String, Type>,
+        functions: IndexMap<String, Statements>,
         public: bool,
         span: (usize, usize),
     },
@@ -108,7 +108,7 @@ pub enum Statements {
     EnumDefineStatement {
         name: String,
         fields: Vec<String>,
-        functions: HashMap<String, Statements>,
+        functions: IndexMap<String, Statements>,
         public: bool,
         span: (usize, usize),
     },
@@ -783,8 +783,8 @@ impl Parser {
         }
 
         let _ = self.next();
-        let mut fields = HashMap::new();
-        let mut functions = HashMap::new();
+        let mut fields = IndexMap::new();
+        let mut functions = IndexMap::new();
 
         while !self.expect(TokenType::RBrace) {
             match self.current().token_type {
@@ -900,7 +900,7 @@ impl Parser {
         let _ = self.next();
 
         let mut fields = Vec::new();
-        let mut functions = HashMap::new();
+        let mut functions = IndexMap::new();
 
         while !self.expect(TokenType::RBrace) {
             match self.current().token_type {

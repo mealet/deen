@@ -144,6 +144,7 @@ impl Scope {
     }
 
     #[inline]
+    #[allow(unused)]
     pub fn add_struct(
         &mut self,
         name: String,
@@ -172,6 +173,17 @@ impl Scope {
                 self.parent
                     .as_ref()
                     .and_then(|parent| parent.get_struct(name))
+            })
+    }
+
+    #[inline]
+    pub fn get_mut_struct(&mut self, name: &str) -> Option<&mut ScopeElement> {
+        self.structures
+            .get_mut(name)
+            .or_else(|| {
+                self.parent
+                    .as_mut()
+                    .and_then(|parent| parent.get_mut_struct(name))
             })
     }
 

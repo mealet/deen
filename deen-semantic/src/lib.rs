@@ -9,6 +9,7 @@ use deen_parser::{
 };
 use miette::NamedSource;
 use std::collections::HashMap;
+use indexmap::IndexMap;
 
 mod element;
 mod error;
@@ -98,50 +99,52 @@ impl Analyzer {
     }
 
     pub fn analyze(&mut self, ast: &[Statements]) -> Result<SemanticOk, SemanticErr> {
-        let pre_statements = ast
-            .iter()
-            .filter(|stmt| {
-                matches!(
-                    stmt,
-                    Statements::StructDefineStatement {
-                        name: _,
-                        fields: _,
-                        functions: _,
-                        public: _,
-                        span: _
-                    } | Statements::EnumDefineStatement {
-                        name: _,
-                        fields: _,
-                        functions: _,
-                        public: _,
-                        span: _
-                    } | Statements::TypedefStatement {
-                        alias: _,
-                        datatype: _,
-                        span: _
-                    } | Statements::ImportStatement { path: _, span: _ }
-                        | Statements::ExternStatement {
-                            identifier: _,
-                            arguments: _,
-                            return_type: _,
-                            extern_type: _,
-                            is_var_args: _,
-                            public: _,
-                            span: _
-                        }
-                )
-            })
-            .collect::<Vec<&Statements>>();
+        // let pre_statements = ast
+        //     .iter()
+        //     .filter(|stmt| {
+        //         matches!(
+        //             stmt,
+        //             Statements::StructDefineStatement {
+        //                 name: _,
+        //                 fields: _,
+        //                 functions: _,
+        //                 public: _,
+        //                 span: _
+        //             } | Statements::EnumDefineStatement {
+        //                 name: _,
+        //                 fields: _,
+        //                 functions: _,
+        //                 public: _,
+        //                 span: _
+        //             } | Statements::TypedefStatement {
+        //                 alias: _,
+        //                 datatype: _,
+        //                 span: _
+        //             } | Statements::ImportStatement { path: _, span: _ }
+        //                 | Statements::ExternStatement {
+        //                     identifier: _,
+        //                     arguments: _,
+        //                     return_type: _,
+        //                     extern_type: _,
+        //                     is_var_args: _,
+        //                     public: _,
+        //                     span: _
+        //                 }
+        //         )
+        //     })
+        //     .collect::<Vec<&Statements>>();
+        //
+        // let after_statements = ast.iter().filter(|stmt| !pre_statements.contains(stmt));
+        //
+        // pre_statements
+        //     .clone()
+        //     .into_iter()
+        //     .for_each(|stmt| self.visit_statement(stmt));
+        // after_statements
+        //     .into_iter()
+        //     .for_each(|stmt| self.visit_statement(stmt));
 
-        let after_statements = ast.iter().filter(|stmt| !pre_statements.contains(stmt));
-
-        pre_statements
-            .clone()
-            .into_iter()
-            .for_each(|stmt| self.visit_statement(stmt));
-        after_statements
-            .into_iter()
-            .for_each(|stmt| self.visit_statement(stmt));
+        ast.into_iter().for_each(|stmt| self.visit_statement(stmt));
 
         if self.scope.get_fn("main").is_none() && self.scope.is_main {
             let err = SemanticError {
@@ -531,7 +534,7 @@ impl Analyzer {
 
                 if self.scope.get_fn(name).is_some() {
                     self.error(
-                        format!("Function `{}` already declared!", name),
+                        format!("Function `{}` already declared!", name.replace("@!", "")),
                         *header_span,
                     );
                     return;
@@ -580,7 +583,7 @@ impl Analyzer {
                     self.error(
                         format!(
                             "Function `{}` returns type `{}`, but found `{}`",
-                            name, datatype, ret
+                            name.replace("@!", ""), datatype, ret
                         ),
                         *header_span,
                     );
@@ -690,24 +693,31 @@ impl Analyzer {
                 public,
                 span,
             } => {
-                let pre_type = Type::Struct(fields.clone(), HashMap::new());
-                self.scope.structures.insert(
+                let pre_type = Type::Struct(fields.clone(), IndexMap::new());
+                if !self.scope.structures.insert(
                     name.clone(),
                     element::ScopeElement {
                         datatype: pre_type,
                         public: *public,
                     },
-                );
+                ).is_none() {
+                    self.error(
+                        format!("Structure `{}` already declared", name),
+                        *span
+                    );
+                    return;
+                }
 
                 let mut structure_scope = Scope::new();
                 structure_scope.parent = Some(Box::new(self.scope.clone()));
                 self.scope = structure_scope;
-
+                
                 functions.iter().for_each(|func| {
                     let mut wrapped_statement = func.1.clone();
+                    let mut fn_name = String::new();
 
                     if let Statements::FunctionDefineStatement {
-                        name: function_name,
+                        name: mut function_name,
                         datatype,
                         arguments,
                         block,
@@ -716,6 +726,8 @@ impl Analyzer {
                         header_span,
                     } = wrapped_statement.clone()
                     {
+                        function_name = format!("@!{}", function_name);
+                        fn_name = function_name.clone();
                         if arguments
                             .iter()
                             .any(|arg| arg.0 == "self" && arg.1 == Type::SelfRef)
@@ -733,34 +745,55 @@ impl Analyzer {
                                 span,
                                 header_span,
                             };
+                        } else {
+                            wrapped_statement = Statements::FunctionDefineStatement {
+                                name: function_name,
+                                datatype,
+                                arguments,
+                                block,
+                                public,
+                                span,
+                                header_span,
+                            };
                         }
                     }
 
                     self.visit_statement(&wrapped_statement);
+                    let signature = self.scope.get_fn(&fn_name).unwrap();
+                    let struct_ptr = self.scope.get_mut_struct(&name).unwrap();
+
+                    if let Type::Struct(fields, mut functions) = struct_ptr.datatype.clone() {
+                        let fn_name = fn_name.replace("@!", "");
+                        functions.insert(fn_name.clone(), signature);
+                        struct_ptr.datatype = Type::Struct(fields, functions);
+                    }
                 });
 
-                let functions_signatures = self.scope.functions.clone();
+                // let functions_signatures = self.scope.functions.clone();
                 self.scope = *self.scope.parent.clone().unwrap();
 
-                let _ = self.scope.structures.remove(name);
+                // let _ = self.scope.structures.remove(name);
 
-                let struct_type = Type::Struct(
-                    fields.clone(),
-                    functions_signatures
-                        .into_iter()
-                        .map(|x| (x.0, x.1.datatype))
-                        .collect(),
-                );
-                self.scope
-                    .add_struct(name.clone(), struct_type.clone(), *public)
-                    .unwrap_or_else(|err| {
-                        self.error(err, *span);
-                    });
-                self.scope
-                    .add_typedef(name.clone(), struct_type)
-                    .unwrap_or_else(|err| {
-                        self.error(err, *span);
-                    })
+                // let struct_type = Type::Struct(
+                //     fields.clone(),
+                //     functions_signatures
+                //         .into_iter()
+                //         .map(|x| (
+                //             x.0.replace("@!", ""),
+                //             x.1.datatype
+                //         ))
+                //         .collect(),
+                // );
+                // self.scope
+                //     .add_struct(name.clone(), struct_type.clone(), *public)
+                //     .unwrap_or_else(|err| {
+                //         self.error(err, *span);
+                //     });
+                // self.scope
+                //     .add_typedef(name.clone(), struct_type)
+                //     .unwrap_or_else(|err| {
+                //         self.error(err, *span);
+                //     })
             }
             Statements::EnumDefineStatement {
                 name,
@@ -769,7 +802,7 @@ impl Analyzer {
                 public,
                 span,
             } => {
-                let pre_type = Type::Enum(fields.clone(), HashMap::new());
+                let pre_type = Type::Enum(fields.clone(), IndexMap::new());
                 self.scope.enums.insert(
                     name.clone(),
                     element::ScopeElement {
@@ -1945,11 +1978,12 @@ impl Analyzer {
                 arguments,
                 span,
             } => {
-                // dbg!(&self.scope);
                 let func = self.scope.get_fn(name).unwrap_or_else(|| {
                     self.error(format!("Function `{}` is not defined here", name), *span);
                     Type::Void
                 });
+                // WARN: Don't forget to remove
+                println!("{} - {:?}", &name, &func);
 
                 if func == Type::Void {
                     return expected.unwrap_or(Type::Void);
