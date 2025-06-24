@@ -335,23 +335,75 @@ impl Analyzer {
             } => {
                 let instance =
                     self.visit_expression(object, Some(Type::Pointer(Box::new(Type::Void))));
-                if let Type::Pointer(ptr_type) = instance {
-                    let value_type = self.visit_expression(value, Some(*ptr_type.clone()));
 
-                    if value_type != *ptr_type {
+                match instance {
+                    Type::Pointer(ptr_type) => {
+                        let value_type = self.visit_expression(value, Some(*ptr_type.clone()));
+
+                        if value_type != *ptr_type {
+                            self.error(
+                                format!(
+                                    "Pointer expected type `{}`, but found `{}`",
+                                    ptr_type, value_type
+                                ),
+                                *span,
+                            );
+                        }
+                    }
+
+                    Type::Alias(alias) => {
+                        const IMPLEMENTATION_FORMAT: &str = "fn deref_assign(&self, value: _)";
+
+                        let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
+                            self.error(
+                                format!("Type `{}` cannot be deref-assigned", alias),
+                                *span
+                            );
+                            Type::Void
+                        });
+
+                        if struct_type == Type::Void { return };
+
+                        if let Type::Struct(_, functions) = struct_type {
+                            if let Some(Type::Function(args, datatype, false)) = functions.get("deref_assign") {
+                                if !(
+                                    args.get(0).unwrap_or(&Type::Undefined) == &Type::Alias(alias.clone())
+                                    && args.get(1).unwrap_or(&Type::Undefined) != &Type::Undefined
+                                    && *datatype.clone() == Type::Void
+                                ) {
+                                    self.error(
+                                        format!("Type `{}` has WRONG implementation for deref-assign: {}", alias, IMPLEMENTATION_FORMAT),
+                                        *span
+                                    );
+                                    return;
+                                }
+
+                                let expected_value = args.get(1).unwrap();
+                                let value_type = self.visit_expression(value, Some(expected_value.clone()));
+
+                                if *expected_value != value_type {
+                                    self.error(
+                                        format!("Deref-assign of type `{}` expected type `{}`, but found `{}`", alias, expected_value, value_type),
+                                        *span
+                                    );
+                                }
+                            } else {
+                                self.error(
+                                    format!("Type `{}` has no implementation for deref-assign: {}", alias, IMPLEMENTATION_FORMAT),
+                                    *span
+                                );
+                            }
+                        } else {
+                            unreachable!()
+                        }
+                    }
+
+                    _ => {
                         self.error(
-                            format!(
-                                "Pointer expected type `{}`, but found `{}`",
-                                ptr_type, value_type
-                            ),
+                            format!("Type `{}` cannot be deref-assigned", instance),
                             *span,
                         );
                     }
-                } else {
-                    self.error(
-                        format!("Type `{}` cannot be deref-assigned", instance),
-                        *span,
-                    );
                 }
             }
             Statements::SliceAssignStatement {

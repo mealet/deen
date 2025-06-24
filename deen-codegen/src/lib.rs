@@ -218,19 +218,31 @@ impl<'ctx> CodeGen<'ctx> {
                 value,
                 span: _,
             } => {
-                let (instance_type, instance_ptr) = self.compile_expression(object, None);
+                let (instance_type, instance_ptr) = self.compile_expression(object.clone(), None);
 
-                let ptr_type = if let Type::Pointer(ptr) = instance_type {
-                    *ptr
-                } else {
-                    panic!("Non-pointer type handled: `{}`", instance_type)
-                };
+                match instance_type {
+                    Type::Pointer(ptr_type) => {
+                        let compiled_value = self.compile_expression(value, Some(*ptr_type));
 
-                let compiled_value = self.compile_expression(value, Some(ptr_type));
+                        self.builder
+                            .build_store(instance_ptr.into_pointer_value(), compiled_value.1)
+                            .unwrap();
+                    }
 
-                self.builder
-                    .build_store(instance_ptr.into_pointer_value(), compiled_value.1)
-                    .unwrap();
+                    Type::Alias(alias) => {
+                        let instance_ptr = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Undefined)))).1;
+
+                        let struct_type = self.scope.get_struct(alias).unwrap();
+                        let deref_assign_fn = struct_type.functions.get("deref_assign").unwrap();
+
+                        let compiled_value = self.compile_expression(value, Some(deref_assign_fn.arguments[1].clone()));
+                        self.builder.build_call(deref_assign_fn.value, &[instance_ptr.into(), compiled_value.1.into()], "@deen_deref_assign_call").unwrap();
+                    }
+
+                    _ => {
+                        panic!("Non-pointer type handled: `{}`", instance_type)
+                    }
+                }
             }
             Statements::SliceAssignStatement {
                 object,
@@ -1484,7 +1496,7 @@ impl<'ctx> CodeGen<'ctx> {
                 }
             },
             Expressions::Dereference { object, span: _ } => {
-                let (datatype, ptr) = self.compile_expression(*object, None);
+                let (datatype, ptr) = self.compile_expression(*object.clone(), None);
 
                 match datatype {
                     Type::Pointer(ptr_type) => {
@@ -1498,19 +1510,16 @@ impl<'ctx> CodeGen<'ctx> {
                     }
 
                     Type::Alias(alias) => {
+                        let ptr = self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Undefined)))).1;
+
                         let struct_type = self.scope.get_struct(alias).unwrap();
                         let deref_fn = struct_type.functions.get("deref").unwrap();
-
-                        // copying struct value
-                        
-                        let struct_alloca = self.builder.build_alloca(struct_type.llvm_type, "").unwrap();
-                        self.builder.build_store(struct_alloca, ptr).unwrap();
 
                         // calling deref struct
 
                         let call_result = self
                             .builder
-                            .build_call(deref_fn.value, &[struct_alloca.into()], "")
+                            .build_call(deref_fn.value, &[ptr.into()], "@deen_deref_call")
                             .unwrap()
                             .try_as_basic_value()
                             .unwrap_left();
@@ -1825,21 +1834,8 @@ impl<'ctx> CodeGen<'ctx> {
                         let structure = self.scope.get_struct(alias).unwrap();
                         let binary_function = structure.functions.get("binary").unwrap();
 
-                        let (left_ptr, right_ptr) = {
-                            let left_alloca = self
-                                .builder
-                                .build_alloca(lhs_value.1.get_type(), "")
-                                .unwrap();
-                            let right_alloca = self
-                                .builder
-                                .build_alloca(lhs_value.1.get_type(), "")
-                                .unwrap();
-
-                            self.builder.build_store(left_alloca, lhs_value.1).unwrap();
-                            self.builder.build_store(right_alloca, rhs_value.1).unwrap();
-
-                            (left_alloca, right_alloca)
-                        };
+                        let left_ptr = self.compile_expression(*lhs.clone(), Some(Type::Pointer(Box::new(Type::Undefined)))).1;
+                        let right_ptr = self.compile_expression(*rhs.clone(), Some(Type::Pointer(Box::new(Type::Undefined)))).1;
 
                         let left_ptr: BasicMetadataValueEnum = left_ptr.into();
                         let right_ptr: BasicMetadataValueEnum = right_ptr.into();
@@ -1873,8 +1869,8 @@ impl<'ctx> CodeGen<'ctx> {
                 rhs,
                 span: _,
             } => {
-                let lhs_value = self.compile_expression(*lhs, expected.clone());
-                let rhs_value = self.compile_expression(*rhs, expected);
+                let lhs_value = self.compile_expression(*lhs.clone(), expected.clone());
+                let rhs_value = self.compile_expression(*rhs.clone(), expected);
 
                 match operand.as_str() {
                     "&&" => {
@@ -2006,21 +2002,8 @@ impl<'ctx> CodeGen<'ctx> {
                         let structure = self.scope.get_struct(alias).unwrap();
                         let compare_function = structure.functions.get("compare").unwrap();
 
-                        let (left_ptr, right_ptr) = {
-                            let left_alloca = self
-                                .builder
-                                .build_alloca(lhs_value.1.get_type(), "")
-                                .unwrap();
-                            let right_alloca = self
-                                .builder
-                                .build_alloca(rhs_value.1.get_type(), "")
-                                .unwrap();
-
-                            self.builder.build_store(left_alloca, lhs_value.1).unwrap();
-                            self.builder.build_store(right_alloca, rhs_value.1).unwrap();
-
-                            (left_alloca, right_alloca)
-                        };
+                        let left_ptr = self.compile_expression(*lhs.clone(), Some(Type::Pointer(Box::new(Type::Undefined)))).1;
+                        let right_ptr = self.compile_expression(*rhs.clone(), Some(Type::Pointer(Box::new(Type::Undefined)))).1;
 
                         let left_ptr: BasicMetadataValueEnum = left_ptr.into();
                         let right_ptr: BasicMetadataValueEnum = right_ptr.into();
