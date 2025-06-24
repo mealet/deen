@@ -1485,21 +1485,43 @@ impl<'ctx> CodeGen<'ctx> {
             },
             Expressions::Dereference { object, span: _ } => {
                 let (datatype, ptr) = self.compile_expression(*object, None);
-                let ptr_type = match datatype.clone() {
-                    Type::Pointer(ptr_type) => *ptr_type,
-                    _ => {
-                        return (datatype, ptr);
+
+                match datatype {
+                    Type::Pointer(ptr_type) => {
+                        let basic_type = self.get_basic_type(*ptr_type.clone());
+                        let value = self
+                            .builder
+                            .build_load(basic_type, ptr.into_pointer_value(), "")
+                            .unwrap();
+
+                        (*ptr_type, value)
                     }
-                };
 
-                let basic_type = self.get_basic_type(ptr_type.clone());
+                    Type::Alias(alias) => {
+                        let struct_type = self.scope.get_struct(alias).unwrap();
+                        let deref_fn = struct_type.functions.get("deref").unwrap();
 
-                let value = self
-                    .builder
-                    .build_load(basic_type, ptr.into_pointer_value(), "")
-                    .unwrap();
+                        // copying struct value
+                        
+                        let struct_alloca = self.builder.build_alloca(struct_type.llvm_type, "").unwrap();
+                        self.builder.build_store(struct_alloca, ptr).unwrap();
 
-                (ptr_type, value)
+                        // calling deref struct
+
+                        let call_result = self
+                            .builder
+                            .build_call(deref_fn.value, &[struct_alloca.into()], "")
+                            .unwrap()
+                            .try_as_basic_value()
+                            .unwrap_left();
+
+                        (deref_fn.datatype.clone(), call_result)
+                    }
+
+                    _ => {
+                        panic!("Semantical Analyzer missed dereference expression bug:\n- `{}`:\n{:#?}", datatype, ptr)
+                    }
+                }
             }
 
             Expressions::Unary {

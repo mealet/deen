@@ -1441,6 +1441,8 @@ impl Analyzer {
                     }
 
                     (Type::Alias(left), Type::Alias(right)) => {
+                        let implementation_format: String = format!("fn binary(&self, other: *{}, operand: *char) {}", left, left);
+
                         let struct_type = self.scope.get_struct(&left).unwrap_or_else(|| {
                             self.error(
                                 format!("Type `{}` isn't avaible for binary operations", &left),
@@ -1476,7 +1478,7 @@ impl Analyzer {
                                     && *datatype.clone() == Type::Alias(left.clone()))
                                 {
                                     self.error(
-                                        format!("Type `{}` has wrong implementation for binary: fn binary(&self, other: *{}, operand: *char) {}", left, left, left),
+                                        format!("Type `{}` has wrong implementation for binary: {}", left, implementation_format),
                                         *span
                                     );
                                 }
@@ -1484,7 +1486,7 @@ impl Analyzer {
                                 *datatype.clone()
                             } else {
                                 self.error(
-                                    format!("Type `{}` has no implementation for binary operations: fn binary(&self, other: *{}, operand: *char) {}", left, left, left),
+                                    format!("Type `{}` has no implementation for binary operations: {}", left, implementation_format),
                                     *span
                                 );
                                 Type::Alias(left)
@@ -2086,11 +2088,51 @@ impl Analyzer {
             }
             Expressions::Dereference { object, span } => {
                 let obj = self.visit_expression(object, expected);
-                if let Type::Pointer(ptr_type) = obj {
-                    *ptr_type
-                } else {
-                    self.error(format!("Type {} cannot be dereferenced!", obj), *span);
-                    obj
+                
+                match obj {
+                    Type::Pointer(ptr_type) => *ptr_type,
+                    Type::Alias(alias) => {
+                        const IMPLEMENTATION_FORMAT: &str = "fn deref(&self) _";
+
+                        let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
+                            self.error(
+                                format!("Type `{}` cannot be dereferenced", alias),
+                                *span
+                            );
+                            Type::Void
+                        });
+
+                        if struct_type == Type::Void { return Type::Void }
+
+                        if let Type::Struct(_, functions) = struct_type {
+                            if let Some(Type::Function(args, datatype, _)) = functions.get("deref") {
+                                if *args != vec![Type::Alias(alias.clone())] {
+                                    self.error(
+                                        format!("Type `{}` has WRONG implementation for dereference: {}", alias, IMPLEMENTATION_FORMAT),
+                                        *span
+                                    );
+                                }
+                                *datatype.clone()
+                            } else {
+                                self.error(
+                                    format!("Type `{}` has no implementation for dereference: {}", alias, IMPLEMENTATION_FORMAT),
+                                    *span
+                                );
+                                Type::Alias(alias)
+                            }
+                        } else {
+                            self.error(
+                                format!("Type `{}` cannot be dereferenced", alias),
+                                *span
+                            );
+                            struct_type
+                        }
+                    }
+
+                    _ => {
+                        self.error(format!("Type {} cannot be dereferenced!", obj), *span);
+                        obj
+                    }
                 }
             }
 
@@ -2456,23 +2498,25 @@ impl Analyzer {
                                 }
                             }
                             Type::Struct(_, functions) => {
+                                const IMPLEMENTATION_FORMAT: &str = "fn display(&self) *char";
+
                                 if let Some(Type::Function(_, return_type, _)) = functions.get("display") {
                                     if let Type::Pointer(ptr) = *return_type.clone() {
                                         if *ptr.clone() == Type::Char {} else {
                                             self.error(
-                                                "Implementation for display must be: fn display(&self) *char".to_string(),
+                                                format!("Implementation for display must be: {}", IMPLEMENTATION_FORMAT),
                                                 deen_parser::Parser::get_span_expression(expr.clone())
                                             );
                                         }
                                     } else {
                                         self.error(
-                                            "Implementation for display must be: fn display(&self) *char".to_string(),
+                                            format!("Implementation for display must be: {}", IMPLEMENTATION_FORMAT),
                                             deen_parser::Parser::get_span_expression(expr.clone())
                                         );
                                     }
                                 } else {
                                     self.error(
-                                        format!("Type `{}` has no implementation for display: fn display(&self) *char", expr_type),
+                                        format!("Type `{}` has no implementation for display: {}", expr_type, IMPLEMENTATION_FORMAT),
                                         deen_parser::Parser::get_span_expression(expr.clone())
                                     );
                                 }
