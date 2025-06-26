@@ -2359,7 +2359,8 @@ impl Analyzer {
     fn visit_value(&mut self, value: Value, expected: Option<Type>) -> Result<Type, String> {
         match value {
             Value::Integer(int) => {
-                if expected.is_some() && Self::is_integer(&expected.clone().unwrap()) {
+                if expected.is_some()
+                && (Self::is_integer(&expected.clone().unwrap()) || expected.as_ref().unwrap() == &Type::Char) {
                     let exp = expected.unwrap();
                     match exp {
                         Type::I8 => {
@@ -2406,6 +2407,12 @@ impl Analyzer {
                         Type::USIZE => {
                             if int < 0 {
                                 return Err(String::from("Constant is out of `usize` type range"));
+                            }
+                        }
+
+                        Type::Char => {
+                            if int < 0 || int > 255 {
+                                return Err(String::from("Constant is out of `char` type range"));
                             }
                         }
 
@@ -2456,6 +2463,16 @@ impl Analyzer {
                     Some(var) => {
                         if !var.initialized {
                             return Err(format!("Variable `{}` isn't initalized", id));
+                        }
+
+                        match expected.unwrap_or(Type::Undefined) {
+                            Type::Char => {
+                                if Self::is_integer(&var.datatype) {
+                                    return Ok(Type::Char);
+                                }
+                            }
+
+                            _ => {}
                         }
                         Ok(var.datatype)
                     }

@@ -1870,7 +1870,7 @@ impl<'ctx> CodeGen<'ctx> {
                 span: _,
             } => {
                 let lhs_value = self.compile_expression(*lhs.clone(), expected.clone());
-                let rhs_value = self.compile_expression(*rhs.clone(), expected);
+                let rhs_value = self.compile_expression(*rhs.clone(), Some(lhs_value.0.clone()));
 
                 match operand.as_str() {
                     "&&" => {
@@ -2663,6 +2663,7 @@ impl<'ctx> CodeGen<'ctx> {
                     } else {
                         unreachable!()
                     };
+
                     let (expected_type, signed) = match exp {
                         Type::I8 => (self.context.i8_type(), true),
                         Type::I16 => (self.context.i16_type(), true),
@@ -2904,7 +2905,7 @@ impl<'ctx> CodeGen<'ctx> {
             Type::F64 => self.context.f64_type().into(),
 
             Type::Void => self.context.i8_type().into(),
-            Type::Char => self.context.custom_width_int_type(8).into(),
+            Type::Char => self.context.i8_type().into(),
             Type::Bool => self.context.bool_type().into(),
 
             Type::Pointer(_) => self.context.ptr_type(AddressSpace::default()).into(),
