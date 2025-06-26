@@ -191,6 +191,17 @@ impl Lexer {
 
     // Helpful functions
 
+    fn character_escape(escape: char) -> Option<char> {
+        match escape {
+            '0' => Some('\0'),
+            'n' => Some('\n'),
+            'r' => Some('\r'),
+            't' => Some('\t'),
+            '\\' => Some('\\'),
+            _ => None
+        }
+    }
+
     fn get_number(&mut self) -> (String, TokenType) {
         #[derive(PartialEq)]
         enum ParseMode {
@@ -408,22 +419,18 @@ impl Lexer {
                                 if self.char == '\\' {
                                     self.getc();
 
-                                    match self.char {
-                                        '0' => captured_string.push('\0'),
-                                        'n' => captured_string.push('\n'),
-                                        'r' => captured_string.push('\r'),
-                                        't' => captured_string.push('\t'),
-                                        '\\' => captured_string.push('\\'),
-                                        _ => {
-                                            self.error(
-                                                String::from("Unknown character escape found"),
-                                                (self.position - 2, 2),
-                                            );
-                                            continue;
-                                        }
+                                    let character_escape = Self::character_escape(self.char);
+
+                                    if let Some(character_escape) = character_escape {
+                                        captured_string.push(character_escape);
+                                        self.getc();
+                                    } else {
+                                        self.error(
+                                            String::from("Unknown character escape found"),
+                                            (self.position - 2, 2),
+                                        );
                                     }
 
-                                    self.getc();
                                     continue;
                                 }
 
@@ -443,12 +450,26 @@ impl Lexer {
 
                             self.getc();
 
-                            let chr = self.char;
+                            let mut chr = self.char;
+
+                            if chr == '\\' {
+                                self.getc();
+                                let character_escape = Self::character_escape(self.char).unwrap_or_else(|| {
+                                    self.error(
+                                        String::from("Unexpected character escape found"),
+                                        (span_start, self.position),
+                                    );
+                                    ' '
+                                });
+
+                                chr = character_escape;
+                            }
 
                             self.getc();
+
                             if self.char != '\'' {
                                 self.error(
-                                    String::from("Unexpected character escape found"),
+                                    String::from("Undefined character found"),
                                     (span_start, self.position),
                                 );
                                 self.getc();

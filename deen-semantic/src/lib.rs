@@ -1642,6 +1642,8 @@ impl Analyzer {
 
                 match (left.clone(), right.clone()) {
                     (l, r) if Self::is_integer(&l) && Self::is_integer(&r) => Type::Bool,
+                    (l, r) if Self::is_integer(&l) || l == Type::Char || Self::is_integer(&r) || r == Type::Char => Type::Bool,
+
                     (l, r) if Self::is_float(&l) && Self::is_float(&r) => Type::Bool,
                     (l, r) if l == r && SUPPORTED_EXTRA_TYPES.contains(&l) => Type::Bool,
                     (Type::Pointer(l), Type::Pointer(r)) if l == r && *l == Type::Char => {
