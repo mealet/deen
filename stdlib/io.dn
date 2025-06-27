@@ -1,10 +1,13 @@
 extern "C" fn getchar() i8;
-extern "C" fn printf(*char, ...) i32;
+extern "C" fn printf(*char, ...);
+
+extern "C" fn fflush(*i8);
+extern "C" fn fprintf(*i8, *char, ...);
 
 // standart streams
-extern "C" fn stdout() *i8;
-extern "C" fn stdin() *i8;
-extern "C" fn stderr() *i8;
+_extern_declare stdout **i8
+_extern_declare stderr **i8
+_extern_declare stdin **i8
 
 include "@string";
 
@@ -40,5 +43,23 @@ pub struct Stdout {
 
   fn println(input: *char) {
     printf("%s\n", input);
+  }
+
+  fn flush() {
+    fflush(*stdout);
+  }
+}
+
+pub struct Stderr {
+  fn print(input: *char) {
+    fprintf(*stderr, "%s", input);
+  }
+
+  fn println(input: *char) {
+    fprintf(*stderr, "%s\n", input);
+  }
+
+  fn flush() {
+    fflush(*stderr);
   }
 }
