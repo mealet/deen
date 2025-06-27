@@ -1,4 +1,10 @@
 extern "C" fn getchar() i8;
+extern "C" fn printf(*char, ...) i32;
+
+// standart streams
+extern "C" fn stdout() *i8;
+extern "C" fn stdin() *i8;
+extern "C" fn stderr() *i8;
 
 include "@string";
 
@@ -18,5 +24,21 @@ pub struct Stdin {
     }
 
     return buffer;
+  }
+
+  fn getchar() char {
+    let int_char: i8 = getchar();
+    let chr: char = int_char;
+    return chr;
+  }
+}
+
+pub struct Stdout {
+  fn print(input: *char) {
+    printf("%s", input);
+  }
+
+  fn println(input: *char) {
+    printf("%s\n", input);
   }
 }
