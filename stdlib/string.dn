@@ -1,0 +1,107 @@
+extern "C" fn malloc(usize) *void;
+extern "C" fn realloc(*void, usize) *void;
+extern "C" fn free(*void);
+
+extern "C" fn strlen(*char) usize;
+extern "C" fn strcat(*char, *char);
+extern "C" fn strcpy(*char, *char);
+
+pub struct String {
+  ptr: *char,
+  size: usize,
+  len: usize,
+
+  iterator_ptr: usize,
+
+  fn new() String {
+    let ptr: *char = malloc(sizeof!(char));
+    
+    return String { .ptr = ptr, .size = sizeof!(char), .len = 0, .iterator_ptr = 0 };
+  }
+
+  fn from(value: *char) String {
+    let len = strlen(value);
+    let size = sizeof!(char) * len;
+    let ptr: *char = malloc(size);
+
+    strcpy(ptr, value);
+
+    return String { .ptr = ptr, .size = size, .len = len, .iterator_ptr = 0 };
+  }
+
+  fn push(&self, value: char) {
+    if self.size < 1 {
+      panic!("Unable to push into dropped string");
+    }
+
+    self.len += 1;
+
+    if self.size < self.len {
+      self.ptr = realloc(self.ptr, self.len);
+      self.size = self.len
+    }
+
+    let ptr = self.ptr;
+    ptr[self.len - 1] = value;
+  }
+
+  fn push_str(&self, value: *char) {
+    if self.size < 1 {
+      panic!("Unable to push into dropped string");
+    }
+
+    self.len += strlen(value);
+
+    if self.size < self.len {
+      self.ptr = realloc(self.ptr, self.len);
+      self.size = self.len
+    }
+
+    strcat(self.ptr, value);
+  }
+
+  fn raw(&self) *char {
+    return self.ptr;
+  }
+
+  // tech
+
+  fn display(&self) *char {
+    if self.size < 1 {
+      return "<dropped>";
+    }
+
+    return self.ptr;
+  }
+
+  fn drop(&self) {
+    if self.size != 0 {
+      self.len = 0;
+      self.size = 0;
+
+      free(self.ptr);
+    }
+  }
+
+  fn iterate(&self) (char, bool) {
+    if self.iterator_ptr >= self.len {
+      self.iterator_ptr = 0;
+      return (' ', false);
+    }
+
+    let ptr = self.ptr;
+    let ch = ptr[self.iterator_ptr];
+
+    self.iterator_ptr += 1;
+    return (ch, true);
+  }
+
+  fn compare(&self, other: *String) i32 {
+    if self.ptr == other.ptr {
+      return 0;
+    }
+
+    if self.len > other.len { return -1 }
+    return 1;
+  }
+}

@@ -1,0 +1,22 @@
+extern "C" fn getchar() i8;
+
+include "@string";
+
+pub struct Stdin {
+  fn read_line() String {
+    let buffer = String.new();
+
+    let ch: i8 = getchar();
+    while (ch != '\0') {
+      if ch == '\n' || ch == '\0' {
+        break;
+      }
+
+      let chr: char = ch;
+      buffer.push(chr);
+      ch = getchar();
+    }
+
+    return buffer;
+  }
+}

@@ -1436,7 +1436,7 @@ impl Analyzer {
 
                 // Semantical Analyzer
                 let mut analyzer = Analyzer::new(&src, fname, false);
-                let (_, warns) = match analyzer.analyze(&ast) {
+                let (symtable, warns) = match analyzer.analyze(&ast) {
                     Ok(res) => res,
                     Err((errors, warns)) => {
                         errors.into_iter().for_each(|err| self.errors.push(err.into()));
@@ -1448,7 +1448,7 @@ impl Analyzer {
 
                 analyzer.scope.functions.into_iter().for_each(|func| {
                     if func.1.public {
-                        self.scope.add_fn(func.0, func.1.datatype, false).unwrap_or_else(|err| {
+                        self.scope.add_fn(func.0, func.1.datatype, true).unwrap_or_else(|err| {
                             self.error(
                                 err,
                                 *span
@@ -1459,7 +1459,7 @@ impl Analyzer {
 
                 analyzer.scope.structures.into_iter().for_each(|structure| {
                     if structure.1.public {
-                        self.scope.add_struct(structure.0.to_string(), structure.1.datatype, false).unwrap_or_else(|err| {
+                        self.scope.add_struct(structure.0.to_string(), structure.1.datatype, true).unwrap_or_else(|err| {
                             self.error(
                                 err,
                                 *span
@@ -1473,7 +1473,7 @@ impl Analyzer {
                         self.scope.add_enum(
                             enumeration.0.to_string(),
                             enumeration.1.datatype,
-                            false
+                            true
                         ).unwrap_or_else(|err| {
                             self.error(err, *span);
                         });
@@ -1482,6 +1482,9 @@ impl Analyzer {
 
                 let include = Include { ast };
                 self.symtable.included.insert(module_name, include);
+                symtable.included.into_iter().for_each(|inc| {
+                    self.symtable.included.insert(inc.0, inc.1);
+                });
             }
 
             Statements::ExternStatement {

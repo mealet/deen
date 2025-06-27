@@ -6,4 +6,5 @@ pub struct Variable<'ctx> {
     pub datatype: Type,
     pub llvm_type: BasicTypeEnum<'ctx>,
     pub ptr: PointerValue<'ctx>,
+    pub no_drop: bool
 }

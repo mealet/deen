@@ -377,6 +377,7 @@ impl<'ctx> CodeGen<'ctx> {
                                     datatype: value.0,
                                     llvm_type: value.1.get_type(),
                                     ptr: alloca,
+                                    no_drop: false
                                 },
                             );
                             let _ = self.builder.build_store(alloca, value.1).unwrap();
@@ -395,6 +396,7 @@ impl<'ctx> CodeGen<'ctx> {
                                     datatype,
                                     llvm_type: basic_type,
                                     ptr: alloca,
+                                    no_drop: false
                                 },
                             );
                         }
@@ -414,6 +416,7 @@ impl<'ctx> CodeGen<'ctx> {
                                     datatype: compiled_value.0,
                                     llvm_type: compiled_value.1.get_type(),
                                     ptr: alloca,
+                                    no_drop: false
                                 },
                             );
                             let _ = self.builder.build_store(alloca, compiled_value.1).unwrap();
@@ -501,6 +504,7 @@ impl<'ctx> CodeGen<'ctx> {
                             datatype: arg_datatype,
                             llvm_type: param_type,
                             ptr: param_alloca,
+                            no_drop: false
                         },
                     );
                 });
@@ -877,6 +881,7 @@ impl<'ctx> CodeGen<'ctx> {
                         datatype: binding_type,
                         llvm_type: basic_binding_type,
                         ptr: binding_ptr,
+                        no_drop: false
                     },
                 );
                 self.breaks.push(after_block);
@@ -986,6 +991,7 @@ impl<'ctx> CodeGen<'ctx> {
                                 datatype: Type::Bool,
                                 llvm_type: self.context.bool_type().into(),
                                 ptr: iter_status_alloca,
+                                no_drop: false
                             },
                         );
 
@@ -1083,6 +1089,7 @@ impl<'ctx> CodeGen<'ctx> {
                                 datatype: Type::USIZE,
                                 llvm_type: self.context.i64_type().into(),
                                 ptr: iterator_position_alloca,
+                                no_drop: false
                             },
                         );
 
@@ -1302,7 +1309,7 @@ impl<'ctx> CodeGen<'ctx> {
                     .unwrap();
             }
             Statements::ReturnStatement { value, span: _ } => {
-                let compiled_value = self.compile_expression(value, None);
+                let compiled_value = self.compile_expression(value, Some(Type::NoDrop));
                 if compiled_value.0 != Type::Void {
                     self.builder.build_return(Some(&compiled_value.1)).unwrap();
                 }
@@ -1407,10 +1414,11 @@ impl<'ctx> CodeGen<'ctx> {
 
             Statements::IncludeStatement { path, span: _ } => {
                 let path = if let Expressions::Value(Value::String(path), _) = path {
-                    path
+                    path.replace("@", "")
                 } else {
                     String::default()
                 };
+
                 let fname = std::path::Path::new(&path)
                     .file_name()
                     .map(|fname| fname.to_str().unwrap_or("$NONE"))
@@ -2782,7 +2790,12 @@ impl<'ctx> CodeGen<'ctx> {
                     );
                 }
 
-                let variable = self.scope.get_variable(&id).unwrap(); // already checked by semantic analyzer
+                let variable = self.scope.get_mut_variable(&id).unwrap(); // already checked by semantic analyzer
+
+                if expected == Some(Type::NoDrop) {
+                    variable.no_drop = true;
+                }
+                
                 let value = match expected.clone() {
                     Some(Type::Pointer(ptr_type)) => {
                         if *ptr_type == Type::Undefined {
@@ -2978,6 +2991,7 @@ impl<'ctx> CodeGen<'ctx> {
             Type::Function(_, _, _) => unreachable!(),
             Type::ImportObject(_) => unreachable!(),
             Type::Undefined => unreachable!(),
+            Type::NoDrop => unreachable!(),
             Type::Struct(fields, _) => self
                 .context
                 .struct_type(

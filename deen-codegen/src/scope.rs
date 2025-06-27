@@ -47,6 +47,14 @@ impl<'ctx> Scope<'ctx> {
         })
     }
 
+    pub fn get_mut_variable(&mut self, id: impl std::convert::AsRef<str>) -> Option<&mut Variable<'ctx>> {
+        self.variables.get_mut(id.as_ref()).or_else(|| {
+            self.parent
+                .as_mut()
+                .and_then(|parent| parent.get_mut_variable(id))
+        })
+    }
+
     pub fn remove_variable(&mut self, id: impl std::convert::AsRef<str>) -> Option<Variable<'ctx>> {
         self.variables.remove(id.as_ref())
     }
@@ -169,7 +177,7 @@ impl<'ctx> CodeGen<'ctx> {
         scope_variables.into_iter().for_each(|(name, var)| {
             match var.datatype.clone() {
                 Type::Alias(alias) => {
-                    if matches!(self.get_alias_type(var.datatype.clone(), None), Some("struct")) && name != "self" {
+                    if matches!(self.get_alias_type(var.datatype.clone(), None), Some("struct")) && name != "self" && !var.no_drop {
                         let structure = self.scope.get_struct(&alias).unwrap();
 
                         if let Some(destructor) = structure.functions.get("drop") {

@@ -10,6 +10,7 @@ use indexmap::IndexMap;
 pub enum Type {
     SelfRef,
     Undefined,
+    NoDrop,
 
     I8,
     I16,
@@ -49,6 +50,7 @@ impl std::fmt::Display for Type {
         match self {
             Type::SelfRef => write!(f, "&self"),
             Type::Undefined => write!(f, "undefined"),
+            Type::NoDrop => write!(f, "nodrop"),
 
             Type::I8 => write!(f, "i8"),
             Type::I16 => write!(f, "i16"),
