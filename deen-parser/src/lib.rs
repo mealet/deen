@@ -554,6 +554,7 @@ impl Parser {
                 "import" => self.import_statement(),
                 "include" => self.include_statement(),
                 "extern" => self.extern_statement(),
+                "_extern_declare" => self.extern_declare_statement(),
                 "if" => self.if_statement(),
                 "else" => {
                     self.error(

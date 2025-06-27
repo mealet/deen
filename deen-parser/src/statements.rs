@@ -166,6 +166,12 @@ pub enum Statements {
         span: (usize, usize),
     },
 
+    /// `_extern_declare IDENTIFIER EXPRESSION`
+    ExternDeclareStatement {
+        identifier: String,
+        datatype: Type
+    },
+
     /// `break`
     BreakStatements {
         span: (usize, usize),
@@ -1032,6 +1038,28 @@ impl Parser {
             datatype,
             span: (span_start, span_end),
         }
+    }
+
+    pub fn extern_declare_statement(&mut self) -> Statements {
+        // TODO: Add errors handling
+        if self.expect(TokenType::Keyword) {
+            let _ = self.next();
+        }
+
+        if !self.expect(TokenType::Identifier) {
+            self.error(
+                String::from("Expected extern-declare identifier"),
+                self.current().span
+            );
+        }
+
+        let identifier = self.current().value;
+        let _ = self.next();
+
+        let datatype = self.parse_type();
+        let _ = self.skip_eos();
+
+        return Statements::ExternDeclareStatement { identifier, datatype }
     }
 
     pub fn extern_statement(&mut self) -> Statements {

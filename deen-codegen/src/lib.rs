@@ -377,7 +377,8 @@ impl<'ctx> CodeGen<'ctx> {
                                     datatype: value.0,
                                     llvm_type: value.1.get_type(),
                                     ptr: alloca,
-                                    no_drop: false
+                                    no_drop: false,
+                                    global: false
                                 },
                             );
                             let _ = self.builder.build_store(alloca, value.1).unwrap();
@@ -396,7 +397,8 @@ impl<'ctx> CodeGen<'ctx> {
                                     datatype,
                                     llvm_type: basic_type,
                                     ptr: alloca,
-                                    no_drop: false
+                                    no_drop: false,
+                                    global: false
                                 },
                             );
                         }
@@ -416,7 +418,8 @@ impl<'ctx> CodeGen<'ctx> {
                                     datatype: compiled_value.0,
                                     llvm_type: compiled_value.1.get_type(),
                                     ptr: alloca,
-                                    no_drop: false
+                                    no_drop: false,
+                                    global: false
                                 },
                             );
                             let _ = self.builder.build_store(alloca, compiled_value.1).unwrap();
@@ -504,7 +507,8 @@ impl<'ctx> CodeGen<'ctx> {
                             datatype: arg_datatype,
                             llvm_type: param_type,
                             ptr: param_alloca,
-                            no_drop: false
+                            no_drop: false,
+                            global: false
                         },
                     );
                 });
@@ -881,7 +885,8 @@ impl<'ctx> CodeGen<'ctx> {
                         datatype: binding_type,
                         llvm_type: basic_binding_type,
                         ptr: binding_ptr,
-                        no_drop: false
+                        no_drop: false,
+                        global: false
                     },
                 );
                 self.breaks.push(after_block);
@@ -991,7 +996,8 @@ impl<'ctx> CodeGen<'ctx> {
                                 datatype: Type::Bool,
                                 llvm_type: self.context.bool_type().into(),
                                 ptr: iter_status_alloca,
-                                no_drop: false
+                                no_drop: false,
+                                global: false
                             },
                         );
 
@@ -1089,7 +1095,8 @@ impl<'ctx> CodeGen<'ctx> {
                                 datatype: Type::USIZE,
                                 llvm_type: self.context.i64_type().into(),
                                 ptr: iterator_position_alloca,
-                                no_drop: false
+                                no_drop: false,
+                                global: false
                             },
                         );
 
@@ -1314,6 +1321,15 @@ impl<'ctx> CodeGen<'ctx> {
                     self.builder.build_return(Some(&compiled_value.1)).unwrap();
                 }
             }
+
+            Statements::ExternDeclareStatement { identifier, datatype } => {
+                let basic_type = self.get_basic_type(datatype.clone());
+                let global = self.module.add_global(basic_type, None, &identifier);
+                global.set_linkage(Linkage::External);
+                global.set_alignment(8);
+
+                self.scope.set_variable(identifier, Variable { datatype, llvm_type: basic_type, ptr: self.context.ptr_type(AddressSpace::default()).const_null(), no_drop: true, global: true });
+            },
 
             Statements::ExternStatement {
                 identifier,
@@ -2791,7 +2807,12 @@ impl<'ctx> CodeGen<'ctx> {
                 }
 
                 let variable = self.scope.get_mut_variable(&id).unwrap(); // already checked by semantic analyzer
-
+                
+                if variable.global {
+                    let global_value = self.module.get_global(&id).unwrap().as_basic_value_enum();
+                    return (variable.datatype.clone(), global_value);
+                }
+                
                 if expected == Some(Type::NoDrop) {
                     variable.no_drop = true;
                 }

@@ -262,6 +262,7 @@ impl Analyzer {
                     is_var_args: _,
                     span: _,
                 } => {}
+                Statements::ExternDeclareStatement { identifier: _, datatype: _ } => {}
                 _ => {
                     if let Some(err) = self.errors.last() {
                         if err.span == (255, 0).into() {
@@ -272,7 +273,7 @@ impl Analyzer {
                         String::from(
                             "In global scope only allowed: functions definitions, imports",
                         ),
-                        (255, 0),
+                        (0, 0),
                     );
                     return;
                 }
@@ -1485,6 +1486,11 @@ impl Analyzer {
                 symtable.included.into_iter().for_each(|inc| {
                     self.symtable.included.insert(inc.0, inc.1);
                 });
+            }
+
+            Statements::ExternDeclareStatement { identifier, datatype } => {
+                // TODO: Add error handling
+                self.scope.add_var(identifier.to_string(), datatype.clone(), true, (0, 0));
             }
 
             Statements::ExternStatement {
