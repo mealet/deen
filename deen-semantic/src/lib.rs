@@ -23,13 +23,13 @@ use crate::{
     error::{SemanticError, SemanticWarning},
     macros::{MacrosObject, MacrosOption},
     scope::Scope,
-    symtable::{Import, SymbolTable},
+    symtable::{Include, SymbolTable},
 };
 use deen_parser::{
     Parser, expressions::Expressions, statements::Statements, types::Type, value::Value,
 };
 use miette::NamedSource;
-use std::collections::HashMap;
+use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
 use indexmap::IndexMap;
 
 mod element;
@@ -41,6 +41,8 @@ pub mod symtable;
 
 pub type SemanticOk = (SymbolTable, Vec<SemanticWarning>);
 pub type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
+
+const STANDART_LIBRARY_VAR: &str = "DEEN_LIB";
 
 /// Main Analyzer Struct
 #[derive(Debug)]
@@ -231,6 +233,7 @@ impl Analyzer {
                     header_span: _,
                 } => {}
                 Statements::ImportStatement { path: _, span: _ } => {}
+                Statements::IncludeStatement { path: _, span: _ } => {}
                 Statements::StructDefineStatement {
                     name: _,
                     fields: _,
@@ -1191,148 +1194,295 @@ impl Analyzer {
                     self.scope.returned = block_type;
                 }
             }
-            Statements::ImportStatement { path, span } => match path {
-                Expressions::Value(Value::String(path), _) => {
-                    let fname = std::path::Path::new(path)
-                        .file_name()
-                        .map(|fname| fname.to_str().unwrap_or("$NONE"));
+            Statements::ImportStatement { path: _, span } => {
+                self.error(
+                    String::from("Imports are currently disabled due unstability."),
+                    *span
+                );
 
-                    match fname {
-                        Some(fname) => {
-                            if fname == "$NONE" {
-                                self.error(format!("Unable to get module name: `{}`", path), *span);
-                                return;
-                            }
+                // match path {
+                //     Expressions::Value(Value::String(path), _) => {
+                //         let fname = std::path::Path::new(path)
+                //             .file_name()
+                //             .map(|fname| fname.to_str().unwrap_or("$NONE"));
+                //
+                //         match fname {
+                //             Some(fname) => {
+                //                 if fname == "$NONE" {
+                //                     self.error(format!("Unable to get module name: `{}`", path), *span);
+                //                     return;
+                //                 }
+                //
+                //                 let src = std::fs::read_to_string(fname).unwrap_or_else(|err| {
+                //                     self.error(format!("Unable to read `{}`: {}", fname, err), *span);
+                //                     String::new()
+                //                 });
+                //
+                //                 if src.is_empty() {
+                //                     return;
+                //                 };
+                //
+                //                 let mut lexer = deen_lexer::Lexer::new(&src, fname);
+                //                 let (tokens, warns) = match lexer.tokenize() {
+                //                     Ok(res) => res,
+                //                     Err((errors, warns)) => {
+                //                         errors
+                //                             .iter()
+                //                             .for_each(|err| self.errors.push(err.clone().into()));
+                //                         warns
+                //                             .iter()
+                //                             .for_each(|warn| self.warnings.push(warn.clone().into()));
+                //                         return;
+                //                     }
+                //                 };
+                //                 warns
+                //                     .iter()
+                //                     .for_each(|warn| self.warnings.push(warn.clone().into()));
+                //
+                //                 let mut parser = deen_parser::Parser::new(tokens, &src, fname);
+                //                 let (ast, warns) = match parser.parse() {
+                //                     Ok(res) => res,
+                //                     Err((errors, warns)) => {
+                //                         errors
+                //                             .iter()
+                //                             .for_each(|err| self.errors.push(err.clone().into()));
+                //                         warns
+                //                             .iter()
+                //                             .for_each(|warn| self.warnings.push(warn.clone().into()));
+                //                         return;
+                //                     }
+                //                 };
+                //                 warns
+                //                     .iter()
+                //                     .for_each(|warn| self.warnings.push(warn.clone().into()));
+                //
+                //                 let mut mutual_import = false;
+                //                 ast.iter().for_each(|stmt| {
+                //                     if let Statements::ImportStatement {
+                //                         path: Expressions::Value(Value::String(path), _),
+                //                         span,
+                //                     } = stmt
+                //                     {
+                //                         let imp_name = std::path::Path::new(path)
+                //                             .file_name()
+                //                             .map(|fname| fname.to_str().unwrap_or("$NONE"));
+                //
+                //                         if imp_name == Some(self.source.name()) {
+                //                             self.error(
+                //                                 format!(
+                //                                     "Mutual import found: `{}` from `{}`",
+                //                                     imp_name.unwrap(),
+                //                                     fname
+                //                                 ),
+                //                                 *span,
+                //                             );
+                //                             mutual_import = true;
+                //                         }
+                //                     }
+                //                 });
+                //
+                //                 if mutual_import {
+                //                     return;
+                //                 };
+                //
+                //                 let mut analyzer = Self::new(&src, fname, false);
+                //                 let (embedded_symtable, warns) = match analyzer.analyze(&ast) {
+                //                     Ok(warns) => warns,
+                //                     Err((errors, warns)) => {
+                //                         errors.iter().for_each(|err| self.errors.push(err.clone()));
+                //                         warns
+                //                             .iter()
+                //                             .for_each(|warn| self.warnings.push(warn.clone()));
+                //                         return;
+                //                     }
+                //                 };
+                //                 warns
+                //                     .iter()
+                //                     .for_each(|warn| self.warnings.push(warn.clone()));
+                //
+                //                 let module_name = fname
+                //                     .split(".")
+                //                     .nth(0)
+                //                     .map(|n| n.to_string())
+                //                     .unwrap_or(fname.replace(".dn", ""));
+                //
+                //                 let mut import = Import::new(ast, &src);
+                //
+                //                 analyzer.scope.functions.into_iter().for_each(|func| {
+                //                     if func.1.public {
+                //                         import.add_fn(func.0.to_string(), func.1.datatype);
+                //                     }
+                //                 });
+                //
+                //                 analyzer.scope.structures.into_iter().for_each(|structure| {
+                //                     if structure.1.public {
+                //                         import
+                //                             .add_struct(structure.0.to_string(), structure.1.datatype);
+                //                     }
+                //                 });
+                //
+                //                 analyzer.scope.enums.into_iter().for_each(|enumeration| {
+                //                     if enumeration.1.public {
+                //                         import.add_enum(
+                //                             enumeration.0.to_string(),
+                //                             enumeration.1.datatype,
+                //                         );
+                //                     }
+                //                 });
+                //
+                //                 import.embedded_symtable = embedded_symtable;
+                //                 self.symtable.imports.insert(module_name, import);
+                //             }
+                //             None => {
+                //                 self.error(format!("Unable to find: `{}`", path), *span);
+                //             }
+                //         }
+                //     }
+                //     _ => {
+                //         self.error(String::from("Import must be string constant"), *span);
+                //     }
+                // }
+            },
 
-                            let src = std::fs::read_to_string(fname).unwrap_or_else(|err| {
-                                self.error(format!("Unable to read `{}`: {}", fname, err), *span);
-                                String::new()
-                            });
+            Statements::IncludeStatement { path, span } => {
+                let (import_path, path_span) = if let Expressions::Value(Value::String(path), span) = path { (path, span) } else { unreachable!() };
+                let included_path;
 
-                            if src.is_empty() {
-                                return;
-                            };
+                match import_path.chars().nth(0) {
+                    Some('@') => {
+                        // standart library path
 
-                            let mut lexer = deen_lexer::Lexer::new(&src, fname);
-                            let (tokens, warns) = match lexer.tokenize() {
-                                Ok(res) => res,
-                                Err((errors, warns)) => {
-                                    errors
-                                        .iter()
-                                        .for_each(|err| self.errors.push(err.clone().into()));
-                                    warns
-                                        .iter()
-                                        .for_each(|warn| self.warnings.push(warn.clone().into()));
-                                    return;
-                                }
-                            };
-                            warns
-                                .iter()
-                                .for_each(|warn| self.warnings.push(warn.clone().into()));
+                        let lib_path = std::env::var(STANDART_LIBRARY_VAR).unwrap_or(std::env::current_dir().unwrap().to_str().unwrap().to_owned());
 
-                            let mut parser = deen_parser::Parser::new(tokens, &src, fname);
-                            let (ast, warns) = match parser.parse() {
-                                Ok(res) => res,
-                                Err((errors, warns)) => {
-                                    errors
-                                        .iter()
-                                        .for_each(|err| self.errors.push(err.clone().into()));
-                                    warns
-                                        .iter()
-                                        .for_each(|warn| self.warnings.push(warn.clone().into()));
-                                    return;
-                                }
-                            };
-                            warns
-                                .iter()
-                                .for_each(|warn| self.warnings.push(warn.clone().into()));
+                        let mut import_path = import_path.clone().replace(".dn", "");
+                        let _ = import_path.remove(0);
 
-                            let mut mutual_import = false;
-                            ast.iter().for_each(|stmt| {
-                                if let Statements::ImportStatement {
-                                    path: Expressions::Value(Value::String(path), _),
-                                    span,
-                                } = stmt
-                                {
-                                    let imp_name = std::path::Path::new(path)
-                                        .file_name()
-                                        .map(|fname| fname.to_str().unwrap_or("$NONE"));
-
-                                    if imp_name == Some(self.source.name()) {
-                                        self.error(
-                                            format!(
-                                                "Mutual import found: `{}` from `{}`",
-                                                imp_name.unwrap(),
-                                                fname
-                                            ),
-                                            *span,
-                                        );
-                                        mutual_import = true;
-                                    }
-                                }
-                            });
-
-                            if mutual_import {
-                                return;
-                            };
-
-                            let mut analyzer = Self::new(&src, fname, false);
-                            let (embedded_symtable, warns) = match analyzer.analyze(&ast) {
-                                Ok(warns) => warns,
-                                Err((errors, warns)) => {
-                                    errors.iter().for_each(|err| self.errors.push(err.clone()));
-                                    warns
-                                        .iter()
-                                        .for_each(|warn| self.warnings.push(warn.clone()));
-                                    return;
-                                }
-                            };
-                            warns
-                                .iter()
-                                .for_each(|warn| self.warnings.push(warn.clone()));
-
-                            let module_name = fname
-                                .split(".")
-                                .nth(0)
-                                .map(|n| n.to_string())
-                                .unwrap_or(fname.replace(".dn", ""));
-
-                            let mut import = Import::new(ast, &src);
-
-                            analyzer.scope.functions.into_iter().for_each(|func| {
-                                if func.1.public {
-                                    import.add_fn(func.0.to_string(), func.1.datatype);
-                                }
-                            });
-
-                            analyzer.scope.structures.into_iter().for_each(|structure| {
-                                if structure.1.public {
-                                    import
-                                        .add_struct(structure.0.to_string(), structure.1.datatype);
-                                }
-                            });
-
-                            analyzer.scope.enums.into_iter().for_each(|enumeration| {
-                                if enumeration.1.public {
-                                    import.add_enum(
-                                        enumeration.0.to_string(),
-                                        enumeration.1.datatype,
-                                    );
-                                }
-                            });
-
-                            import.embedded_symtable = embedded_symtable;
-                            self.symtable.imports.insert(module_name, import);
-                        }
-                        None => {
-                            self.error(format!("Unable to find: `{}`", path), *span);
-                        }
+                        let formatted_path = format!("{}/{}.dn", lib_path, import_path);
+                        included_path = PathBuf::from(formatted_path);
+                    },
+                    Some(_) => {
+                        // relative path
+                        included_path = PathBuf::from(import_path);
+                    },
+                    None => {
+                        self.error(
+                            String::from("Empty include path provided"),
+                            *path_span
+                        );
+                        return;
                     }
                 }
-                _ => {
-                    self.error(String::from("Import must be string constant"), *span);
+
+                // Reading source code
+                let src = std::fs::read_to_string(&included_path).unwrap_or_else(|err| {
+                    self.error(
+                        format!("Unable to read source code. System error: {}", err),
+                        *path_span
+                    );
+                    String::new()
+                });
+
+                // Getting file name
+                let fname = included_path.file_name().unwrap_or_else(|| {
+                    self.error(
+                        String::from("Unable to resolve provided include"),
+                        *path_span
+                    );
+                    OsStr::new("")
+                }).to_str().unwrap_or_else(|| {
+                    self.error(
+                        String::from("Unable to resolve provided include"),
+                        *path_span
+                    );
+                    ""
+                });
+
+                if fname.is_empty() { return };
+                if src.is_empty() { return };
+
+                let module_name = fname
+                    .split(".")
+                    .nth(0)
+                    .map(|n| n.to_string())
+                    .unwrap_or(fname.replace(".dn", ""));
+
+                if self.symtable.included.contains_key(&module_name) {
+                    return;
                 }
-            },
+
+                // Lexical Analyzer
+                let mut lexer = deen_lexer::Lexer::new(&src, fname);
+                let (tokens, warns) = match lexer.tokenize() {
+                    Ok(result) => result,
+                    Err((errors, warns)) => {
+                        errors.into_iter().for_each(|err| self.errors.push(err.into()));
+                        warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
+                        return;
+                    }
+                };
+                warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
+
+                // Syntax Analyzer
+                let mut parser = deen_parser::Parser::new(tokens, &src, fname);
+                let (ast, warns) = match parser.parse() {
+                    Ok(ast) => ast,
+                    Err((errors, warns)) => {
+                        errors.into_iter().for_each(|err| self.errors.push(err.into()));
+                        warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
+                        return;
+                    }
+                };
+                warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
+
+                // Semantical Analyzer
+                let mut analyzer = Analyzer::new(&src, fname, false);
+                let (_, warns) = match analyzer.analyze(&ast) {
+                    Ok(res) => res,
+                    Err((errors, warns)) => {
+                        errors.into_iter().for_each(|err| self.errors.push(err.into()));
+                        warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
+                        return;
+                    }
+                };
+                warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
+
+                analyzer.scope.functions.into_iter().for_each(|func| {
+                    if func.1.public {
+                        self.scope.add_fn(func.0, func.1.datatype, false).unwrap_or_else(|err| {
+                            self.error(
+                                err,
+                                *span
+                            );
+                        });
+                    }
+                });
+
+                analyzer.scope.structures.into_iter().for_each(|structure| {
+                    if structure.1.public {
+                        self.scope.add_struct(structure.0.to_string(), structure.1.datatype, false).unwrap_or_else(|err| {
+                            self.error(
+                                err,
+                                *span
+                            );
+                        });
+                    }
+                });
+
+                analyzer.scope.enums.into_iter().for_each(|enumeration| {
+                    if enumeration.1.public {
+                        self.scope.add_enum(
+                            enumeration.0.to_string(),
+                            enumeration.1.datatype,
+                            false
+                        ).unwrap_or_else(|err| {
+                            self.error(err, *span);
+                        });
+                    }
+                });
+
+                let include = Include { ast };
+                self.symtable.included.insert(module_name, include);
+            }
 
             Statements::ExternStatement {
                 identifier,
@@ -2478,7 +2628,7 @@ impl Analyzer {
                         }
                         Ok(var.datatype)
                     }
-                    None => Err(format!("Variable `{}` is not defined here", id)),
+                    None => Err(format!("Identifier `{}` is not defined here", id)),
                 }
             }
             Value::String(_) => Ok(Type::Pointer(Box::new(Type::Char))),

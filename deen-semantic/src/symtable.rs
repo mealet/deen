@@ -9,6 +9,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Default)]
 pub struct SymbolTable {
     pub imports: HashMap<String, Import>,
+    pub included: HashMap<String, Include>,
 }
 
 /// User Import Instance
@@ -36,6 +37,12 @@ pub struct Import {
     pub embedded_symtable: SymbolTable,
     pub source: String,
     pub ast: Vec<Statements>,
+}
+
+/// TODO: Write documentation
+#[derive(Debug, Clone)]
+pub struct Include {
+    pub ast: Vec<Statements>
 }
 
 impl Import {

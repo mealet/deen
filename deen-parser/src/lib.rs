@@ -552,6 +552,7 @@ impl Parser {
             TokenType::Keyword => match current.value.as_str() {
                 "let" => self.annotation_statement(),
                 "import" => self.import_statement(),
+                "include" => self.include_statement(),
                 "extern" => self.extern_statement(),
                 "if" => self.if_statement(),
                 "else" => {

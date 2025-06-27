@@ -103,10 +103,10 @@ fn main() {
     );
 
     // Reading it (on old devices it might take a little bit longer)
-    let src = std::fs::read_to_string(&args.path).unwrap_or_else(|_| {
+    let src = std::fs::read_to_string(&args.path).unwrap_or_else(|err| {
         eprintln!(
-            "Unable to open path: {}",
-            std::path::Path::new(&args.path).display()
+            "Unable to open path: {}. System error: {}",
+            std::path::Path::new(&args.path).display(), err
         );
         std::process::exit(1);
     });

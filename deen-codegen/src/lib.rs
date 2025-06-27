@@ -41,6 +41,7 @@ pub struct CodeGen<'ctx> {
 
     symtable: SymbolTable,
     imports: HashMap<String, ModuleContent<'ctx>>,
+    includes: Vec<String>
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +96,7 @@ impl<'ctx> CodeGen<'ctx> {
 
             symtable,
             imports: HashMap::new(),
+            includes: Vec::new()
         }
     }
 
@@ -1402,6 +1404,31 @@ impl<'ctx> CodeGen<'ctx> {
 
                 self.imports.insert(module_name, module_content);
             }
+
+            Statements::IncludeStatement { path, span: _ } => {
+                let path = if let Expressions::Value(Value::String(path), _) = path {
+                    path
+                } else {
+                    String::default()
+                };
+                let fname = std::path::Path::new(&path)
+                    .file_name()
+                    .map(|fname| fname.to_str().unwrap_or("$NONE"))
+                    .unwrap();
+
+                let module_name = fname
+                    .split(".")
+                    .nth(0)
+                    .map(|n| n.to_string())
+                    .unwrap_or(fname.replace(".dn", ""));
+
+                if self.includes.contains(&module_name) { return };
+                let _ = self.includes.push(module_name.clone());
+
+                let include = self.symtable.included.get(&module_name).unwrap().clone();
+                include.ast.iter().for_each(|stmt| self.compile_statement(stmt.clone(), None));
+            }
+
             Statements::ScopeStatement { block, span: _ } => {
                 self.enter_new_scope();
                 block

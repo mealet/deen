@@ -149,6 +149,12 @@ pub enum Statements {
         span: (usize, usize),
     },
 
+    /// `include "PATH"`
+    IncludeStatement {
+        path: Expressions,
+        span: (usize, usize)
+    },
+
     /// `extern "EXT_TYPE" pub/NOTHING fn IDENTIFIER ( TYPE, TYPE, ... ) TYPE/NOTHING`
     ExternStatement {
         identifier: String,
@@ -261,6 +267,33 @@ impl Parser {
         } else {
             self.error(
                 String::from("Unexpected import syntax found"),
+                (span_start, span_end),
+            );
+            Statements::None
+        }
+    }
+
+    pub fn include_statement(&mut self) -> Statements {
+        let span_start = self.current().span.0;
+        if self.current().token_type == TokenType::Keyword {
+            let _ = self.next();
+        }
+
+        let path = self.expression();
+        self.position -= 1;
+
+        let span_end = self.current().span.1;
+        let _ = self.next();
+        self.skip_eos();
+
+        if let Expressions::Value(Value::String(_), _) = path {
+            Statements::IncludeStatement {
+                path,
+                span: (span_start, span_end),
+            }
+        } else {
+            self.error(
+                String::from("Unexpected include syntax found"),
                 (span_start, span_end),
             );
             Statements::None
