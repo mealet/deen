@@ -45,13 +45,22 @@ COPY . .
 
 RUN cargo build --release
 
+# Setting up runner
 FROM ubuntu:jammy
 
+# Copying compiler and stdlib
+
+WORKDIR /deenlib
+ENV DEEN_LIB="/deenlib"
+
+COPY --from=builder /compiler/target/release/deen /usr/local/bin
+COPY --from=builder /compiler/stdlib /deenlib
+
+# Copying source
 WORKDIR /runner
 COPY ./source.dn .
 
-COPY --from=builder /compiler/target/release/deen /usr/local/bin
-
+# Installing linker dependencies
 RUN apt -y update
 RUN apt install -y clang
 
