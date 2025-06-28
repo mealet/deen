@@ -15,7 +15,7 @@ pub struct Stdin {
   fn read_line() String {
     let buffer = String.new();
 
-    let ch: i8 = getchar();
+    let ch = getchar();
     while (ch != '\0') {
       if ch == '\n' || ch == '\0' {
         break;

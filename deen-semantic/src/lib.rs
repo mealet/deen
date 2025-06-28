@@ -697,9 +697,14 @@ impl Analyzer {
                     return;
                 };
                 if let Type::Function(func_args, func_type, is_var_args) = func {
+                    let mut expected_args = func_args.clone();
+                    if arguments.len() > func_args.len() {
+                        expected_args.resize(arguments.len(), Type::Void);
+                    }
+                    
                     let call_args = arguments
                         .iter()
-                        .zip(func_args.clone())
+                        .zip(expected_args)
                         .map(|(arg, exp)| self.visit_expression(arg, Some(exp)))
                         .collect::<Vec<Type>>();
 
@@ -732,7 +737,7 @@ impl Analyzer {
                                 }
                             };
 
-                            if &expected != provided && !is_void_ptr {
+                            if &expected != provided && !is_void_ptr && expected != Type::Void {
                                 self.error(
                                     format!(
                                         "Argument #{} must be `{}`, but found `{}`",
@@ -1413,39 +1418,33 @@ impl Analyzer {
 
                 // Lexical Analyzer
                 let mut lexer = deen_lexer::Lexer::new(&src, fname);
-                let (tokens, warns) = match lexer.tokenize() {
+                let (tokens, _) = match lexer.tokenize() {
                     Ok(result) => result,
-                    Err((errors, warns)) => {
+                    Err((errors, _)) => {
                         errors.into_iter().for_each(|err| self.errors.push(err.into()));
-                        warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
                         return;
                     }
                 };
-                warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
 
                 // Syntax Analyzer
                 let mut parser = deen_parser::Parser::new(tokens, &src, fname);
-                let (ast, warns) = match parser.parse() {
+                let (ast, _) = match parser.parse() {
                     Ok(ast) => ast,
-                    Err((errors, warns)) => {
+                    Err((errors, _)) => {
                         errors.into_iter().for_each(|err| self.errors.push(err.into()));
-                        warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
                         return;
                     }
                 };
-                warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
 
                 // Semantical Analyzer
                 let mut analyzer = Analyzer::new(&src, fname, false);
-                let (symtable, warns) = match analyzer.analyze(&ast) {
+                let (symtable, _) = match analyzer.analyze(&ast) {
                     Ok(res) => res,
-                    Err((errors, warns)) => {
+                    Err((errors, _)) => {
                         errors.into_iter().for_each(|err| self.errors.push(err.into()));
-                        warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
                         return;
                     }
                 };
-                warns.into_iter().for_each(|warn| self.warnings.push(warn.into()));
 
                 analyzer.scope.functions.into_iter().for_each(|func| {
                     if func.1.public {
@@ -1491,6 +1490,9 @@ impl Analyzer {
             Statements::ExternDeclareStatement { identifier, datatype } => {
                 // TODO: Add error handling
                 self.scope.add_var(identifier.to_string(), datatype.clone(), true, (0, 0));
+
+                // making variable `used`
+                let _ = self.scope.get_var(identifier);
             }
 
             Statements::ExternStatement {

@@ -8,7 +8,7 @@ CLIPPY_COMMAND = clippy
 # Compile example and run
 SRC_FILE = source.dn
 OUTPUT_FILE = out
-DEEN_ARGS = 
+DEEN_ARGS = --no-warns
 CODE_EDITOR = nvim
 
 # Compile to binary/llvm
@@ -55,4 +55,4 @@ docker-build:
 
 docker:
 	$(CODE_EDITOR) $(SRC_FILE)
-	sudo docker-compose up
+	sudo docker-compose run --rm compiler
