@@ -262,7 +262,7 @@ impl Analyzer {
                     is_var_args: _,
                     span: _,
                 } => {}
-                Statements::ExternDeclareStatement { identifier: _, datatype: _ } => {}
+                Statements::ExternDeclareStatement { identifier: _, datatype: _, span: _ } => {}
                 _ => {
                     if let Some(err) = self.errors.last() {
                         if err.span == (255, 0).into() {
@@ -1487,8 +1487,14 @@ impl Analyzer {
                 });
             }
 
-            Statements::ExternDeclareStatement { identifier, datatype } => {
-                // TODO: Add error handling
+            Statements::ExternDeclareStatement { identifier, datatype, span } => {
+                if self.scope.get_var(identifier).is_some() {
+                    self.error(
+                        format!("Identifier `{}` is already declared", identifier),
+                        *span
+                    )
+                }
+
                 self.scope.add_var(identifier.to_string(), datatype.clone(), true, (0, 0));
 
                 // making variable `used`

@@ -169,7 +169,8 @@ pub enum Statements {
     /// `_extern_declare IDENTIFIER EXPRESSION`
     ExternDeclareStatement {
         identifier: String,
-        datatype: Type
+        datatype: Type,
+        span: (usize, usize)
     },
 
     /// `break`
@@ -1041,7 +1042,7 @@ impl Parser {
     }
 
     pub fn extern_declare_statement(&mut self) -> Statements {
-        // TODO: Add errors handling
+        let span_start = self.current().span.0;
         if self.expect(TokenType::Keyword) {
             let _ = self.next();
         }
@@ -1057,9 +1058,12 @@ impl Parser {
         let _ = self.next();
 
         let datatype = self.parse_type();
-        let _ = self.skip_eos();
+        let span_end = self.current().span.1;
 
-        return Statements::ExternDeclareStatement { identifier, datatype }
+        let _ = self.skip_eos();
+        let span = (span_start, span_end);
+
+        return Statements::ExternDeclareStatement { identifier, datatype, span }
     }
 
     pub fn extern_statement(&mut self) -> Statements {

@@ -39,7 +39,6 @@ pub struct Import {
     pub ast: Vec<Statements>,
 }
 
-/// TODO: Write documentation
 #[derive(Debug, Clone)]
 pub struct Include {
     pub ast: Vec<Statements>

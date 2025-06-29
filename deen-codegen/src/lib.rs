@@ -1322,7 +1322,7 @@ impl<'ctx> CodeGen<'ctx> {
                 }
             }
 
-            Statements::ExternDeclareStatement { identifier, datatype } => {
+            Statements::ExternDeclareStatement { identifier, datatype, span: _ } => {
                 let basic_type = self.get_basic_type(datatype.clone());
                 let global = self.module.add_global(basic_type, None, &identifier);
                 global.set_linkage(Linkage::External);
