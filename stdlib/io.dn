@@ -12,9 +12,7 @@ _extern_declare stdin **i8
 include "@string";
 
 pub struct Stdin {
-  fn read_line() String {
-    let buffer = String.new();
-
+  fn read_line(buffer: *String) {
     let ch = getchar();
     while (ch != '\0') {
       if ch == '\n' || ch == '\0' {
@@ -24,8 +22,6 @@ pub struct Stdin {
       buffer.push(ch);
       ch = getchar();
     }
-
-    return buffer;
   }
 
   fn getchar() char {
