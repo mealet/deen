@@ -2036,11 +2036,25 @@ impl Analyzer {
                                         let mut arguments = arguments.clone();
 
                                         if let Some(Type::Alias(alias)) = args.first() {
+                                            let is_pointed_struct = {
+                                                if let Type::Pointer(ptr_type) = prev_type_display.clone() {
+                                                    prev_type_display = *ptr_type;
+                                                    true
+                                                } else {
+                                                    false
+                                                }
+                                            };
+
                                             if Type::Alias(alias.clone()) == prev_type_display {
                                                 arguments.reverse();
-                                                arguments.push(
-                                                    Expressions::Reference { object: Box::new(prev_expr.clone()), span: (deen_parser::Parser::get_span_expression(prev_expr.clone())) },
-                                                );
+
+                                                let self_arg = if is_pointed_struct {
+                                                    prev_expr.clone()
+                                                } else {
+                                                    Expressions::Reference { object: Box::new(prev_expr.clone()), span: (deen_parser::Parser::get_span_expression(prev_expr.clone())) }
+                                                };
+
+                                                arguments.push(self_arg);
                                                 arguments.reverse();
                                             }
                                         }
