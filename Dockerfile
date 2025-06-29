@@ -46,7 +46,7 @@ COPY . .
 RUN cargo build --release
 
 # Setting up runner
-FROM ubuntu:jammy
+FROM archlinux:base-devel
 
 # Copying compiler and stdlib
 
@@ -61,7 +61,7 @@ WORKDIR /runner
 COPY ./source.dn .
 
 # Installing linker dependencies
-RUN apt -y update
-RUN apt install -y clang
+RUN pacman --noconfirm -Syu
+RUN pacman --noconfirm -S clang
 
 CMD ["deen", "source.dn", "output", "&&", "./output"]
