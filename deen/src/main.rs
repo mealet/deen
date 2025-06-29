@@ -37,13 +37,20 @@ fn main() {
         let git_hash: String = env!("GIT_HASH").chars().take(8).collect();
         let version_fmt = format!("v{} {}", env!("CARGO_PKG_VERSION"), git_hash);
 
+        let authors_env = env!("CARGO_PKG_AUTHORS");
+        let authors_fmt = if authors_env.contains(":") {
+            format!("\n| {}", authors_env.replace(":", "\n| "))
+        } else {
+            authors_env.to_owned()
+        };
+
         match e.kind() {
             clap::error::ErrorKind::DisplayVersion => {
                 // --version flag
                 // Just return necessary information and exit with 0
                 eprintln!("{}", "🚀 Deen Programming Language".bold().cyan());
                 eprintln!("| - version: {}", version_fmt);
-                eprintln!("| - authors: {}", env!("CARGO_PKG_AUTHORS"));
+                eprintln!("| - authors: {}", authors_fmt);
 
                 std::process::exit(0);
             }
@@ -51,7 +58,7 @@ fn main() {
                 // Wrong arguments or --help flag
                 eprintln!("{}", "🚀 Deen Programming Language".bold().cyan());
                 eprintln!("| - version: {}", version_fmt);
-                eprintln!("| - authors: {}", env!("CARGO_PKG_AUTHORS"));
+                eprintln!("| - authors: {}", authors_fmt);
                 eprintln!();
                 eprintln!("{}", "🍀 Options:".bold().cyan());
 
