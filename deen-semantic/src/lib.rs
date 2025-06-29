@@ -2278,13 +2278,27 @@ impl Analyzer {
                     // yeah, i know this looks like a shit, but i need it
                     if let Type::Pointer(func_ptr_type) = *func_type.clone() {
                         if let (Some(Type::Pointer(expected_ptr_type)), true) =
-                            (expected, *func_ptr_type == Type::Void)
+                            (expected.clone(), *func_ptr_type == Type::Void)
                         {
                             *func_type = Type::Pointer(expected_ptr_type);
                         }
                     }
 
-                    *func_type
+                    let mut return_type = *func_type;
+                    if Self::is_integer(&return_type)
+                    && (
+                        Self::is_integer(expected.as_ref().unwrap_or(&Type::Void))
+                        || matches!(
+                            expected.as_ref().unwrap_or(&Type::Void),
+                            Type::Char
+                        )
+                    ) {
+                        if Self::integer_order(expected.as_ref().unwrap()) <= Self::integer_order(&return_type) {
+                            return_type = expected.unwrap();
+                        }
+                    }
+
+                    return_type
                 } else {
                     unreachable!()
                 }
@@ -2890,6 +2904,7 @@ impl Analyzer {
     #[inline]
     pub fn integer_order(typ: &Type) -> usize {
         match typ {
+            Type::Char => 0,
             Type::U8 => 0,
             Type::U16 => 1,
             Type::U32 => 2,

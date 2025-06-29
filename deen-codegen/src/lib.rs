@@ -1503,9 +1503,22 @@ impl<'ctx> CodeGen<'ctx> {
 
                 if let Type::Pointer(ref return_ptr_type) = return_type {
                     if let (Some(Type::Pointer(expected_ptr_type)), true) =
-                        (expected, **return_ptr_type == Type::Void)
+                        (expected.clone(), **return_ptr_type == Type::Void)
                     {
                         return_type = Type::Pointer(expected_ptr_type);
+                    }
+                }
+
+                if deen_semantic::Analyzer::is_integer(&return_type)
+                && (
+                    deen_semantic::Analyzer::is_integer(expected.as_ref().unwrap_or(&Type::Void))
+                    || matches!(
+                        expected.as_ref().unwrap_or(&Type::Void),
+                        Type::Char
+                    )
+                ) {
+                    if deen_semantic::Analyzer::integer_order(expected.as_ref().unwrap()) <= deen_semantic::Analyzer::integer_order(&return_type) {
+                        return_type = expected.unwrap();
                     }
                 }
 
@@ -1954,7 +1967,7 @@ impl<'ctx> CodeGen<'ctx> {
                 }
 
                 match lhs_value.0 {
-                    typ if deen_semantic::Analyzer::is_integer(&typ) => {
+                    typ if deen_semantic::Analyzer::is_integer(&typ) || typ == Type::Char => {
                         let predicate = match operand.as_str() {
                             ">" => inkwell::IntPredicate::SGT,
                             "<" => inkwell::IntPredicate::SLT,
@@ -2708,7 +2721,7 @@ impl<'ctx> CodeGen<'ctx> {
     ) -> (Type, BasicValueEnum<'ctx>) {
         match value {
             Value::Integer(int) => {
-                if deen_semantic::Analyzer::is_integer(&expected.clone().unwrap_or(Type::Void)) {
+                if deen_semantic::Analyzer::is_integer(&expected.clone().unwrap_or(Type::Void)) || expected == Some(Type::Char) {
                     let exp = if let Some(exp) = expected.clone() {
                         exp
                     } else {
@@ -2726,6 +2739,8 @@ impl<'ctx> CodeGen<'ctx> {
                         Type::U32 => (self.context.i32_type(), false),
                         Type::U64 => (self.context.i64_type(), false),
                         Type::USIZE => (self.context.i64_type(), false),
+
+                        Type::Char => (self.context.i8_type(), false),
 
                         _ => {
                             panic!("Unreachable type expected: {}", exp);

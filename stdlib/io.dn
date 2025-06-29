@@ -1,4 +1,4 @@
-extern "C" fn getchar() i8;
+extern "C" fn getchar() char;
 extern "C" fn printf(*char, ...);
 
 extern "C" fn fflush(*i8);
@@ -21,8 +21,7 @@ pub struct Stdin {
         break;
       }
 
-      let chr: char = ch;
-      buffer.push(chr);
+      buffer.push(ch);
       ch = getchar();
     }
 
@@ -30,8 +29,7 @@ pub struct Stdin {
   }
 
   fn getchar() char {
-    let int_char: i8 = getchar();
-    let chr: char = int_char;
+    let chr = getchar();
     return chr;
   }
 }
