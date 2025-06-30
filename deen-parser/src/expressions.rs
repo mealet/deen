@@ -480,7 +480,7 @@ impl Parser {
 
             if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
                 self.error(
-                    String::from("Values must be separated by semicolons"),
+                    String::from("Values must be separated by commas"),
                     (span_start, self.current().span.1),
                 );
                 while !self.expect(TokenType::RBrace)
