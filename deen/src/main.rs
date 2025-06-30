@@ -3,7 +3,7 @@
 //! It provides tools for system programming, including: structures, C-like enums with supported functions, type definitions, backward compatibility with C, pointers, recursion, and more.
 //!
 //! # Technical Details
-//! - **Minimum recommended `rustc` version:** 1.69
+//! - **Minimum recommended `rustc` version:** 1.88
 //! - **Language Backend:** [`inkwell`] (LLVM 1.18.6^)
 //! - **Errors Handling:** [`thiserror`]
 //! - **Error Reporting:** [`miette`], [`colored`]
