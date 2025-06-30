@@ -11,6 +11,7 @@ _extern_declare stdin **i8
 
 include "@string";
 
+// standart input
 pub struct Stdin {
   fn read_line(buffer: *String) {
     let ch = getchar();
@@ -30,6 +31,7 @@ pub struct Stdin {
   }
 }
 
+// output streams
 pub struct Stdout {
   fn print(input: *char) {
     printf("%s", input);
@@ -56,4 +58,34 @@ pub struct Stderr {
   fn flush() {
     fflush(*stderr);
   }
+}
+
+// file system
+
+pub enum FileMode {
+  Read,
+  ReadBinary,
+
+  Write,
+  WriteBinary,
+
+  Append,
+  AppendBinary,
+
+  ReadWrite,
+  ReadAppend,
+}
+
+pub struct ModeHandler {
+  fn mode_to_string(mode: FileMode) *char {
+    if mode == FileMode.Read { return "r" }
+    else if mode == FileMode.ReadBinary { return "rb" }
+    else {
+      return "w"
+    }
+  }
+}
+
+pub struct File {
+
 }
