@@ -28,6 +28,7 @@ pub enum Type {
 
     Bool,
     Void,
+    Null,
     Char,
 
     Pointer(Box<Type>),
@@ -68,6 +69,7 @@ impl std::fmt::Display for Type {
 
             Type::Char => write!(f, "char"),
             Type::Bool => write!(f, "bool"),
+            Type::Null => write!(f, "null"),
             Type::Void => write!(f, "void"),
 
             Type::Pointer(inner) => write!(f, "*{inner}"),

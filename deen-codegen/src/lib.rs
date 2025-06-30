@@ -1975,6 +1975,11 @@ impl<'ctx> CodeGen<'ctx> {
                 }
 
                 match lhs_value.0 {
+                    typ if typ == Type::Null || rhs_value.0 == Type::Null => {
+                        let leading_value = if typ == Type::Null { rhs_value.1 } else { lhs_value.1 };
+                        return (Type::Bool, self.builder.build_is_null(leading_value.into_pointer_value(), "").unwrap().into())
+                    }
+
                     typ if deen_semantic::Analyzer::is_integer(&typ) || typ == Type::Char => {
                         let predicate = match operand.as_str() {
                             ">" => inkwell::IntPredicate::SGT,
@@ -2874,6 +2879,7 @@ impl<'ctx> CodeGen<'ctx> {
             }
 
             Value::Void => (Type::Void, self.context.bool_type().const_zero().into()),
+            Value::Null => (Type::Null, self.context.bool_type().const_zero().into()),
             Value::Keyword(_) => unreachable!(),
         }
     }
@@ -3048,6 +3054,7 @@ impl<'ctx> CodeGen<'ctx> {
                 .into(),
             Type::Enum(_, _) => self.context.i16_type().into(),
             Type::SelfRef => self.context.ptr_type(AddressSpace::default()).into(),
+            Type::Null => self.context.bool_type().into(),
             // Type::Function(args, datatype) => self.get_basic_type(*datatype).fn_type(
             //     &args.iter().map(|arg| self.get_basic_type(arg.clone()).into()).collect::<Vec<BasicMetadataTypeEnum>>(),
             //     false

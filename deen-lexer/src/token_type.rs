@@ -22,6 +22,7 @@ pub enum TokenType {
     String,      // "hello"
     Char,        // 'c'
     Boolean,     // true/false
+    Null,        // NULL
 
     Equal,    // =
     Plus,     // +

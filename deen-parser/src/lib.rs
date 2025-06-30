@@ -312,6 +312,7 @@ impl Parser {
         let _ = self.next();
 
         match current.token_type {
+            TokenType::Null => Expressions::Value(Value::Null, current.span),
             TokenType::Number => Expressions::Value(
                 Value::Integer(current.value.trim().parse().unwrap()),
                 current.span,

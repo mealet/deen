@@ -11,5 +11,6 @@ pub enum Value {
     Boolean(bool),
     Identifier(String),
     Keyword(String),
+    Null,
     Void,
 }

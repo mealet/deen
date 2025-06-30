@@ -140,6 +140,7 @@ impl Lexer {
                 // Values
                 std_token!("true", TokenType::Boolean),
                 std_token!("false", TokenType::Boolean),
+                std_token!("NULL", TokenType::Null),
             ]),
 
             errors: Vec::new(),

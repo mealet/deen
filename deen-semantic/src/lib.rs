@@ -1802,12 +1802,15 @@ impl Analyzer {
                 rhs,
                 span,
             } => {
-                const SUPPORTED_EXTRA_TYPES: [Type; 2] = [Type::Bool, Type::Char];
+                const SUPPORTED_EXTRA_TYPES: [Type; 3] = [Type::Bool, Type::Char, Type::Null];
 
                 let left = self.visit_expression(lhs, expected.clone());
                 let right = self.visit_expression(rhs, Some(left.clone()));
 
                 match (left.clone(), right.clone()) {
+                    (l, r) if matches!(l, Type::Pointer(_)) && r == Type::Null => Type::Bool,
+                    (l, r) if matches!(r, Type::Pointer(_)) && l == Type::Null => Type::Bool,
+
                     (l, r) if Self::is_integer(&l) && Self::is_integer(&r) => Type::Bool,
                     (l, r) if Self::is_integer(&l) || l == Type::Char || Self::is_integer(&r) || r == Type::Char => Type::Bool,
 
@@ -2688,6 +2691,7 @@ impl Analyzer {
             Value::Char(_) => Ok(Type::Char),
             Value::Boolean(_) => Ok(Type::Bool),
             Value::Keyword(_) => Ok(Type::Void),
+            Value::Null => Ok(Type::Null),
             Value::Void => Ok(Type::Void),
         }
     }
