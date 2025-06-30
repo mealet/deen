@@ -137,10 +137,11 @@ pub struct File {
     while !feof(self.ptr) {
       let chr = fgetc(self.ptr);
       if feof(self.ptr) { break };
+      buffer.push(chr);
+    }
 
-      if chr != '\n' {
-        buffer.push(chr);
-      }
+    if buffer.peek(buffer.len() - 1) == '\n' {
+      let _ = buffer.pop();
     }
 
     return buffer;

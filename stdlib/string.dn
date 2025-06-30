@@ -15,6 +15,10 @@ pub struct String {
 
   fn new() String {
     let ptr: *char = malloc(sizeof!(char));
+
+    if ptr == NULL {
+      panic!("Null pointer appeared on heap allocation: `String.new`");
+    }
     
     return String { .ptr = ptr, .size = sizeof!(char), .len = 0, .iterator_ptr = 0 };
   }
@@ -24,9 +28,16 @@ pub struct String {
     let size = sizeof!(char) * len;
     let ptr: *char = malloc(size);
 
-    strcpy(ptr, value);
+    if ptr == NULL {
+      panic!("Null pointer appeared on heap allocation: `String.from`");
+    }
 
+    strcpy(ptr, value);
     return String { .ptr = ptr, .size = size, .len = len, .iterator_ptr = 0 };
+  }
+
+  fn len(&self) usize {
+    return self.len;
   }
 
   fn push(&self, value: char) {
@@ -37,8 +48,15 @@ pub struct String {
     self.len += 1;
 
     if self.size < self.len {
-      self.ptr = realloc(self.ptr, self.len);
-      self.size = self.len
+      let temp: *char = realloc(self.ptr, self.len);
+
+      if temp == NULL {
+        free(self.ptr);
+        panic!("Reallocation returned NULL pointer: `String.push`");
+      }
+
+      self.ptr = temp;
+      self.size = self.len;
     }
 
     let ptr = self.ptr;
@@ -53,11 +71,66 @@ pub struct String {
     self.len += strlen(value);
 
     if self.size < self.len {
-      self.ptr = realloc(self.ptr, self.len);
-      self.size = self.len
+      let temp: *char = realloc(self.ptr, self.len);
+
+      if temp == NULL {
+        free(self.ptr);
+        panic!("Reallocation returned NULL pointer: `String.push_str`");
+      }
+
+      self.ptr = temp;
+      self.size = self.len;
     }
 
     strcat(self.ptr, value);
+  }
+
+  fn pop(&self) char {
+    if self.size < 1 {
+      panic!("Unable to pop dropped string");
+    }
+    
+    if self.len < 1 {
+      panic!("String which is being edited EMPTY");
+    }
+
+    self.len -= 1;
+
+    let ptr = self.ptr;
+    let output = ptr[self.len];
+
+    ptr[self.len] = '\0';
+
+    if self.size > self.len {
+      let temp: *char = realloc(self.ptr, self.len);
+
+      if temp == NULL {
+        free(self.ptr);
+        panic!("Reallocation returned NULL pointer: `String.pop`");
+      }
+
+      self.ptr = temp;
+      self.size = self.len;
+    }
+
+    return output;
+  }
+
+  fn peek(&self, position: usize) char {
+    if self.size < 1 {
+      panic!("Unable to peek dropped string");
+    }
+    
+    if self.len < 1 {
+      panic!("Peekable string is EMPTY");
+    }
+
+    if position >= self.len {
+      panic!("Peek position is {}, but String len is {}", position, self.len);
+    }
+
+    let ptr = self.ptr;
+    return ptr[position];
   }
 
   fn raw(&self) *char {
