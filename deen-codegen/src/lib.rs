@@ -1933,8 +1933,16 @@ impl<'ctx> CodeGen<'ctx> {
                 rhs,
                 span: _,
             } => {
-                let lhs_value = self.compile_expression(*lhs.clone(), expected.clone());
-                let rhs_value = self.compile_expression(*rhs.clone(), Some(lhs_value.0.clone()));
+                let mut lhs_value = self.compile_expression(*lhs.clone(), expected.clone());
+                let mut rhs_value = self.compile_expression(*rhs.clone(), Some(lhs_value.0.clone()));
+
+                if let Type::Alias(left) = &lhs_value.0
+                    && let Type::Alias(right) = &rhs_value.0
+                    && self.scope.get_enum(left).is_some()
+                    && self.scope.get_enum(right).is_some() {
+                    lhs_value.0 = Type::U8;
+                    rhs_value.0 = Type::U8;
+                }
 
                 match operand.as_str() {
                     "&&" => {

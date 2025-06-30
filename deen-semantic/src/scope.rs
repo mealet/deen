@@ -192,7 +192,7 @@ impl Scope {
         if self.enums.contains_key(&name) {
             return Err(format!("Enum `{}` already declared", name));
         }
-        self.structures.insert(
+        self.enums.insert(
             name.clone(),
             ScopeElement {
                 datatype: enum_type,

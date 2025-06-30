@@ -1818,6 +1818,12 @@ impl Analyzer {
                     }
 
                     (Type::Alias(left), Type::Alias(right)) => {
+                        if self.scope.get_enum(&left).is_some()
+                            && self.scope.get_enum(&right).is_some()
+                            && left == right {
+                            return Type::Bool;
+                        }
+
                         let struct_type = self.scope.get_struct(&left).unwrap_or_else(|| {
                             self.error(
                                 format!("Type `{}` isn't avaible for boolean operations", &left),
@@ -2649,11 +2655,11 @@ impl Analyzer {
                 if self.scope.get_struct(&id).is_some() {
                     return Ok(Type::Alias(id));
                 }
-                if let Some(typedef) = self.scope.get_typedef(&id) {
-                    return Ok(typedef);
+                if self.scope.get_typedef(&id).is_some() {
+                    return Ok(Type::Alias(id));
                 }
-                if let Some(enumeration) = self.scope.get_enum(&id) {
-                    return Ok(enumeration);
+                if self.scope.get_enum(&id).is_some() {
+                    return Ok(Type::Alias(id));
                 }
 
                 match self.scope.get_var(&id) {
@@ -2810,10 +2816,12 @@ impl Analyzer {
                                         );
                                     }
                                 } else {
-                                    self.error(
-                                        format!("No displayable type with name `{}` found", expr_type),
-                                        deen_parser::Parser::get_span_expression(expr.clone())
-                                    );
+                                    if self.scope.get_enum(&alias).is_none() {
+                                        self.error(
+                                            format!("No displayable type with name `{}` found", expr_type),
+                                            deen_parser::Parser::get_span_expression(expr.clone())
+                                        );
+                                    }
                                 }
                             }
                             Type::Enum(_, _) => {},
