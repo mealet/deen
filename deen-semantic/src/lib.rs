@@ -1808,8 +1808,17 @@ impl Analyzer {
                 let right = self.visit_expression(rhs, Some(left.clone()));
 
                 match (left.clone(), right.clone()) {
-                    (l, r) if matches!(l, Type::Pointer(_)) && r == Type::Null => Type::Bool,
-                    (l, r) if matches!(r, Type::Pointer(_)) && l == Type::Null => Type::Bool,
+                    (l, r) if (matches!(l, Type::Pointer(_)) && r == Type::Null)
+                    || (matches!(r, Type::Pointer(_)) && l == Type::Null) => {
+                        if !matches!(operand.as_str(), "==" | "!=") {
+                            self.error(
+                                String::from("Null boolean checker only allows operators: `==`, `!=`"),
+                                *span
+                            );
+                        }
+
+                        Type::Bool
+                    },
 
                     (l, r) if Self::is_integer(&l) && Self::is_integer(&r) => Type::Bool,
                     (l, r) if Self::is_integer(&l) || l == Type::Char || Self::is_integer(&r) || r == Type::Char => Type::Bool,

@@ -110,7 +110,9 @@ pub struct File {
     let str_mode = ModeHandler.specify(mode);
     let ptr = fopen(filename, str_mode);
 
-    return File { .path = String.from(filename), .mode = mode, .ptr = ptr, .is_open = true };
+    let is_open = ptr != NULL;
+
+    return File { .path = String.from(filename), .mode = mode, .ptr = ptr, .is_open = is_open };
   }
 
   fn close(&self) i32 {
@@ -121,9 +123,13 @@ pub struct File {
     return -1;
   }
 
+  fn opened(&self) bool {
+    return self.is_open;
+  }
+
   fn read_to_string(&self) String {
     if !self.is_open {
-      panic!("Unable to read closed file");
+      panic!("Unable to read dropped file");
     }
 
     let buffer = String.new();

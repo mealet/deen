@@ -1977,7 +1977,13 @@ impl<'ctx> CodeGen<'ctx> {
                 match lhs_value.0 {
                     typ if typ == Type::Null || rhs_value.0 == Type::Null => {
                         let leading_value = if typ == Type::Null { rhs_value.1 } else { lhs_value.1 };
-                        return (Type::Bool, self.builder.build_is_null(leading_value.into_pointer_value(), "").unwrap().into())
+                        let result_value = if operand == "==" {
+                            self.builder.build_is_null(leading_value.into_pointer_value(), "").unwrap().into()
+                        } else {
+                            self.builder.build_is_not_null(leading_value.into_pointer_value(), "").unwrap().into()
+                        };
+
+                        return (Type::Bool, result_value)
                     }
 
                     typ if deen_semantic::Analyzer::is_integer(&typ) || typ == Type::Char => {
