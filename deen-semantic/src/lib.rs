@@ -1211,7 +1211,7 @@ impl Analyzer {
             }
             Statements::ImportStatement { path: _, span } => {
                 self.error(
-                    String::from("Imports are currently disabled due unstability."),
+                    String::from("Imports are currently disabled due unstability. @compiler"),
                     *span
                 );
 
