@@ -899,10 +899,18 @@ impl Analyzer {
                 enum_scope.parent = Some(Box::new(self.scope.clone()));
                 self.scope = enum_scope;
 
-                functions.iter().for_each(|func| {
-                    self.visit_statement(func.1);
-                });
+                // WARN: Methods in enums are currently disabled
+                if !functions.is_empty() {
+                    self.error(
+                        String::from("Methods in enums are currently disabled! @compiler"),
+                        *span
+                    );
+                }
 
+                // functions.iter().for_each(|func| {
+                //     self.visit_statement(func.1);
+                // });
+                //
                 let functions_signatures = self.scope.functions.clone();
                 self.scope = *self.scope.parent.clone().unwrap();
 
@@ -915,6 +923,7 @@ impl Analyzer {
                         .map(|x| (x.0, x.1.datatype))
                         .collect(),
                 );
+
                 self.scope
                     .add_enum(name.clone(), enum_type.clone(), *public)
                     .unwrap_or_else(|err| {
