@@ -1447,7 +1447,7 @@ impl Analyzer {
                 };
 
                 analyzer.scope.functions.into_iter().for_each(|func| {
-                    if func.1.public {
+                    if func.1.public && self.scope.get_fn(&func.0).is_none() {
                         self.scope.add_fn(func.0, func.1.datatype, true).unwrap_or_else(|err| {
                             self.error(
                                 err,
@@ -1458,8 +1458,8 @@ impl Analyzer {
                 });
 
                 analyzer.scope.structures.into_iter().for_each(|structure| {
-                    if structure.1.public {
-                        self.scope.add_struct(structure.0.to_string(), structure.1.datatype, true).unwrap_or_else(|err| {
+                    if structure.1.public && self.scope.get_struct(&structure.0).is_none() {
+                        self.scope.add_struct(structure.0, structure.1.datatype, true).unwrap_or_else(|err| {
                             self.error(
                                 err,
                                 *span
@@ -1469,9 +1469,9 @@ impl Analyzer {
                 });
 
                 analyzer.scope.enums.into_iter().for_each(|enumeration| {
-                    if enumeration.1.public {
+                    if enumeration.1.public && self.scope.get_enum(&enumeration.0).is_none() {
                         self.scope.add_enum(
-                            enumeration.0.to_string(),
+                            enumeration.0,
                             enumeration.1.datatype,
                             true
                         ).unwrap_or_else(|err| {

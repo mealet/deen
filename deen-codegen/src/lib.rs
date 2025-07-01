@@ -1340,6 +1340,10 @@ impl<'ctx> CodeGen<'ctx> {
                 public: _,
                 span: _,
             } => {
+                if self.scope.get_function(&identifier).is_some() {
+                    return;
+                }
+
                 let basic_arguments = arguments
                     .iter()
                     .map(|arg| self.get_basic_type(arg.clone()).into())
