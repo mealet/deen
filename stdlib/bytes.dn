@@ -15,7 +15,7 @@ pub struct Bytes {
     let ptr: *u8 = malloc(sizeof!(u8));
 
     if ptr == NULL {
-      panic!("Null pointer apeared on heap allocation `Bytes.new`");
+      panic!("Null pointer appeared on heap allocation `Bytes.new`");
     }
 
     return Bytes { .ptr = ptr, .size = sizeof!(u8), .len = 0, .iterator_ptr = 0 };
