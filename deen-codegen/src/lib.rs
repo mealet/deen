@@ -2129,7 +2129,17 @@ impl<'ctx> CodeGen<'ctx> {
                         )
                     }
 
-                    _ => unreachable!(),
+                    Type::Bool => {
+                        return (
+                            Type::Bool,
+                            self.builder
+                                .build_and(lhs_value.1.into_int_value(), rhs_value.1.into_int_value(), "")
+                                .unwrap()
+                                .as_basic_value_enum()
+                        )
+                    },
+
+                    _ => panic!("Boolean catched: {} ? {}", lhs_value.0, rhs_value.0),
                 }
             }
             Expressions::Bitwise {
