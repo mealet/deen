@@ -21,13 +21,23 @@ pub struct Bytes {
     return Bytes { .ptr = ptr, .size = sizeof!(u8), .len = 0, .iterator_ptr = 0 };
   }
 
+  fn with_size(size: usize) Bytes {
+    let ptr: *u8 = malloc(sizeof!(u8) * size);
+
+    if ptr == NULL {
+      panic!("Null pointer apeared on heap allocation `Bytes.with_size`");
+    }
+
+    return Bytes { .ptr = ptr, .size = sizeof!(u8) * size, .len = size, .iterator_ptr = 0 };
+  }
+
   fn len(&self) usize {
     return self.len;
   }
 
   fn push(&self, value: u8) {
     if self.size < sizeof!(u8) {
-      panic!("Unable to push into dropped buffer");
+      panic!("Unable to push into dropped buffer: `Bytes.push`");
     }
 
     self.len += 1;
@@ -50,7 +60,7 @@ pub struct Bytes {
 
   fn pop(&self) u8 {
     if self.size < sizeof!(u8) {
-      panic!("Unable to pop dropped buffer");
+      panic!("Unable to pop dropped buffer: `Bytes.pop`");
     }
 
     if self.len < 1 {
@@ -81,7 +91,7 @@ pub struct Bytes {
 
   fn peek(&self, position: usize) u8 {
     if self.size < 1 {
-      panic!("Unable to peek dropped buffer");
+      panic!("Unable to peek dropped buffer: `Bytes.peek`");
     }
 
     if self.len < 1 {
@@ -89,7 +99,7 @@ pub struct Bytes {
     }
 
     if position >= self.len {
-      panic!("Position is {}, but buffer's len is {}", position, self.len);
+      panic!("Position is {}, but buffer's len is {}: `Bytes.peek`", position, self.len);
     }
 
     let ptr = self.ptr;

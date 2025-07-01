@@ -42,7 +42,7 @@ pub struct String {
 
   fn push(&self, value: char) {
     if self.size < 1 {
-      panic!("Unable to push into dropped string");
+      panic!("Unable to push into dropped string: `String.push`");
     }
 
     self.len += 1;
@@ -65,7 +65,7 @@ pub struct String {
 
   fn push_str(&self, value: *char) {
     if self.size < 1 {
-      panic!("Unable to push into dropped string");
+      panic!("Unable to push into dropped string: `String.push_str`");
     }
 
     self.len += strlen(value);
@@ -87,7 +87,7 @@ pub struct String {
 
   fn pop(&self) char {
     if self.size < 1 {
-      panic!("Unable to pop dropped string");
+      panic!("Unable to pop dropped string: `String.pop`");
     }
     
     if self.len < 1 {
@@ -118,7 +118,7 @@ pub struct String {
 
   fn peek(&self, position: usize) char {
     if self.size < 1 {
-      panic!("Unable to peek dropped string");
+      panic!("Unable to peek dropped string: `String.peek`");
     }
     
     if self.len < 1 {
@@ -126,7 +126,7 @@ pub struct String {
     }
 
     if position >= self.len {
-      panic!("Peek position is {}, but String len is {}", position, self.len);
+      panic!("Peek position is {}, but String len is {}: `String.peek`", position, self.len);
     }
 
     let ptr = self.ptr;

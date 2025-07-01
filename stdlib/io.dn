@@ -10,6 +10,7 @@ _extern_declare stderr **i8
 _extern_declare stdin **i8
 
 include "@string";
+include "@bytes";
 
 // standart input
 pub struct Stdin {
@@ -64,10 +65,14 @@ pub struct Stderr {
 
 extern "C" fn fopen(*char, *char) *void;
 extern "C" fn fclose(*void) i32;
+extern "C" fn feof(*void) bool;
 
 extern "C" fn fgetc(*void) char;
+extern "C" fn fread(*void, usize, usize, *void);
+
 extern "C" fn rewind(*void);
-extern "C" fn feof(*void) bool;
+extern "C" fn ftell(*void) usize;
+extern "C" fn fseek(*void, usize, i32);
 
 pub enum FileMode {
   Read,
@@ -98,22 +103,27 @@ struct ModeHandler {
   }
 }
 
+// SEEK_END = 2
+// EOF = -1
 pub struct File {
   path: String,
   mode: FileMode,
   is_open: bool,
 
+  size: usize,
   ptr: *void,
 
   fn open(filename: *char, mode: FileMode) File {
-    // TODO: Add error handling by NULL checker
-
     let str_mode = ModeHandler.specify(mode);
     let ptr = fopen(filename, str_mode);
 
     let is_open = ptr != NULL;
 
-    return File { .path = String.from(filename), .mode = mode, .ptr = ptr, .is_open = is_open };
+    fseek(ptr, 0, 2); // 2 is SEEK_END
+    let fsize = ftell(ptr);
+
+    rewind(ptr);
+    return File { .path = String.from(filename), .mode = mode, .ptr = ptr, .is_open = is_open, .size = fsize };
   }
 
   fn close(&self) i32 {
@@ -147,9 +157,29 @@ pub struct File {
     return '\0';
   }
 
+  fn read(&self) Bytes {
+    if !self.is_open {
+      panic!("Unable to read dropped file: `File.read`");
+    }
+
+    let buffer = Bytes.with_size(self.size);
+    let buffer_ptr = buffer.ptr;
+
+    let size: usize = self.size;
+    let pos: usize = 0;
+
+    while pos < size {
+      fread(buffer_ptr + pos, 1, 1, self.ptr);
+      pos += 1;
+    }
+
+    rewind(self.ptr);
+    return buffer;
+  }
+
   fn read_to_string(&self) String {
     if !self.is_open {
-      panic!("Unable to read dropped file");
+      panic!("Unable to read dropped file: `File.read_to_string`");
     }
 
     let buffer = String.new();
