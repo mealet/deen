@@ -66,6 +66,7 @@ extern "C" fn fopen(*char, *char) *void;
 extern "C" fn fclose(*void) i32;
 
 extern "C" fn fgetc(*void) char;
+extern "C" fn rewind(*void);
 extern "C" fn feof(*void) bool;
 
 pub enum FileMode {
@@ -127,6 +128,25 @@ pub struct File {
     return self.is_open;
   }
 
+  fn rewind(&self) {
+    if self.is_open {
+      rewind(self.ptr);
+    }
+  }
+
+  fn get_char(&self) char {
+    if self.is_open == true && !feof(self.ptr) {
+      let chr = fgetc(self.ptr);
+      if feof(self.ptr) {
+        return '\0'
+      };
+
+      return chr;
+    }
+
+    return '\0';
+  }
+
   fn read_to_string(&self) String {
     if !self.is_open {
       panic!("Unable to read dropped file");
@@ -144,6 +164,7 @@ pub struct File {
       let _ = buffer.pop();
     }
 
+    self.rewind();
     return buffer;
   }
 

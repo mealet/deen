@@ -91,7 +91,7 @@ pub struct String {
     }
     
     if self.len < 1 {
-      panic!("String which is being edited EMPTY");
+      return '\0';
     }
 
     self.len -= 1;
@@ -122,7 +122,7 @@ pub struct String {
     }
     
     if self.len < 1 {
-      panic!("Peekable string is EMPTY");
+      return '\0'
     }
 
     if position >= self.len {

@@ -1,0 +1,125 @@
+include "@string"
+
+extern "C" fn malloc(usize) *void;
+extern "C" fn realloc(*void, usize) *void;
+extern "C" fn free(*void);
+
+pub struct Bytes {
+  ptr: *u8,
+  size: usize,
+  len: usize,
+
+  iterator_ptr: usize,
+
+  fn new() Bytes {
+    let ptr: *u8 = malloc(sizeof!(u8));
+
+    if ptr == NULL {
+      panic!("Null pointer apeared on heap allocation `Bytes.new`");
+    }
+
+    return Bytes { .ptr = ptr, .size = sizeof!(u8), .len = 0, .iterator_ptr = 0 };
+  }
+
+  fn len(&self) usize {
+    return self.len;
+  }
+
+  fn push(&self, value: u8) {
+    if self.size < sizeof!(u8) {
+      panic!("Unable to push into dropped buffer");
+    }
+
+    self.len += 1;
+
+    if (self.size / sizeof!(u8)) < self.len {
+      self.size = self.len * sizeof!(u8);
+      let temp: *u8 = realloc(self.ptr, self.size);
+
+      if temp == NULL {
+        free(self.ptr);
+        panic!("Reallocation returned NULL pointer: `Bytes.push`");
+      }
+
+      self.ptr = temp;
+    }
+    
+    let ptr = self.ptr;
+    ptr[self.len - 1] = value;
+  }
+
+  fn pop(&self) u8 {
+    if self.size < sizeof!(u8) {
+      panic!("Unable to pop dropped buffer");
+    }
+
+    if self.len < 1 {
+      return 0;
+    }
+
+    self.len -= 1;
+
+    let ptr = self.ptr;
+    let output = ptr[self.len];
+
+    ptr[self.len] = 0;
+
+    if (self.size / sizeof!(u8)) > self.len {
+      self.size = self.len * sizeof!(u8);
+      let temp: *u8 = realloc(self.ptr, self.size);
+
+      if temp == NULL {
+        free(self.ptr);
+        panic!("Reallocation returned NULL pointer: `Bytes.pop`");
+      }
+
+      self.ptr = temp;
+    }
+
+    return output;
+  }
+
+  fn peek(&self, position: usize) u8 {
+    if self.size < 1 {
+      panic!("Unable to peek dropped buffer");
+    }
+
+    if self.len < 1 {
+      return 0;
+    }
+
+    if position >= self.len {
+      panic!("Position is {}, but buffer's len is {}", position, self.len);
+    }
+
+    let ptr = self.ptr;
+    return ptr[position];
+  }
+
+  fn raw(&self) *u8 {
+    return self.ptr;
+  }
+
+  // tech
+  fn drop(&self) {
+    if self.size != 0 {
+      self.len = 0;
+      self.size = 0;
+
+      free(self.ptr);
+    }
+  }
+
+  fn iterate(&self) (u8, bool) {
+    if self.iterator_ptr >= self.len {
+      self.iterator_ptr = 0;
+      return (0, false);
+    }
+
+    let ptr = self.ptr;
+    let byte = ptr[self.iterator_ptr];
+
+    self.iterator_ptr += 1;
+    return (byte, true);
+  }
+}
