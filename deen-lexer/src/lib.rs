@@ -134,7 +134,6 @@ impl Lexer {
                 std_type!("f32"),
                 std_type!("f64"),
                 std_type!("bool"),
-                std_type!("string"),
                 std_type!("char"),
                 std_type!("void"),
                 // Values
