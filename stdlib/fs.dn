@@ -1,0 +1,299 @@
+include "@string"
+include "@bytes"
+
+extern "C" fn fopen(*char, *char) *void;
+extern "C" fn fclose(*void) i32;
+extern "C" fn feof(*void) bool;
+
+extern "C" fn fgetc(*void) char;
+extern "C" fn fputc(char, *void) i32;
+extern "C" fn fread(*void, usize, usize, *void);
+extern "C" fn fwrite(*void, usize, usize, *void);
+
+extern "C" fn rewind(*void);
+extern "C" fn ftell(*void) usize;
+extern "C" fn fseek(*void, usize, i32);
+
+pub enum FSError {
+  None,
+  WriteableModeException,
+  ReadableModeException,
+  StdlibException,
+  NullFileBuffer,
+}
+
+pub enum FileMode {
+  Read,
+  ReadBinary,
+
+  Write,
+  WriteBinary,
+
+  Append,
+  AppendBinary,
+
+  ReadWrite,
+  ReadAppend,
+}
+
+struct ModeHandler {
+  fn specify(mode: FileMode) *char {
+    // I know this looks awful, but I'll return here when switch statements will appear
+    if mode == FileMode.Read { return "r" }
+    else if mode == FileMode.ReadBinary { return "rb" }
+    else if mode == FileMode.Write { return "w" }
+    else if mode == FileMode.WriteBinary { return "wb" }
+    else if mode == FileMode.Append { return "a" }
+    else if mode == FileMode.AppendBinary { return "ab" }
+    else if mode == FileMode.ReadWrite { return "r+" }
+    else if mode == FileMode.ReadAppend { return "a+" }
+    else { return "r+" }
+  }
+}
+
+pub struct FSErrorHandler {
+  fn specify(err: FSError) *char {
+    if err == FSError.WriteableModeException { return "Writeable stream has no mode permissions" }
+    else if err == FSError.ReadableModeException { return "Readable stream has no mode permessions" }
+    else if err == FSError.StdlibException { return "Standard C lib returned exception" }
+    else if err == FSError.NullFileBuffer { return "Provided file buffer is null (is it opened?)" }
+    else {
+      return "None"
+    }
+  }
+}
+
+// SEEK_END = 2
+// EOF = -1
+pub struct File {
+  path: String,
+  mode: FileMode,
+
+  is_open: bool,
+  error_state: FSError,
+
+  size: usize,
+  ptr: *void,
+
+  fn open(filename: *char, mode: FileMode) File {
+    let str_mode = ModeHandler.specify(mode);
+    let ptr = fopen(filename, str_mode);
+
+    let is_open = ptr != NULL;
+
+    let fsize: usize = 0;
+    let error_state = FSError.None;
+
+    if is_open {
+      fseek(ptr, 0, 2); // 2 is SEEK_END
+      fsize = ftell(ptr);
+
+      rewind(ptr);
+    } else {
+      error_state = FSError.StdlibException;
+    }
+
+    return File {
+      .path = String.from(filename),
+      .mode = mode,
+
+      .error_state = error_state,
+      .is_open = is_open,
+
+      .size = fsize,
+      .ptr = ptr,
+    };
+  }
+
+  fn close(&self) FSError {
+    if self.is_open {
+      self.is_open = false;
+      let _ = fclose(self.ptr);
+      return FSError.None;
+    }
+    return FSError.NullFileBuffer;
+  }
+
+  fn opened(&self) bool {
+    return self.is_open;
+  }
+
+  fn size(&self) usize {
+    return self.size;
+  }
+
+  fn get_error(&self) FSError {
+    return self.error_state;
+  }
+
+  fn specify_error(&self) *char {
+    return FSErrorHandler.specify(self.error_state);
+  }
+
+  fn rewind(&self) {
+    if self.is_open {
+      rewind(self.ptr);
+    }
+  }
+
+  fn get_char(&self) char {
+    if self.is_open == true && !feof(self.ptr) {
+      let chr = fgetc(self.ptr);
+      if feof(self.ptr) {
+        return '\0'
+      };
+
+      return chr;
+    }
+
+    return '\0';
+  }
+
+  fn read(&self) Bytes {
+    if !self.is_open {
+      self.error_state = FSError.NullFileBuffer;
+      return Bytes.new();
+      // panic!("Unable to read dropped file: `File.read`");
+    }
+
+    let buffer = Bytes.with_size(self.size);
+    let buffer_ptr = buffer.ptr;
+
+    let size: usize = self.size;
+    let pos: usize = 0;
+
+    while pos < size {
+      fread(buffer_ptr + pos, 1, 1, self.ptr);
+      pos += 1;
+    }
+
+    rewind(self.ptr);
+    return buffer;
+  }
+
+  fn read_string(&self) String {
+    if !self.is_open {
+      self.error_state = FSError.NullFileBuffer;
+      return String.new();
+      // panic!("Unable to read dropped file: `File.read_to_string`");
+    }
+
+    let buffer = String.new();
+    
+    while !feof(self.ptr) {
+      let chr = fgetc(self.ptr);
+      if feof(self.ptr) { break };
+      buffer.push(chr);
+    }
+
+    if buffer.peek(buffer.len() - 1) == '\n' {
+      let _ = buffer.pop();
+    }
+
+    self.rewind();
+    return buffer;
+  }
+
+  fn write(&self, bytes: *Bytes) FSError {
+    if !self.is_open {
+      self.error_state = FSError.NullFileBuffer;
+      return FSError.NullFileBuffer;
+    }
+
+    if self.mode != FileMode.Write && self.mode != FileMode.WriteBinary
+    && self.mode != FileMode.Append && self.mode != FileMode.AppendBinary
+    && self.mode != FileMode.ReadWrite && self.mode != FileMode.ReadAppend {
+      self.error_state = FSError.WriteableModeException;
+      return FSError.WriteableModeException;
+    }
+
+    fwrite(bytes.ptr, 1, bytes.len, self.ptr);
+
+    // re-calculating size
+    fseek(self.ptr, 0, 2); // 2 is SEEK_END
+    let fsize = ftell(self.ptr);
+    rewind(self.ptr);
+
+    self.size = fsize;
+
+    return FSError.None;
+  }
+
+  fn write_string(&self, value: *String) FSError {
+    if !self.is_open {
+      self.error_state = FSError.NullFileBuffer;
+      return FSError.NullFileBuffer;
+    }
+
+    if self.mode != FileMode.Write && self.mode != FileMode.WriteBinary
+    && self.mode != FileMode.Append && self.mode != FileMode.AppendBinary
+    && self.mode != FileMode.ReadWrite && self.mode != FileMode.ReadAppend {
+      self.error_state = FSError.WriteableModeException;
+      return FSError.WriteableModeException;
+    }   
+
+    let raw_string = value.raw();
+
+    let pos = 0;
+    let chr = raw_string[pos];
+
+    while pos < value.len {
+      if chr == '\0' { break };
+      fputc(chr, self.ptr);
+
+      pos += 1;
+      chr = raw_string[pos];
+    }
+
+    // re-calculating size
+    fseek(self.ptr, 0, 2); // 2 is SEEK_END
+    let fsize = ftell(self.ptr);
+    rewind(self.ptr);
+
+    self.size = fsize;
+
+    return FSError.None;
+  }
+
+  fn write_str(&self, value: *char) FSError {
+    if !self.is_open {
+      self.error_state = FSError.NullFileBuffer;
+      return FSError.NullFileBuffer;
+    }
+
+    if self.mode != FileMode.Write && self.mode != FileMode.WriteBinary
+    && self.mode != FileMode.Append && self.mode != FileMode.AppendBinary
+    && self.mode != FileMode.ReadWrite && self.mode != FileMode.ReadAppend {
+      self.error_state = FSError.WriteableModeException;
+      return FSError.WriteableModeException;
+    }   
+
+    let raw_string = value;
+
+    let pos = 0;
+    let chr = raw_string[pos];
+
+    while chr != '\0' {
+      if chr == '\0' { break };
+      fputc(chr, self.ptr);
+
+      pos += 1;
+      chr = raw_string[pos];
+    }
+
+    // re-calculating size
+    fseek(self.ptr, 0, 2); // 2 is SEEK_END
+    let fsize = ftell(self.ptr);
+    rewind(self.ptr);
+
+    self.size = fsize;
+
+    return FSError.None;
+  }
+
+  // compiler's tech
+  fn drop(&self) {
+    let dropping_string = self.path; // will be freed automatically
+    let _ = self.close();
+  }
+}
