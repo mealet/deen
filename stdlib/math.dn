@@ -26,7 +26,12 @@ extern "C" fn rand() i32;
 extern "C" fn time(*void) usize; 
 extern "C" fn srand(usize); 
 
-pub struct Math {
+pub struct Random {
+  fn init() Random {
+    srand(time(NULL));
+    return Random {};
+  }
+
   fn random(from: i32, to: i32) i32 {
     return from + rand() % (to - from + 1);
   }
