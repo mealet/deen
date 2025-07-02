@@ -737,7 +737,7 @@ impl Analyzer {
                                 }
                             };
 
-                            if &expected != provided && !is_void_ptr && expected != Type::Void {
+                            if &expected != provided && !is_void_ptr && expected != Type::Void && *provided != Type::Null {
                                 self.error(
                                     format!(
                                         "Argument #{} must be `{}`, but found `{}`",
@@ -2301,7 +2301,7 @@ impl Analyzer {
                                 if let Type::Pointer(expected_ptr_type) = expected.clone() {
                                     matches!(
                                         (provided, *expected_ptr_type == Type::Void),
-                                        (Type::Pointer(_), true)
+                                        (Type::Pointer(_) | Type::Null, true)
                                     )
                                 } else {
                                     false

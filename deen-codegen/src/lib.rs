@@ -2900,7 +2900,7 @@ impl<'ctx> CodeGen<'ctx> {
             }
 
             Value::Void => (Type::Void, self.context.bool_type().const_zero().into()),
-            Value::Null => (Type::Null, self.context.bool_type().const_zero().into()),
+            Value::Null => (Type::Null, self.context.ptr_type(AddressSpace::default()).const_null().into()),
             Value::Keyword(_) => unreachable!(),
         }
     }
