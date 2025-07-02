@@ -1,6 +1,6 @@
 # Minimum Required LLVM Version (1.18.8): https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04.tar.xz
 
-FROM ubuntu:22.04 as builder
+FROM ubuntu:22.04 AS builder
 
 # Installing dependencies
 RUN apt update && apt -y upgrade
