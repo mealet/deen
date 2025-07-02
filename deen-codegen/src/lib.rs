@@ -363,7 +363,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                 match (datatype, value) {
                     (Some(datatype), Some(value)) => {
-                        let value = self.compile_expression(value, Some(datatype));
+                        let value = self.compile_expression(value, Some(datatype.clone()));
 
                         if !empty_binding {
                             let alloca = self
@@ -374,7 +374,7 @@ impl<'ctx> CodeGen<'ctx> {
                             self.scope.set_variable(
                                 identifier,
                                 Variable {
-                                    datatype: value.0,
+                                    datatype: datatype,
                                     llvm_type: value.1.get_type(),
                                     ptr: alloca,
                                     no_drop: false,
@@ -1351,8 +1351,9 @@ impl<'ctx> CodeGen<'ctx> {
 
                 let fn_type = self.get_fn_type(return_type.clone(), &basic_arguments, is_var_args);
                 let fn_value =
-                    self.module
-                        .add_function(&identifier, fn_type, Some(Linkage::External));
+                    self.module.get_function(&identifier).unwrap_or_else(|| {
+                        self.module.add_function(&identifier, fn_type, Some(Linkage::External))
+                    });
 
                 // little hack cuz i dont wanna add `is_var_args` argument to function structure
                 // and fix the whole code for the only one usage

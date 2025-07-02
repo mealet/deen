@@ -517,7 +517,7 @@ impl Analyzer {
                 };
 
                 let value_type = self.visit_expression(value, Some(unwrapped_object_type.clone()));
-                if unwrapped_object_type != value_type {
+                if object_type != value_type {
                     self.error(
                         format!(
                             "Field has type `{}`, but found `{}`",
