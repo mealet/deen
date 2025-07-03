@@ -601,7 +601,7 @@ impl Lexer {
                                 output.push(Token::new(
                                     String::from("||"),
                                     TokenType::Or,
-                                    (span_start, self.position - 1),
+                                    (span_start, self.position),
                                 ));
                                 self.getc();
                             } else {
@@ -622,7 +622,7 @@ impl Lexer {
                                         output.push(Token::new(
                                             String::from("&&"),
                                             TokenType::And,
-                                            (span_start, self.position - 1),
+                                            (span_start, self.position),
                                         ));
                                     } else {
                                         output.push(Token::new(

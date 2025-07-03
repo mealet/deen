@@ -28,8 +28,8 @@ fn boolean_symbols() {
             Token::new(String::from(">"), TokenType::Bt, (0, 0)),
             Token::new(String::from("<"), TokenType::Lt, (2, 2)),
             Token::new(String::from("!"), TokenType::Not, (4, 4)),
-            Token::new(String::from("&&"), TokenType::And, (6, 7)),
-            Token::new(String::from("||"), TokenType::Or, (9, 10)),
+            Token::new(String::from("&&"), TokenType::And, (6, 8)),
+            Token::new(String::from("||"), TokenType::Or, (9, 11)),
             Token::new(String::from("=="), TokenType::Eq, (12, 13)),
             Token::new(String::from("!="), TokenType::Ne, (15, 16)),
             Token::new(String::new(), TokenType::EOF, (0, 0))
