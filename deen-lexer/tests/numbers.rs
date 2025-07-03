@@ -36,7 +36,7 @@ fn negative_number() {
     assert_eq!(
         tokens,
         vec![
-            Token::new(String::from("-"), TokenType::Minus, (0, 0)),
+            Token::new(String::from("-"), TokenType::Minus, (0, 1)),
             Token::new(String::from("15"), TokenType::Number, (1, 2)),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]
@@ -97,7 +97,7 @@ fn negative_float_number() {
     assert_eq!(
         tokens,
         vec![
-            Token::new(String::from("-"), TokenType::Minus, (0, 0)),
+            Token::new(String::from("-"), TokenType::Minus, (0, 1)),
             Token::new(String::from("1.89"), TokenType::FloatNumber, (1, 4)),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]

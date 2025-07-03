@@ -341,7 +341,20 @@ impl Parser {
                 }
             }
             TokenType::LParen => {
+                self.position -= 1;
                 let span_start = self.current().span.0;
+                self.position += 1;
+
+                if self.expect(TokenType::RParen) {
+                    let span_end = self.current().span.1 + 1;
+                    let _ = self.next();
+
+                    return Expressions::Tuple {
+                        values: Vec::new(),
+                        span: (span_start, span_end)
+                    };
+                }
+
                 let expr = self.expression();
 
                 if self.expect(TokenType::Comma) {
@@ -454,9 +467,9 @@ impl Parser {
                     self.expressions_enum(TokenType::LBrack, TokenType::RBrack, TokenType::Comma);
                 let len = values.len();
 
-                self.position -= 1;
+                // self.position -= 1;
                 let span_end = self.current().span.1;
-                let _ = self.next();
+                // let _ = self.next();
 
                 Expressions::Array {
                     values,

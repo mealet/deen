@@ -225,6 +225,9 @@ impl Parser {
     }
 
     pub fn binary_expression(&mut self, node: Expressions) -> Expressions {
+        let node_span = Self::get_span_expression(node.clone());
+        let span_end;
+
         let current = self.current();
 
         match current.token_type {
@@ -233,6 +236,10 @@ impl Parser {
 
                 let lhs = node;
                 let rhs = self.expression();
+
+                self.position -= 2;
+                span_end = self.current().span.1;
+                self.position += 1;
 
                 if PRIORITY_BINARY_OPERATORS.contains(&tty) {
                     let new_node = rhs.clone();
@@ -259,7 +266,7 @@ impl Parser {
                             operand,
                             lhs: Box::new(priority_node),
                             rhs,
-                            span,
+                            span: (node_span.0, span_end),
                         };
                     }
                 }
@@ -268,7 +275,7 @@ impl Parser {
                     operand: current.value,
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
-                    span: (current.span.0, self.current().span.1),
+                    span: (node_span.0, span_end)
                 }
             }
             _ => unreachable!(),
@@ -277,6 +284,9 @@ impl Parser {
 
     pub fn boolean_expression(&mut self, node: Expressions) -> Expressions {
         // FIXME: Expressions like `true || false` returns error "Undefined term found"
+
+        let node_span = Self::get_span_expression(node.clone());
+        let span_end;
 
         let current = self.current();
 
@@ -287,6 +297,10 @@ impl Parser {
 
                 let lhs = node.clone();
                 let rhs = self.expression();
+
+                self.position -= 2;
+                span_end = self.current().span.1;
+                self.position += 2;
 
                 if PRIORITY_BOOLEAN_OPERATORS.contains(&self.current().token_type) {
                     let operand = self.current().value;
@@ -304,7 +318,7 @@ impl Parser {
                         operand,
                         lhs: Box::new(lhs_node),
                         rhs: Box::new(rhs_node),
-                        span: (current.span.0, self.current().span.1),
+                        span: (node_span.0, span_end),
                     };
                 }
 
@@ -312,7 +326,7 @@ impl Parser {
                     operand: current.value,
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
-                    span: (current.span.0, self.current().span.1),
+                    span: (node_span.0, span_end),
                 }
             }
             _ => unreachable!(),
@@ -320,6 +334,9 @@ impl Parser {
     }
 
     pub fn bitwise_expression(&mut self, node: Expressions) -> Expressions {
+        let node_span = Self::get_span_expression(node.clone());
+        let span_end;
+
         let current = self.current();
 
         match current.token_type {
@@ -329,11 +346,15 @@ impl Parser {
                 let lhs = Box::new(node);
                 let rhs = Box::new(self.expression());
 
+                self.position -= 2;
+                span_end = self.current().span.1;
+                self.position += 2;
+
                 Expressions::Bitwise {
                     operand: current.value,
                     lhs,
                     rhs,
-                    span: (current.span.0, self.current().span.1),
+                    span: (node_span.0, span_end),
                 }
             }
             _ => unreachable!(),
@@ -395,14 +416,14 @@ impl Parser {
 
         let object = Box::new(expr.clone());
         let index = Box::new(self.expression());
-        let span_end = self.current().span.1;
 
         if self.current().token_type != TokenType::RBrack {
-            self.error(String::from(""), (self.span_expression(expr).0, span_end));
+            self.error(String::from("Index end not found"), (self.span_expression(expr).0, self.current().span.1));
             return Expressions::None;
         }
 
         let _ = self.next();
+        let span_end = self.current().span.1;
         Expressions::Slice {
             object,
             index,
@@ -517,10 +538,7 @@ impl Parser {
         if self.expect(start) {
             current = self.next()
         } else if self.expect(end.clone()) {
-            self.error(
-                String::from("Unexpected enumeration end found"),
-                current.span,
-            );
+            let _ = self.next();
             return Vec::new();
         }
 

@@ -405,7 +405,7 @@ impl Lexer {
                     output.push(Token::new(
                         String::from("/"),
                         TokenType::Divide,
-                        (self.position - 1, self.position - 1),
+                        (self.position - 1, self.position),
                     ));
                 }
                 chr if self.std_symbols.contains_key(&chr) => {
@@ -515,7 +515,7 @@ impl Lexer {
                                 }
                                 _ => {
                                     let mut formatted_token = matched_token;
-                                    formatted_token.span = (span_start - 1, self.position - 1);
+                                    formatted_token.span = (span_start - 1, self.position);
 
                                     output.push(formatted_token);
                                 }
@@ -606,7 +606,7 @@ impl Lexer {
                                 self.getc();
                             } else {
                                 let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start, self.position - 2);
+                                formatted_token.span = (span_start, self.position - 1);
 
                                 output.push(formatted_token);
                             }
@@ -639,7 +639,7 @@ impl Lexer {
                                 }
                                 ' ' => {
                                     let mut formatted_token = matched_token;
-                                    formatted_token.span = (span_start, self.position - 2);
+                                    formatted_token.span = (span_start, self.position - 1);
 
                                     output.push(formatted_token);
                                 }
@@ -647,14 +647,14 @@ impl Lexer {
                                     output.push(Token::new(
                                         String::from("&"),
                                         TokenType::Ref,
-                                        (span_start, self.position - 2),
+                                        (span_start, self.position - 1),
                                     ));
                                 }
                             }
                         }
                         _ => {
                             let mut formatted_token = matched_token;
-                            formatted_token.span = (span_start, span_start);
+                            formatted_token.span = (span_start, span_start + 1);
 
                             output.push(formatted_token);
                             self.getc();

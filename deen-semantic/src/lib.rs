@@ -539,6 +539,7 @@ impl Analyzer {
 
                 match (datatype, value) {
                     (Some(datatype), Some(value)) => {
+                        let value_span = deen_parser::Parser::get_span_expression(value.clone());
                         let value_type = self.visit_expression(value, Some(datatype.clone()));
 
                         if &value_type != datatype {
@@ -561,7 +562,7 @@ impl Analyzer {
                                                 display_type.unwrap(),
                                                 value_type
                                             ),
-                                            *span,
+                                            value_span,
                                         );
                                     }
                                 } else {
@@ -571,7 +572,7 @@ impl Analyzer {
                                             display_type.unwrap(),
                                             value_type
                                         ),
-                                        *span,
+                                        value_span,
                                     );
                                 }
                             }
@@ -1680,7 +1681,7 @@ impl Analyzer {
                         });
 
                         if struct_type == Type::Void {
-                            return Type::Alias(left);
+                            return expected.unwrap_or(Type::Alias(left));
                         }
 
                         if left != right {
@@ -1717,7 +1718,7 @@ impl Analyzer {
                                     format!("Type `{}` has no implementation for binary operations: {}", left, implementation_format),
                                     *span
                                 );
-                                Type::Alias(left)
+                                expected.unwrap_or(Type::Alias(left))
                             }
                         } else {
                             unreachable!()
@@ -1732,7 +1733,7 @@ impl Analyzer {
                             ),
                             *span,
                         );
-                        left
+                        expected.unwrap_or(left)
                     }
                 }
             }
@@ -1741,7 +1742,7 @@ impl Analyzer {
                 object,
                 span,
             } => {
-                let obj = self.visit_expression(object, expected);
+                let obj = self.visit_expression(object, expected.clone());
 
                 match (&obj, operand.as_str()) {
                     (typ, "-") if Self::is_integer(typ) => {
@@ -1764,7 +1765,7 @@ impl Analyzer {
                         });
 
                         if struct_type == Type::Void {
-                            return Type::Alias(alias.clone());
+                            return expected.unwrap_or(Type::Alias(alias.clone()));
                         }
 
                         if let Type::Struct(_, functions) = struct_type {
@@ -1830,10 +1831,15 @@ impl Analyzer {
                     },
 
                     (l, r) if Self::is_integer(&l) && Self::is_integer(&r) => Type::Bool,
-                    (l, r) if Self::is_integer(&l) || l == Type::Char || Self::is_integer(&r) || r == Type::Char => Type::Bool,
+
+                    (l, r) if (Self::is_integer(&l) && r == Type::Char)
+                           || (Self::is_integer(&r) && l == Type::Char) => {
+                        Type::Bool
+                    },
 
                     (l, r) if Self::is_float(&l) && Self::is_float(&r) => Type::Bool,
                     (l, r) if l == r && SUPPORTED_EXTRA_TYPES.contains(&l) => Type::Bool,
+
                     (Type::Pointer(l), Type::Pointer(r)) if l == r && *l == Type::Char => {
                         Type::Bool
                     }
@@ -1865,7 +1871,7 @@ impl Analyzer {
                                 ),
                                 *span,
                             );
-                            return Type::Alias(left);
+                            return Type::Bool;
                         }
 
                         if let Type::Struct(_, functions) = struct_type {
@@ -1927,12 +1933,12 @@ impl Analyzer {
                         ),
                         *span,
                     );
-                    return left;
+                    return expected.unwrap_or(left);
                 };
 
                 if [">>", "<<"].contains(&operand.as_ref()) && !Self::is_unsigned_integer(&right) {
                     self.error("Shift index must be unsigned integer".to_string(), *span);
-                    return left;
+                    return expected.unwrap_or(left);
                 }
 
                 if Self::integer_order(&left) > Self::integer_order(&right) {
@@ -1967,7 +1973,7 @@ impl Analyzer {
                 });
                 let mut prev_expr = *head.clone();
                 if prev_type == Type::Void {
-                    return head_type;
+                    return expected.unwrap_or(head_type);
                 };
 
                 subelements.iter().for_each(|sub| {
@@ -2363,7 +2369,7 @@ impl Analyzer {
                 Type::Pointer(Box::new(obj))
             }
             Expressions::Dereference { object, span } => {
-                let obj = self.visit_expression(object, expected);
+                let obj = self.visit_expression(object, expected.clone());
                 
                 match obj {
                     Type::Pointer(ptr_type) => *ptr_type,
@@ -2378,7 +2384,7 @@ impl Analyzer {
                             Type::Void
                         });
 
-                        if struct_type == Type::Void { return Type::Void }
+                        if struct_type == Type::Void { return expected.unwrap_or(Type::Void) }
 
                         if let Type::Struct(_, functions) = struct_type {
                             if let Some(Type::Function(args, datatype, _)) = functions.get("deref") {
@@ -2394,27 +2400,27 @@ impl Analyzer {
                                     format!("Type `{}` has no implementation for dereference: {}", alias, IMPLEMENTATION_FORMAT),
                                     *span
                                 );
-                                Type::Alias(alias)
+                                expected.unwrap_or(Type::Alias(alias))
                             }
                         } else {
                             self.error(
                                 format!("Type `{}` cannot be dereferenced", alias),
                                 *span
                             );
-                            struct_type
+                            expected.unwrap_or(struct_type)
                         }
                     }
 
                     _ => {
                         self.error(format!("Type {} cannot be dereferenced!", obj), *span);
-                        obj
+                        expected.unwrap_or(obj)
                     }
                 }
             }
 
             Expressions::Array { values, len, span } => {
                 if *len < 1 {
-                    self.error("Empty array type is unknown".to_string(), *span);
+                    self.error("Empty array is not allowed".to_string(), *span);
                     return Type::Void;
                 }
 
@@ -2434,8 +2440,8 @@ impl Analyzer {
             }
             Expressions::Tuple { values, span } => {
                 if values.is_empty() {
-                    self.error("Unknown by compilation time tuple found".to_string(), *span);
-                    return Type::Void;
+                    self.error("Empty tuples is not allowed".to_string(), *span);
+                    return expected.unwrap_or(Type::Void);
                 }
 
                 let mut expected_types = values.iter().map(|_| None).collect::<Vec<Option<Type>>>();
@@ -2456,7 +2462,7 @@ impl Analyzer {
                 index,
                 span,
             } => {
-                let obj = self.visit_expression(object, expected);
+                let obj = self.visit_expression(object, expected.clone());
 
                 match obj {
                     Type::Tuple(types) => {
@@ -2466,16 +2472,16 @@ impl Analyzer {
                                     "Tuple index must be unsigned".to_string(),
                                     Parser::get_span_expression(*index.clone()),
                                 );
-                                return Type::Void;
+                                return expected.unwrap_or(Type::Void);
                             }
 
                             types[ind as usize].clone()
                         } else {
                             self.error(
-                                "Tuple index must be known by compile-time".to_string(),
+                                "Tuple index must be a known constant".to_string(),
                                 Parser::get_span_expression(*index.clone()),
                             );
-                            Type::Void
+                            expected.unwrap_or(Type::Void)
                         }
                     }
                     Type::Array(tty, _) => *tty,
@@ -2484,7 +2490,7 @@ impl Analyzer {
 
                     _ => {
                         self.error(format!("Type `{}` is not supported for slice", obj), *span);
-                        Type::Void
+                        expected.unwrap_or(Type::Void)
                     }
                 }
             }
@@ -2495,7 +2501,7 @@ impl Analyzer {
                 });
 
                 if structure == Type::Void {
-                    return Type::Void;
+                    return expected.unwrap_or(Type::Void);
                 };
                 if let Type::Struct(struct_fields, _) = structure.clone() {
                     let mut assigned_fields = HashMap::new();
@@ -2571,11 +2577,11 @@ impl Analyzer {
                 scope_type
             }
 
-            Expressions::Value(value, span) => match self.visit_value(value.clone(), expected) {
+            Expressions::Value(value, span) => match self.visit_value(value.clone(), expected.clone()) {
                 Ok(tty) => tty,
                 Err(err) => {
                     self.error(err, *span);
-                    Type::Void
+                    expected.unwrap_or(Type::Void)
                 }
             },
             Expressions::None => Type::Void,
