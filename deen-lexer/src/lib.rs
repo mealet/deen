@@ -710,3 +710,58 @@ impl Lexer {
         Ok((output, self.warnings.clone()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn getc_test() {
+        let mut lexer = Lexer::new("123456789", "test.dn");
+
+        let mut chr = lexer.char;
+        let mut current = 1;
+
+        while chr != '\0' {
+            assert_eq!(chr, char::from_digit(current, 10).unwrap_or(' '));
+            lexer.getc();
+
+            current += 1;
+            chr = lexer.char;
+        }
+    }
+
+    #[test]
+    fn is_eof_test() {
+        let mut lexer = Lexer::new("1", "test.dn");
+        lexer.getc();
+
+        assert!(lexer.is_eof());
+    }
+
+    #[test]
+    fn is_hexadecimal_literal_test() {
+        let lexer = Lexer::new("", "test.dn");
+
+        ['a', 'b', 'c', 'd', 'e', 'f'].iter().for_each(|chr| {
+            assert!(lexer.is_hexadecimal_literal(chr))
+        });
+
+        assert!(!lexer.is_hexadecimal_literal(&' '));
+    }
+
+    #[test]
+    fn character_escape_test() {
+        [
+            ('0', '\0'),
+            ('n', '\n'),
+            ('r', '\r'),
+            ('t', '\t'),
+            ('\\', '\\'),
+        ].into_iter().for_each(|(chr, exp)| {
+            assert_eq!(Lexer::character_escape(chr), Some(exp))
+        });
+
+        assert!(Lexer::character_escape(' ').is_none())
+    }
+}

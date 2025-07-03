@@ -2946,6 +2946,7 @@ impl<'ctx> CodeGen<'ctx> {
             &[self.context.ptr_type(AddressSpace::default()).into()],
             true,
         );
+
         let fn_value = self.module.add_function(
             "__deen_panic",
             fn_type,
@@ -3220,16 +3221,57 @@ impl<'ctx> CodeGen<'ctx> {
 
         let strings = (
             self.builder
-                .build_global_string_ptr("true", "")
+                .build_global_string_ptr("true", "@true")
                 .unwrap()
                 .as_pointer_value(),
             self.builder
-                .build_global_string_ptr("false", "")
+                .build_global_string_ptr("false", "@false")
                 .unwrap()
                 .as_pointer_value(),
         );
 
         self.booleans_strings = Some(strings);
         strings
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn panic_function_test() {
+        let ctx = CodeGen::create_context();
+        let mut codegen = CodeGen::new(&ctx, "", "", deen_semantic::symtable::SymbolTable::default());
+
+        let main_fn = codegen.module.add_function("main", codegen.context.void_type().fn_type(&[], false), None);
+        let entry_block = codegen.context.append_basic_block(main_fn, "entry");
+        codegen.builder.position_at_end(entry_block);
+
+        let panic_fn = codegen.create_panic_function();
+
+        assert_eq!(panic_fn.get_linkage(), Linkage::Private);
+        assert_eq!(panic_fn.is_null(), false);
+        assert_eq!(panic_fn.is_undef(), false);
+        assert_eq!(panic_fn.verify(false), true);
+    }
+
+    #[test]
+    fn boolean_strings_test() {
+        let ctx = CodeGen::create_context();
+        let mut codegen = CodeGen::new(&ctx, "", "", deen_semantic::symtable::SymbolTable::default());       
+
+        let main_fn = codegen.module.add_function("main", codegen.context.void_type().fn_type(&[], false), None);
+        let entry_block = codegen.context.append_basic_block(main_fn, "entry");
+        codegen.builder.position_at_end(entry_block);
+
+        let (true_str, false_str) = codegen.booleans_strings();
+        let (true_str_2, false_str_2) = codegen.booleans_strings();
+
+        assert_eq!(true_str, true_str_2);
+        assert_eq!(false_str, false_str_2);
+
+        assert_eq!(true_str.get_name().to_str().unwrap(), "@true");
+        assert_eq!(false_str.get_name().to_str().unwrap(), "@false");
     }
 }
