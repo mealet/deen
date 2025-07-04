@@ -2903,7 +2903,7 @@ impl Analyzer {
                         );
                     };
                     
-                    if index ==  macro_object.arguments.len() - 1 {
+                    if index ==  macro_object.arguments.len() - 1 && macro_object.settings.contains(&MacrosOption::ReturnLastType) {
                         last_type = Some(provided.clone());
                     }
 
