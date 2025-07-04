@@ -393,7 +393,8 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                         return from_value;
                     }
 
-                    (from, to) if deen_semantic::Analyzer::is_integer(from) && deen_semantic::Analyzer::is_integer(to) => {
+                    (from, to) if deen_semantic::Analyzer::is_integer(from) && deen_semantic::Analyzer::is_integer(to)
+                    || from == &Type::Char || to == &Type::Char || from == &Type::Bool || to == &Type::Bool => {
                         let unsigned = deen_semantic::Analyzer::is_unsigned_integer(to);
 
                         let from_order = deen_semantic::Analyzer::integer_order(from);
@@ -429,7 +430,19 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                             self.builder.build_float_ext(from_value.1.into_float_value(), target_basic_type.into_float_type(), "").unwrap().into()
                         };
 
-                        (to_type.0, value)
+                        return (to_type.0, value);
+                    }
+
+                    (from, to) if deen_semantic::Analyzer::is_float(from) && deen_semantic::Analyzer::is_integer(to) => {
+                        let unsigned = deen_semantic::Analyzer::is_unsigned_integer(to);
+
+                        let value = if unsigned {
+                            self.builder.build_float_to_unsigned_int(from_value.1.into_float_value(), target_basic_type.into_int_type(), "").unwrap().into()
+                        } else {
+                            self.builder.build_float_to_signed_int(from_value.1.into_float_value(), target_basic_type.into_int_type(), "").unwrap().into()
+                        };
+
+                        return (to_type.0, value);
                     }
                     
                     _ => panic!("Unimplemented cast type catched")

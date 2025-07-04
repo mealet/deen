@@ -2960,6 +2960,7 @@ impl Analyzer {
             _ if (from == &Type::Bool && Self::is_integer(to))
             || (Self::is_integer(from) && to == &Type::Bool) => Ok(()),
 
+            _ if from == to => Ok(()),
             _ => Err(format!("Cast `{}` -> `{}` is unavaible", from, to))
         }
     }
@@ -3013,6 +3014,7 @@ impl Analyzer {
     #[inline]
     pub fn integer_order(typ: &Type) -> usize {
         match typ {
+            Type::Bool => 0,
             Type::Char => 0,
             Type::U8 => 0,
             Type::U16 => 1,
