@@ -9,7 +9,8 @@ pub struct MacrosObject {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum MacrosOption {
+    ReturnLastType,
+    TypeCaster,
     FirstLiteral,
     VarArgs,
-    // MatchingTypes,
 }

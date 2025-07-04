@@ -96,13 +96,22 @@ impl Analyzer {
                     return_type: Type::Void,
                 },
             ),
-            // panic!("number: {}", 15)
+            // sizeof!(i32)
             (
                 "sizeof".to_string(),
                 MacrosObject {
                     arguments: vec![Type::Void],
                     settings: vec![],
                     return_type: Type::USIZE,
+                },
+            ),
+            // cast!('a', i32)
+            (
+                "cast".to_string(),
+                MacrosObject {
+                    arguments: vec![Type::Void, Type::Void],
+                    settings: vec![MacrosOption::ReturnLastType, MacrosOption::TypeCaster],
+                    return_type: Type::Undefined,
                 },
             ),
         ]);
@@ -1949,14 +1958,13 @@ impl Analyzer {
             }
 
             Expressions::Argument { name, r#type, span } => {
-                if name == "@deen_type" {
-                    return Type::Void;
+                if name != "@deen_type" {
+                    self.error(
+                        String::from("Argument expressions isn't supported in global code"),
+                        *span,
+                    );
                 }
 
-                self.error(
-                    String::from("Argument expressions isn't supported in global code"),
-                    *span,
-                );
                 r#type.clone()
             }
             Expressions::SubElement {
@@ -2875,6 +2883,9 @@ impl Analyzer {
                 }
             }
 
+            let mut last_type = None;
+            let mut args_types = Vec::new();
+
             macro_object
                 .arguments
                 .iter()
@@ -2891,6 +2902,12 @@ impl Analyzer {
                             deen_parser::Parser::get_span_expression(expression.clone()),
                         );
                     };
+                    
+                    if index ==  macro_object.arguments.len() - 1 {
+                        last_type = Some(provided.clone());
+                    }
+
+                    args_types.push(provided);
                 });
 
             if macro_object.arguments.len() < arguments.len()
@@ -2906,10 +2923,44 @@ impl Analyzer {
                 );
             }
 
-            macro_object.return_type
+            if macro_object.settings.contains(&MacrosOption::TypeCaster) {
+                if matches!(arguments[0], Expressions::Argument { name: _, r#type: _, span: _ }) {
+                    self.error(
+                        format!("First argument must be an expression for type-casting"),
+                        *span
+                    );
+                } else {
+                    self.verify_cast(&args_types[0], &args_types[1]).unwrap_or_else(|err| {
+                        self.error(
+                            err,
+                            *span
+                        );
+                    });
+                }
+            }
+
+            last_type.unwrap_or(macro_object.return_type)
         } else {
             self.error(format!("There's no macros called `{}!`", name), *span);
             Type::Void
+        }
+    }
+
+    fn verify_cast(&self, from: &Type, to: &Type) -> Result<(), String> {
+        match (from, to) {
+            _ if Self::is_integer(from) && Self::is_integer(to) => Ok(()),
+            _ if Self::is_float(from) && Self::is_float(to) => Ok(()),
+
+            _ if (Self::is_integer(from) && Self::is_float(to))
+            || (Self::is_float(from) && Self::is_integer(to))=> Ok(()),
+
+            _ if (Self::is_integer(from) && to == &Type::Char)
+            || (from == &Type::Char && Self::is_integer(to)) => Ok(()),
+
+            _ if (from == &Type::Bool && Self::is_integer(to))
+            || (Self::is_integer(from) && to == &Type::Bool) => Ok(()),
+
+            _ => Err(format!("Cast `{}` -> `{}` is unavaible", from, to))
         }
     }
 }

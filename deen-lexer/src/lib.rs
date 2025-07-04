@@ -480,7 +480,7 @@ impl Lexer {
                             output.push(Token::new(
                                 chr.to_string(),
                                 TokenType::Char,
-                                (span_start, self.position - 1),
+                                (span_start, self.position),
                             ));
                             self.getc();
                         }

@@ -2741,9 +2741,11 @@ impl<'ctx> CodeGen<'ctx> {
 
             Expressions::Argument {
                 name: _,
-                r#type: _,
+                r#type,
                 span: _,
-            } => unreachable!(),
+            } => {
+                (r#type.clone(), self.get_basic_type(r#type).const_zero())
+            }
             Expressions::None => unreachable!(),
         }
     }
