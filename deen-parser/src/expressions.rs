@@ -239,7 +239,7 @@ impl Parser {
 
                 self.position -= 2;
                 span_end = self.current().span.1;
-                self.position += 1;
+                self.position += 2;
 
                 if PRIORITY_BINARY_OPERATORS.contains(&tty) {
                     let new_node = rhs.clone();
