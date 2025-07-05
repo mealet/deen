@@ -2496,6 +2496,48 @@ impl Analyzer {
                     Type::Pointer(ptr_type) => *ptr_type,
                     Type::DynamicArray(tty) => *tty,
 
+                    Type::Alias(alias) => {
+                        const IMPLEMENTATION_FORMAT: &str = "fn slice(&self, index: usize) _";
+
+                        let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
+                            self.error(
+                                format!("Type `{}` cannot be sliced", alias),
+                                *span
+                            );
+                            Type::Void
+                        });
+
+                        if struct_type == Type::Void { return expected.unwrap_or(Type::Void) }
+
+                        if let Type::Struct(_, functions) = struct_type {
+                            if let Some(Type::Function(args, datatype, _)) = functions.get("slice") {
+                                if !(
+                                    *args == vec![Type::Alias(alias.clone()), Type::USIZE]
+                                    && *datatype.clone() != Type::Void
+                                ) {
+                                    self.error(
+                                        format!("Type `{}` has WRONG implementation for slice: {}", alias, IMPLEMENTATION_FORMAT),
+                                        *span
+                                    );
+                                }
+
+                                *datatype.clone()
+                            } else {
+                                self.error(
+                                    format!("Type `{}` has no implementation for slice: {}", alias, IMPLEMENTATION_FORMAT),
+                                    *span
+                                );
+                                expected.unwrap_or(Type::Alias(alias))
+                            }
+                        } else {
+                            self.error(
+                                format!("Type `{}` cannot be dereferenced", alias),
+                                *span
+                            );
+                            expected.unwrap_or(struct_type)
+                        }
+                    }
+
                     _ => {
                         self.error(format!("Type `{}` is not supported for slice", obj), *span);
                         expected.unwrap_or(Type::Void)

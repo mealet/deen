@@ -2614,7 +2614,7 @@ impl<'ctx> CodeGen<'ctx> {
                 index,
                 span,
             } => {
-                let obj = self.compile_expression(*object, None);
+                let obj = self.compile_expression(*object.clone(), None);
                 let idx = self.compile_expression(*index, Some(Type::USIZE));
 
                 match obj.0 {
@@ -2696,6 +2696,25 @@ impl<'ctx> CodeGen<'ctx> {
                         let ret_value = self.builder.build_load(basic_ret_type, ptr, "").unwrap();
                         (*ptr_type, ret_value)
                     }
+
+                    Type::Alias(alias) => {
+                        // getting struct ptr and type
+                        let ptr = self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Undefined)))).1;
+
+                        let struct_type = self.scope.get_struct(alias).unwrap();
+                        let slice_fn = struct_type.functions.get("slice").unwrap();
+
+                        // calling slice function
+                        let call_result = self
+                            .builder
+                            .build_call(slice_fn.value, &[ptr.into(), idx.1.into()], "@deen_slice_call")
+                            .unwrap()
+                            .try_as_basic_value()
+                            .unwrap_left();
+
+                        (slice_fn.datatype.clone(), call_result)
+                    }
+
                     _ => unreachable!(),
                 }
             }
