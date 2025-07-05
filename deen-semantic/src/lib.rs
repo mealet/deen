@@ -1718,6 +1718,17 @@ impl Analyzer {
                         left
                     }
 
+                    (Type::Pointer(_), Type::Pointer(_)) => {
+                         if operand != "+" && operand != "-" {
+                            self.error(
+                                "Unexpected binary operator for pointer found".to_string(),
+                                *span,
+                            );
+                        }
+
+                        Type::USIZE
+                    }
+
                     (Type::Alias(left), Type::Alias(right)) => {
                         let implementation_format: String = format!("fn binary(&self, other: *{}, operand: *char) {}", left, left);
 

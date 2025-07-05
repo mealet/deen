@@ -1718,7 +1718,7 @@ impl<'ctx> CodeGen<'ctx> {
                 });
 
                 let lhs_value = self.compile_expression(*lhs.clone(), expected.clone());
-                let rhs_value = self.compile_expression(*rhs.clone(), expected);
+                let rhs_value = self.compile_expression(*rhs.clone(), expected.clone());
 
                 let senior_type = match lhs_value.0.clone() {
                     typ if deen_semantic::Analyzer::is_integer(&typ) => {
@@ -1727,7 +1727,7 @@ impl<'ctx> CodeGen<'ctx> {
                         {
                             lhs_value.0
                         } else {
-                            rhs_value.0
+                            rhs_value.0.clone()
                         }
                     }
                     typ if deen_semantic::Analyzer::is_float(&typ) => {
@@ -1736,10 +1736,11 @@ impl<'ctx> CodeGen<'ctx> {
                         {
                             lhs_value.0
                         } else {
-                            rhs_value.0
+                            rhs_value.0.clone()
                         }
                     }
 
+                    typ if matches!((&typ, &rhs_value.0), (Type::Pointer(_), Type::Pointer(_))) => Type::USIZE,
                     Type::Pointer(_) => lhs_value.0,
 
                     Type::Alias(alias) => Type::Alias(alias),
@@ -1900,17 +1901,36 @@ impl<'ctx> CodeGen<'ctx> {
                         _ => unreachable!(),
                     },
 
-                    Type::Pointer(ptr_type) => unsafe {
-                        self.builder
-                            .build_in_bounds_gep(
-                                self.get_basic_type(*ptr_type.clone()),
-                                lhs_value.1.into_pointer_value(),
-                                &[rhs_value.1.into_int_value()],
-                                "",
-                            )
-                            .unwrap()
-                    }
-                    .as_basic_value_enum(),
+                    Type::Pointer(ptr_type) => {
+                        if matches!(rhs_value.0, Type::Pointer(_)) {
+                            let lhs_int = self.builder.build_ptr_to_int(lhs_value.1.into_pointer_value(), self.context.i64_type(), "").unwrap();
+                            let rhs_int = self.builder.build_ptr_to_int(rhs_value.1.into_pointer_value(), self.context.i64_type(), "").unwrap();
+
+                            let mut value = match operand.as_str() {
+                                "+" => self.builder.build_int_add(lhs_int, rhs_int, "").unwrap(),
+                                "-" => self.builder.build_int_sub(lhs_int, rhs_int, "").unwrap(),
+                                _ => unreachable!()
+                            }.as_basic_value_enum();
+
+                            if matches!(expected, Some(Type::Pointer(_))) {
+                                value = self.builder.build_int_to_ptr(value.into_int_value(), lhs_value.1.get_type().into_pointer_type(), "").unwrap().into();
+                            }
+
+                            value
+                        } else {
+                            unsafe {
+                                self.builder
+                                    .build_in_bounds_gep(
+                                        self.get_basic_type(*ptr_type.clone()),
+                                        lhs_value.1.into_pointer_value(),
+                                        &[rhs_value.1.into_int_value()],
+                                        "",
+                                    )
+                                    .unwrap()
+                            }
+                            .as_basic_value_enum()
+                        }
+                    },
 
                     Type::Alias(alias) => {
                         // let exp = Some(Type::Pointer(Box::new(Type::Undefined)));
