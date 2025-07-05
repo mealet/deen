@@ -133,6 +133,23 @@ pub struct String {
     return ptr[position];
   }
 
+  fn set(&self, position: usize, value: char) {
+    if self.size < 1 {
+      panic!("Unable to set dropped string: `String.set`");
+    }
+    
+    if self.len < 1 {
+      return;
+    }
+
+    if position >= self.len {
+      panic!("Set position is {}, but String len is {}: `String.set`", position, self.len);
+    }
+
+    let ptr = self.ptr;
+    ptr[position] = value;
+  }
+
   fn raw(&self) *char {
     return self.ptr;
   }
@@ -176,6 +193,14 @@ pub struct String {
 
     if self.len > other.len { return -1 }
     return 1;
+  }
+
+  fn slice(&self, index: usize) char {
+    return self.peek(index);
+  }
+
+  fn slice_assign(&self, index: usize, value: char) {
+    self.set(index, value);
   }
 
   fn deref(&self) *char {

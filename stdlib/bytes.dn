@@ -106,6 +106,24 @@ pub struct Bytes {
     return ptr[position];
   }
 
+  fn set(&self, position: usize, value: u8) {
+    if self.size < 1 {
+      panic!("Unable to set dropped buffer: `Bytes.set`");
+    }
+    
+    if self.len < 1 {
+      return;
+    }
+
+    if position >= self.len {
+      panic!("Set position is {}, but buffer's len is {}: `Bytes.set`", position, self.len);
+    }
+
+    let ptr = self.ptr;
+    ptr[position] = value;
+  }
+
+
   fn raw(&self) *u8 {
     return self.ptr;
   }
@@ -131,5 +149,13 @@ pub struct Bytes {
 
     self.iterator_ptr += 1;
     return (byte, true);
+  }
+
+  fn slice(&self, index: usize) u8 {
+    return self.peek(index);
+  }
+
+  fn slice_assign(&self, index: usize, value: u8) {
+    self.set(index, value);
   }
 }
