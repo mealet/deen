@@ -252,11 +252,18 @@ impl<'ctx> CodeGen<'ctx> {
                 value,
                 span,
             } => {
-                let obj = self.compile_expression(object, None);
+                let obj = self.compile_expression(object.clone(), None);
                 let idx = self.compile_expression(index, Some(Type::USIZE));
 
                 match obj.0 {
                     Type::Array(item_type, len) => {
+                        let obj_ptr = if obj.1.is_pointer_value() {
+                            obj.1.into_pointer_value()
+                        } else {
+                            let recompiled = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Undefined)))).1;
+                            recompiled.into_pointer_value()
+                        };
+
                         let value = self.compile_expression(value, Some(*item_type.clone()));
 
                         // checking for the right index
@@ -308,7 +315,7 @@ impl<'ctx> CodeGen<'ctx> {
                             self.builder
                                 .build_in_bounds_gep(
                                     self.get_basic_type(*item_type),
-                                    obj.1.into_pointer_value(),
+                                    obj_ptr,
                                     &[idx.1.into_int_value()],
                                     "",
                                 )
@@ -334,6 +341,16 @@ impl<'ctx> CodeGen<'ctx> {
 
                         // storing value
                         self.builder.build_store(ptr, value.1).unwrap();
+                    }
+
+                    Type::Alias(alias) => {
+                        let instance_ptr = self.compile_expression(object, Some(Type::Pointer(Box::new(Type::Undefined)))).1;
+
+                        let struct_type = self.scope.get_struct(alias).unwrap();
+                        let slice_assign_fn = struct_type.functions.get("slice_assign").unwrap();
+                        let compiled_value = self.compile_expression(value, Some(slice_assign_fn.arguments[2].clone()));
+
+                        self.builder.build_call(slice_assign_fn.value, &[instance_ptr.into(), idx.1.into(), compiled_value.1.into()], "@deen_slice_assign_call").unwrap();
                     }
 
                     _ => unreachable!(),
@@ -2521,14 +2538,14 @@ impl<'ctx> CodeGen<'ctx> {
                     .map(|val| self.compile_expression(val, expected_items_type.clone()))
                     .collect::<Vec<(Type, BasicValueEnum)>>();
 
-                let arr_type = compiled_values[0].0.clone();
-                let arr_basic_type = compiled_values[0].1.get_type();
+                let elements_type = compiled_values[0].0.clone();
+                let elements_basic_type = compiled_values[0].1.get_type();
 
+                let arr_basic_type = elements_basic_type.array_type(len as u32);
                 let arr_alloca = self
                     .builder
-                    .build_array_alloca(
+                    .build_alloca(
                         arr_basic_type,
-                        self.context.i64_type().const_int(len as u64, false),
                         "",
                     )
                     .unwrap();
@@ -2540,7 +2557,7 @@ impl<'ctx> CodeGen<'ctx> {
                         let ptr = unsafe {
                             self.builder
                                 .build_in_bounds_gep(
-                                    arr_basic_type,
+                                    elements_basic_type,
                                     arr_alloca,
                                     &[self.context.i64_type().const_int(ind as u64, false)],
                                     "",
@@ -2550,7 +2567,8 @@ impl<'ctx> CodeGen<'ctx> {
                         self.builder.build_store(ptr, basic_value).unwrap();
                     });
 
-                (Type::Array(Box::new(arr_type), len), arr_alloca.into())
+                let arr_value = self.builder.build_load(arr_basic_type, arr_alloca, "").unwrap();
+                (Type::Array(Box::new(elements_type), len), arr_value)
             }
             Expressions::Tuple { values, span: _ } => {
                 let mut expected_types = values.iter().map(|_| None).collect::<Vec<Option<Type>>>();
@@ -2619,6 +2637,13 @@ impl<'ctx> CodeGen<'ctx> {
 
                 match obj.0 {
                     Type::Array(ret_type, len) => {
+                        let obj_ptr = if obj.1.is_pointer_value() {
+                            obj.1.into_pointer_value()
+                        } else {
+                            let recompiled = self.compile_expression(*object.clone(), Some(Type::Pointer(Box::new(Type::Undefined)))).1;
+                            recompiled.into_pointer_value()
+                        };
+
                         // checking for the right index
                         let checker_block = self
                             .context
@@ -2670,8 +2695,10 @@ impl<'ctx> CodeGen<'ctx> {
                             self.builder
                                 .build_in_bounds_gep(
                                     basic_ret_type,
-                                    obj.1.into_pointer_value(),
-                                    &[idx.1.into_int_value()],
+                                    obj_ptr,
+                                    &[
+                                        idx.1.into_int_value()
+                                    ],
                                     "",
                                 )
                                 .unwrap()

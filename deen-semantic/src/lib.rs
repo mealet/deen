@@ -488,6 +488,46 @@ impl Analyzer {
                             );
                         }
                     }
+                    Type::Alias(alias) => {
+                        const IMPLEMENTATION_FORMAT: &str = "fn slice_assign(&self, index: usize, value: _)";
+
+                        let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
+                            self.error(
+                                format!("Type `{}` cannot be slice-assigned", alias),
+                                *span
+                            );
+                            Type::Void
+                        });
+
+                        if struct_type == Type::Void { return; }
+
+                        if let Type::Struct(_, functions) = struct_type {
+                            if let Some(Type::Function(args, datatype, _)) = functions.get("slice_assign") {
+                                if !(
+                                    args.get(0).unwrap_or(&Type::Undefined) == &Type::Alias(alias.clone())
+                                    && args.get(1).unwrap_or(&Type::Undefined) == &Type::USIZE
+                                    && args.get(2).unwrap_or(&Type::Undefined) != &Type::Undefined
+                                    && *datatype.clone() == Type::Void
+                                ) {
+                                    self.error(
+                                        format!("Type `{}` has WRONG implementation for slice-assign: {}", alias, IMPLEMENTATION_FORMAT),
+                                        *span
+                                    );
+                                }
+                            } else {
+                                self.error(
+                                    format!("Type `{}` has no implementation for slice-assign: {}", alias, IMPLEMENTATION_FORMAT),
+                                    *span
+                                );
+                            }
+                        } else {
+                            self.error(
+                                format!("Type `{}` cannot be slice-assigned", alias),
+                                *span
+                            );
+                        }
+
+                    }
                     _ => {
                         self.error(
                             format!("Unable to apply slicing to `{}` type", instance),
@@ -2531,7 +2571,7 @@ impl Analyzer {
                             }
                         } else {
                             self.error(
-                                format!("Type `{}` cannot be dereferenced", alias),
+                                format!("Type `{}` cannot be sliced", alias),
                                 *span
                             );
                             expected.unwrap_or(struct_type)
