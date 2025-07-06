@@ -40,16 +40,15 @@ pub struct String {
     return String { .ptr = ptr, .size = size, .len = len, .iterator_ptr = 0 };
   }
 
-  fn with_size(size: usize) String {
-    let len = size;
-    let size = sizeof!(char) * len;
+  fn with_capacity(capacity: usize) String {
+    let size = sizeof!(char) * capacity;
     let ptr: *char = malloc(size);
 
     if ptr == NULL {
       panic!("Null pointer appeared on heap allocation: `String.from`");
     }
 
-    return String { .ptr = ptr, .size = size, .len = len, .iterator_ptr = 0 };
+    return String { .ptr = ptr, .size = size, .len = 0, .iterator_ptr = 0 };
   }
 
   fn clone(&self) String {
