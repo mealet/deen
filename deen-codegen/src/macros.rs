@@ -444,8 +444,20 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
 
                         return (to_type.0, value);
                     }
+
+                    (from, to) if deen_semantic::Analyzer::is_integer(from) && deen_semantic::Analyzer::is_float(to) => {
+                        let unsigned = deen_semantic::Analyzer::is_unsigned_integer(from);
+
+                        let value = if unsigned {
+                            self.builder.build_unsigned_int_to_float(from_value.1.into_int_value(), target_basic_type.into_float_type(), "").unwrap().into()
+                        } else {
+                            self.builder.build_signed_int_to_float(from_value.1.into_int_value(), target_basic_type.into_float_type(), "").unwrap().into()
+                        };
+
+                        return (to_type.0, value);
+                    }
                     
-                    _ => panic!("Unimplemented cast type catched")
+                    _ => panic!("Unimplemented cast type catched: `{}` -> `{}`", from_value.0, to_type.0)
                 }
             }
             _ => {

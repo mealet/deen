@@ -2873,11 +2873,11 @@ impl<'ctx> CodeGen<'ctx> {
                     return match exp {
                         Type::F32 => (Type::F32, self.context.f32_type().const_float(float).into()),
                         Type::F64 => (Type::F64, self.context.f64_type().const_float(float).into()),
-                        _ => unreachable!(),
+                        _ => (Type::F64, self.context.f64_type().const_float(float).into())
                     };
                 }
 
-                (Type::F32, self.context.f32_type().const_float(float).into())
+                (Type::F64, self.context.f64_type().const_float(float).into())
             }
 
             Value::Char(ch) => (

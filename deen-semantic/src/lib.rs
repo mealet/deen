@@ -3134,10 +3134,10 @@ impl Analyzer {
     #[inline]
     pub fn float_order(typ: &Type) -> usize {
         match typ {
-            Type::F32 => 0,
-            Type::F64 => 1,
+            Type::F32 => 1,
+            Type::F64 => 2,
 
-            _ => unreachable!(),
+            _ => 0,
         }
     }
 

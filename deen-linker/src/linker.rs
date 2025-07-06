@@ -31,6 +31,8 @@ impl ObjectLinker {
             let linker_output = std::process::Command::new(compiler)
                 .arg(input.clone())
                 .args(includes_formatted)
+                .arg("-fPIC")
+                .arg("-lm")
                 .arg("-o")
                 .arg(output_path)
                 .output();
