@@ -2558,14 +2558,14 @@ impl<'ctx> CodeGen<'ctx> {
                     .map(|val| self.compile_expression(val, expected_items_type.clone()))
                     .collect::<Vec<(Type, BasicValueEnum)>>();
 
-                let elements_type = compiled_values[0].0.clone();
-                let elements_basic_type = compiled_values[0].1.get_type();
+                let arr_type = compiled_values[0].0.clone();
+                let arr_basic_type = compiled_values[0].1.get_type();
 
-                let arr_basic_type = elements_basic_type.array_type(len as u32);
                 let arr_alloca = self
                     .builder
-                    .build_alloca(
+                    .build_array_alloca(
                         arr_basic_type,
+                        self.context.i64_type().const_int(len as u64, false),
                         "",
                     )
                     .unwrap();
@@ -2577,7 +2577,7 @@ impl<'ctx> CodeGen<'ctx> {
                         let ptr = unsafe {
                             self.builder
                                 .build_in_bounds_gep(
-                                    elements_basic_type,
+                                    arr_basic_type,
                                     arr_alloca,
                                     &[self.context.i64_type().const_int(ind as u64, false)],
                                     "",
@@ -2587,8 +2587,7 @@ impl<'ctx> CodeGen<'ctx> {
                         self.builder.build_store(ptr, basic_value).unwrap();
                     });
 
-                let arr_value = self.builder.build_load(arr_basic_type, arr_alloca, "").unwrap();
-                (Type::Array(Box::new(elements_type), len), arr_value)
+                (Type::Array(Box::new(arr_type), len), arr_alloca.into())
             }
             Expressions::Tuple { values, span: _ } => {
                 let mut expected_types = values.iter().map(|_| None).collect::<Vec<Option<Type>>>();
