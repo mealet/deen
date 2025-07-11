@@ -21,7 +21,8 @@
 
 use crate::{
     error::{SemanticError, SemanticWarning},
-    macros::{MacrosObject, MacrosOption},
+    macros::{CompilerMacros, MacroObject},
+    macros::{PrintMacro, PrintlnMacro, FormatMacro, PanicMacro, SizeofMacro, CastMacro},
     scope::Scope,
     symtable::{Include, SymbolTable},
 };
@@ -54,66 +55,18 @@ pub struct Analyzer {
     warnings: Vec<SemanticWarning>,
 
     symtable: SymbolTable,
-    macros: HashMap<String, MacrosObject>,
+    compiler_macros: HashMap<String, CompilerMacros>
 }
 
 impl Analyzer {
     pub fn new(src: &str, filename: &str, is_main: bool) -> Self {
-        let standart_macros = HashMap::from([
-            // print!("value: {}", 15);
-            (
-                "print".to_string(),
-                MacrosObject {
-                    arguments: vec![Type::Undefined],
-                    settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
-                    return_type: Type::Void,
-                },
-            ),
-            // println!("value: {}", 15);
-            (
-                "println".to_string(),
-                MacrosObject {
-                    arguments: vec![Type::Undefined],
-                    settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
-                    return_type: Type::Void,
-                },
-            ),
-            // format!("str: {}", "hello")
-            (
-                "format".to_string(),
-                MacrosObject {
-                    arguments: vec![Type::Undefined],
-                    settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
-                    return_type: Type::Pointer(Box::new(Type::Char)),
-                },
-            ),
-            // panic!("number: {}", 15)
-            (
-                "panic".to_string(),
-                MacrosObject {
-                    arguments: vec![Type::Undefined],
-                    settings: vec![MacrosOption::FirstLiteral, MacrosOption::VarArgs],
-                    return_type: Type::Void,
-                },
-            ),
-            // sizeof!(i32)
-            (
-                "sizeof".to_string(),
-                MacrosObject {
-                    arguments: vec![Type::Void],
-                    settings: vec![],
-                    return_type: Type::USIZE,
-                },
-            ),
-            // cast!('a', i32)
-            (
-                "cast".to_string(),
-                MacrosObject {
-                    arguments: vec![Type::Void, Type::Void],
-                    settings: vec![MacrosOption::ReturnLastType, MacrosOption::TypeCaster],
-                    return_type: Type::Undefined,
-                },
-            ),
+        let compiler_macros = HashMap::from([
+            (String::from("print"), CompilerMacros::PrintMacro(PrintMacro)),
+            (String::from("println"), CompilerMacros::PrintlnMacro(PrintlnMacro)),
+            (String::from("format"), CompilerMacros::FormatMacro(FormatMacro)),
+            (String::from("panic"), CompilerMacros::PanicMacro(PanicMacro)),
+            (String::from("sizeof"), CompilerMacros::SizeofMacro(SizeofMacro)),
+            (String::from("cast"), CompilerMacros::CastMacro(CastMacro)),
         ]);
 
         Analyzer {
@@ -128,7 +81,7 @@ impl Analyzer {
             warnings: Vec::new(),
 
             symtable: SymbolTable::default(),
-            macros: standart_macros,
+            compiler_macros,
         }
     }
 
@@ -2829,214 +2782,16 @@ impl Analyzer {
         arguments: &Vec<Expressions>,
         span: &(usize, usize),
     ) -> Type {
-        if let Some(macro_object) = self.macros.get(name).cloned() {
-            if arguments.len() < macro_object.arguments.len() {
-                self.error(
-                    format!(
-                        "Not enough arguments. Expected {}",
-                        macro_object.arguments.len()
-                    ),
-                    *span,
-                );
-                return macro_object.return_type;
-            }
+        let macro_object = self.compiler_macros.get(name).cloned().unwrap_or_else(|| {
+            self.error(
+                format!("There's no macro called `{}!()`", name),
+                *span
+            );
 
-            if macro_object.settings.contains(&MacrosOption::FirstLiteral) {
-                if let Some(Expressions::Value(Value::String(literal), literal_span)) =
-                    arguments.first()
-                {
-                    let mut bindings: Vec<Type> = Vec::new();
+            CompilerMacros::None
+        });
 
-                    let mut cursor = 0;
-                    let characters = literal.chars().collect::<Vec<char>>();
-
-                    while characters.get(cursor).is_some() {
-                        if let Some('{') = characters.get(cursor) {
-                            cursor += 1;
-                            let next = characters.get(cursor);
-
-                            match next {
-                                Some('}') => bindings.push(Type::Void),
-                                _ => self.error(
-                                    String::from("Unexpected binding in string found"),
-                                    *literal_span,
-                                ),
-                            }
-                        }
-
-                        cursor += 1;
-                    }
-
-                    if arguments.len() != bindings.len() + 1 {
-                        self.error(
-                            format!(
-                                "Expected {} arguments, but found {}",
-                                bindings.len() + 1,
-                                arguments.len()
-                            ),
-                            *span,
-                        );
-                        return macro_object.return_type;
-                    }
-
-                    let mut arguments_iterator = arguments.iter();
-                    let _ = arguments_iterator.next();
-
-                    arguments_iterator.for_each(|expr| {
-                        let expr_type = self.visit_expression(expr, None);
-
-                        match expr_type.clone() {
-                            int if Self::is_integer(&int) => {}
-                            float if Self::is_float(&float) => {},
-                            Type::Bool => {},
-                            Type::Pointer(ptr) => {
-                                match *ptr {
-                                    Type::Char => {},
-                                    _ => {
-                                        self.error(
-                                            format!("Type `{}` must be dereferenced to be displayed", expr_type),
-                                            deen_parser::Parser::get_span_expression(expr.clone())
-                                        )
-                                    }
-                                }
-                            }
-                            Type::Struct(_, functions) => {
-                                const IMPLEMENTATION_FORMAT: &str = "fn display(&self) *char";
-
-                                if let Some(Type::Function(_, return_type, _)) = functions.get("display") {
-                                    if let Type::Pointer(ptr) = *return_type.clone() {
-                                        if *ptr.clone() == Type::Char {} else {
-                                            self.error(
-                                                format!("Implementation for display must be: {}", IMPLEMENTATION_FORMAT),
-                                                deen_parser::Parser::get_span_expression(expr.clone())
-                                            );
-                                        }
-                                    } else {
-                                        self.error(
-                                            format!("Implementation for display must be: {}", IMPLEMENTATION_FORMAT),
-                                            deen_parser::Parser::get_span_expression(expr.clone())
-                                        );
-                                    }
-                                } else {
-                                    self.error(
-                                        format!("Type `{}` has no implementation for display: {}", expr_type, IMPLEMENTATION_FORMAT),
-                                        deen_parser::Parser::get_span_expression(expr.clone())
-                                    );
-                                }
-                            }
-                            Type::Alias(alias) => {
-                                if let Some(Type::Struct(_, functions)) = self.scope.get_struct(&alias) {
-                                    if let Some(Type::Function(_, return_type, _)) = functions.get("display") {
-                                        if let Type::Pointer(ptr) = *return_type.clone() {
-                                            if *ptr.clone() == Type::Char {} else {
-                                                self.error(
-                                                    "Implementation for display must be: fn display(&self) *char".to_string(),
-                                                    deen_parser::Parser::get_span_expression(expr.clone())
-                                                );
-                                            }
-                                        } else {
-                                            self.error(
-                                                "Implementation for display must be: fn display(&self) *char".to_string(),
-                                                deen_parser::Parser::get_span_expression(expr.clone())
-                                            );
-                                        }
-                                    } else {
-                                        self.error(
-                                            format!("Type `{}` has no implementation for display: fn display(&self) *char", expr_type),
-                                            deen_parser::Parser::get_span_expression(expr.clone())
-                                        );
-                                    }
-                                } else {
-                                    if self.scope.get_enum(&alias).is_none() {
-                                        self.error(
-                                            format!("No displayable type with name `{}` found", expr_type),
-                                            deen_parser::Parser::get_span_expression(expr.clone())
-                                        );
-                                    }
-                                }
-                            }
-                            Type::Enum(_, _) => {},
-                            Type::Char => {},
-                            _ => {
-                                self.error(
-                                    format!("Type `{}` is not supported for display", expr_type),
-                                    deen_parser::Parser::get_span_expression(expr.clone())
-                                );
-                            }
-                        }
-                    });
-
-                    return macro_object.return_type;
-                } else {
-                    self.error(
-                        String::from("Macro requires string literal as first argument"),
-                        *span,
-                    );
-                    return macro_object.return_type;
-                }
-            }
-
-            let mut last_type = None;
-            let mut args_types = Vec::new();
-
-            macro_object
-                .arguments
-                .iter()
-                .enumerate()
-                .zip(arguments)
-                .for_each(|((index, expected), expression)| {
-                    let provided = self.visit_expression(expression, Some(expected.clone()));
-                    if &provided != expected && expected != &Type::Void {
-                        self.error(
-                            format!(
-                                "Argument #{} expected to be `{}`, but found `{}`",
-                                index, expected, provided
-                            ),
-                            deen_parser::Parser::get_span_expression(expression.clone()),
-                        );
-                    };
-                    
-                    if index ==  macro_object.arguments.len() - 1 && macro_object.settings.contains(&MacrosOption::ReturnLastType) {
-                        last_type = Some(provided.clone());
-                    }
-
-                    args_types.push(provided);
-                });
-
-            if macro_object.arguments.len() < arguments.len()
-                && !macro_object.settings.contains(&MacrosOption::VarArgs)
-            {
-                self.error(
-                    format!(
-                        "Too much arguments! Expected {} but found {} args",
-                        macro_object.arguments.len(),
-                        arguments.len()
-                    ),
-                    *span,
-                );
-            }
-
-            if macro_object.settings.contains(&MacrosOption::TypeCaster) {
-                if matches!(arguments[0], Expressions::Argument { name: _, r#type: _, span: _ }) {
-                    self.error(
-                        format!("First argument must be an expression for type-casting"),
-                        *span
-                    );
-                } else {
-                    self.verify_cast(&args_types[0], &args_types[1]).unwrap_or_else(|err| {
-                        self.error(
-                            err,
-                            *span
-                        );
-                    });
-                }
-            }
-
-            last_type.unwrap_or(macro_object.return_type)
-        } else {
-            self.error(format!("There's no macros called `{}!`", name), *span);
-            Type::Void
-        }
+        return macro_object.verify_call(self, arguments, span);
     }
 
     fn verify_cast(&self, from: &Type, to: &Type) -> Result<(), String> {
