@@ -10,7 +10,7 @@ on:
       deploy_branch:
         description: 'Branch to deploy from'
         required: true
-        default: 'main'
+        default: 'master'
         type: string
       include_private:
         description: 'Include private items in documentation'
