@@ -1,8 +1,6 @@
 name: Deploy Rust Documentation
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -73,17 +71,13 @@ jobs:
       if: ${{ github.event.inputs.include_private != 'false' }}
       run: |
         cargo doc --no-deps --document-private-items
-        # Копируем содержимое папки крейта в корень документации
-        cp -r target/doc/deen/* target/doc/
-        echo '<meta http-equiv="refresh" content="0; url=index.html">' > target/doc/index.html
+        echo '<meta http-equiv="refresh" content="0; url=deen/">' > target/doc/index.html
     
     - name: Build documentation (public only)
       if: ${{ github.event.inputs.include_private == 'false' }}
       run: |
         cargo doc --no-deps
-        # Копируем содержимое папки крейта в корень документации
-        cp -r target/doc/deen/* target/doc/
-        echo '<meta http-equiv="refresh" content="0; url=index.html">' > target/doc/index.html
+        echo '<meta http-equiv="refresh" content="0; url=deen/">' > target/doc/index.html
     
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
