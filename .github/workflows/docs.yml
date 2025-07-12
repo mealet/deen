@@ -70,13 +70,13 @@ jobs:
     - name: Build documentation (with private items)
       if: ${{ github.event.inputs.include_private != 'false' }}
       run: |
-        cargo doc --no-deps --document-private-items
+        cargo doc --document-private-items
         echo '<meta http-equiv="refresh" content="0; url=deen/">' > target/doc/index.html
     
     - name: Build documentation (public only)
       if: ${{ github.event.inputs.include_private == 'false' }}
       run: |
-        cargo doc --no-deps
+        cargo doc
         echo '<meta http-equiv="refresh" content="0; url=deen/">' > target/doc/index.html
     
     - name: Upload artifact
