@@ -49,16 +49,16 @@ fn main() {
                 // --version flag
                 // Just return necessary information and exit with 0
                 eprintln!("{}", "🚀 Deen Programming Language".bold().cyan());
-                eprintln!("| - version: {}", version_fmt);
-                eprintln!("| - authors: {}", authors_fmt);
+                eprintln!("| - version: {version_fmt}");
+                eprintln!("| - authors: {authors_fmt}");
 
                 std::process::exit(0);
             }
             _ => {
                 // Wrong arguments or --help flag
                 eprintln!("{}", "🚀 Deen Programming Language".bold().cyan());
-                eprintln!("| - version: {}", version_fmt);
-                eprintln!("| - authors: {}", authors_fmt);
+                eprintln!("| - version: {version_fmt}");
+                eprintln!("| - authors: {authors_fmt}");
                 eprintln!();
                 eprintln!("{}", "🍀 Options:".bold().cyan());
 
@@ -113,7 +113,8 @@ fn main() {
     let src = std::fs::read_to_string(&args.path).unwrap_or_else(|err| {
         eprintln!(
             "Unable to open path: {}. System error: {}",
-            std::path::Path::new(&args.path).display(), err
+            std::path::Path::new(&args.path).display(),
+            err
         );
         std::process::exit(1);
     });
@@ -139,7 +140,7 @@ fn main() {
                 let mut buf = String::new();
                 handler.render_report(&mut buf, e).unwrap();
 
-                eprintln!("{}", buf);
+                eprintln!("{buf}");
             });
 
             if !no_warns {
@@ -147,7 +148,7 @@ fn main() {
                     let mut buf = String::new();
                     handler.render_report(&mut buf, w).unwrap();
 
-                    eprintln!("{}", buf);
+                    eprintln!("{buf}");
                 });
             }
 
@@ -165,7 +166,7 @@ fn main() {
             let mut buf = String::new();
             handler.render_report(&mut buf, w).unwrap();
 
-            eprintln!("{}", buf);
+            eprintln!("{buf}");
         });
     }
 
@@ -185,7 +186,7 @@ fn main() {
                 let mut buf = String::new();
                 handler.render_report(&mut buf, e).unwrap();
 
-                eprintln!("{}", buf);
+                eprintln!("{buf}");
             });
 
             if !no_warns {
@@ -193,7 +194,7 @@ fn main() {
                     let mut buf = String::new();
                     handler.render_report(&mut buf, w).unwrap();
 
-                    eprintln!("{}", buf);
+                    eprintln!("{buf}");
                 });
             }
 
@@ -215,7 +216,7 @@ fn main() {
             let mut buf = String::new();
             handler.render_report(&mut buf, w).unwrap();
 
-            eprintln!("{}", buf);
+            eprintln!("{buf}");
         });
     }
 
@@ -240,7 +241,7 @@ fn main() {
                 let mut buf = String::new();
                 handler.render_report(&mut buf, e).unwrap();
 
-                eprintln!("{}", buf);
+                eprintln!("{buf}");
             });
 
             if !no_warns {
@@ -248,7 +249,7 @@ fn main() {
                     let mut buf = String::new();
                     handler.render_report(&mut buf, w).unwrap();
 
-                    eprintln!("{}", buf);
+                    eprintln!("{buf}");
                 });
             }
 
@@ -270,7 +271,7 @@ fn main() {
             let mut buf = String::new();
             handler.render_report(&mut buf, w).unwrap();
 
-            eprintln!("{}", buf);
+            eprintln!("{buf}");
         });
     }
 
@@ -319,7 +320,7 @@ fn main() {
         )
         .unwrap_or_else(|err| {
             cli::error("Linker catched an error!");
-            println!("\n{}\n", err);
+            println!("\n{err}\n");
 
             cli::error(
                 "Please make sure you linked all the necessary libraries (check the '-i' argument)",
@@ -336,7 +337,7 @@ fn main() {
 
         cli::info(
             "Successfully",
-            &format!("compiled to binary: `{}`", formatted_output),
+            &format!("compiled to binary: `{formatted_output}`"),
         )
     };
 }

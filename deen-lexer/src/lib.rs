@@ -200,7 +200,7 @@ impl Lexer {
             'r' => Some('\r'),
             't' => Some('\t'),
             '\\' => Some('\\'),
-            _ => None
+            _ => None,
         }
     }
 
@@ -456,13 +456,14 @@ impl Lexer {
 
                             if chr == '\\' {
                                 self.getc();
-                                let character_escape = Self::character_escape(self.char).unwrap_or_else(|| {
-                                    self.error(
-                                        String::from("Unexpected character escape found"),
-                                        (span_start, self.position),
-                                    );
-                                    ' '
-                                });
+                                let character_escape = Self::character_escape(self.char)
+                                    .unwrap_or_else(|| {
+                                        self.error(
+                                            String::from("Unexpected character escape found"),
+                                            (span_start, self.position),
+                                        );
+                                        ' '
+                                    });
 
                                 chr = character_escape;
                             }
@@ -743,9 +744,9 @@ mod tests {
     fn is_hexadecimal_literal_test() {
         let lexer = Lexer::new("", "test.dn");
 
-        ['a', 'b', 'c', 'd', 'e', 'f'].iter().for_each(|chr| {
-            assert!(lexer.is_hexadecimal_literal(chr))
-        });
+        ['a', 'b', 'c', 'd', 'e', 'f']
+            .iter()
+            .for_each(|chr| assert!(lexer.is_hexadecimal_literal(chr)));
 
         assert!(!lexer.is_hexadecimal_literal(&' '));
     }
@@ -758,9 +759,9 @@ mod tests {
             ('r', '\r'),
             ('t', '\t'),
             ('\\', '\\'),
-        ].into_iter().for_each(|(chr, exp)| {
-            assert_eq!(Lexer::character_escape(chr), Some(exp))
-        });
+        ]
+        .into_iter()
+        .for_each(|(chr, exp)| assert_eq!(Lexer::character_escape(chr), Some(exp)));
 
         assert!(Lexer::character_escape(' ').is_none())
     }

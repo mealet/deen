@@ -275,7 +275,7 @@ impl Parser {
                     operand: current.value,
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
-                    span: (node_span.0, span_end)
+                    span: (node_span.0, span_end),
                 }
             }
             _ => unreachable!(),
@@ -418,7 +418,10 @@ impl Parser {
         let index = Box::new(self.expression());
 
         if self.current().token_type != TokenType::RBrack {
-            self.error(String::from("Index end not found"), (self.span_expression(expr).0, self.current().span.1));
+            self.error(
+                String::from("Index end not found"),
+                (self.span_expression(expr).0, self.current().span.1),
+            );
             return Expressions::None;
         }
 

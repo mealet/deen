@@ -42,7 +42,7 @@ pub struct Import {
 /// User Include Instance
 #[derive(Debug, Clone)]
 pub struct Include {
-    pub ast: Vec<Statements>
+    pub ast: Vec<Statements>,
 }
 
 impl Import {

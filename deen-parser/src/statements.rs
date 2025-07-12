@@ -152,7 +152,7 @@ pub enum Statements {
     /// `include "PATH"`
     IncludeStatement {
         path: Expressions,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     /// `extern "EXT_TYPE" pub/NOTHING fn IDENTIFIER ( TYPE, TYPE, ... ) TYPE/NOTHING`
@@ -170,7 +170,7 @@ pub enum Statements {
     ExternDeclareStatement {
         identifier: String,
         datatype: Type,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
     /// `break`
@@ -1050,7 +1050,7 @@ impl Parser {
         if !self.expect(TokenType::Identifier) {
             self.error(
                 String::from("Expected extern-declare identifier"),
-                self.current().span
+                self.current().span,
             );
         }
 
@@ -1060,10 +1060,14 @@ impl Parser {
         let datatype = self.parse_type();
         let span_end = self.current().span.1;
 
-        let _ = self.skip_eos();
+        self.skip_eos();
         let span = (span_start, span_end);
 
-        return Statements::ExternDeclareStatement { identifier, datatype, span }
+        Statements::ExternDeclareStatement {
+            identifier,
+            datatype,
+            span,
+        }
     }
 
     pub fn extern_statement(&mut self) -> Statements {

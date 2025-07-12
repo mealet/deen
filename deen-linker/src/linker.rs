@@ -7,8 +7,12 @@ impl ObjectLinker {
         const COMPILERS: [&str; 2] = ["clang", "cc"];
 
         for compiler in COMPILERS {
-            if std::process::Command::new(compiler).arg("--version").output().is_ok() {
-                return Some(compiler.to_string())
+            if std::process::Command::new(compiler)
+                .arg("--version")
+                .output()
+                .is_ok()
+            {
+                return Some(compiler.to_string());
             }
         }
 
@@ -46,6 +50,8 @@ impl ObjectLinker {
 
             return Err(String::from_utf8_lossy(&output.stderr).to_string());
         }
-        return Err(String::from("No supported C compilers found in system. Please install `clang` from official site!"));
+        Err(String::from(
+            "No supported C compilers found in system. Please install `clang` from official site!",
+        ))
     }
 }

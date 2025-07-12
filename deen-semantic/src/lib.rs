@@ -7,7 +7,7 @@
 //! ## Usage
 //! ```ignore
 //! use deen_semantic::Analyzer
-//! 
+//!
 //! let ast = {
 //!     // ...
 //! };
@@ -21,17 +21,17 @@
 
 use crate::{
     error::{SemanticError, SemanticWarning},
+    macros::{CastMacro, FormatMacro, PanicMacro, PrintMacro, PrintlnMacro, SizeofMacro},
     macros::{CompilerMacros, MacroObject},
-    macros::{PrintMacro, PrintlnMacro, FormatMacro, PanicMacro, SizeofMacro, CastMacro},
     scope::Scope,
     symtable::{Include, SymbolTable},
 };
 use deen_parser::{
     Parser, expressions::Expressions, statements::Statements, types::Type, value::Value,
 };
+use indexmap::IndexMap;
 use miette::NamedSource;
 use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
-use indexmap::IndexMap;
 
 mod element;
 mod error;
@@ -55,17 +55,32 @@ pub struct Analyzer {
     warnings: Vec<SemanticWarning>,
 
     symtable: SymbolTable,
-    compiler_macros: HashMap<String, CompilerMacros>
+    compiler_macros: HashMap<String, CompilerMacros>,
 }
 
 impl Analyzer {
     pub fn new(src: &str, filename: &str, is_main: bool) -> Self {
         let compiler_macros = HashMap::from([
-            (String::from("print"), CompilerMacros::PrintMacro(PrintMacro)),
-            (String::from("println"), CompilerMacros::PrintlnMacro(PrintlnMacro)),
-            (String::from("format"), CompilerMacros::FormatMacro(FormatMacro)),
-            (String::from("panic"), CompilerMacros::PanicMacro(PanicMacro)),
-            (String::from("sizeof"), CompilerMacros::SizeofMacro(SizeofMacro)),
+            (
+                String::from("print"),
+                CompilerMacros::PrintMacro(PrintMacro),
+            ),
+            (
+                String::from("println"),
+                CompilerMacros::PrintlnMacro(PrintlnMacro),
+            ),
+            (
+                String::from("format"),
+                CompilerMacros::FormatMacro(FormatMacro),
+            ),
+            (
+                String::from("panic"),
+                CompilerMacros::PanicMacro(PanicMacro),
+            ),
+            (
+                String::from("sizeof"),
+                CompilerMacros::SizeofMacro(SizeofMacro),
+            ),
             (String::from("cast"), CompilerMacros::CastMacro(CastMacro)),
         ]);
 
@@ -131,7 +146,7 @@ impl Analyzer {
         //     .into_iter()
         //     .for_each(|stmt| self.visit_statement(stmt));
 
-        ast.into_iter().for_each(|stmt| self.visit_statement(stmt));
+        ast.iter().for_each(|stmt| self.visit_statement(stmt));
 
         if self.scope.get_fn("main").is_none() && self.scope.is_main {
             let err = SemanticError {
@@ -224,7 +239,11 @@ impl Analyzer {
                     is_var_args: _,
                     span: _,
                 } => {}
-                Statements::ExternDeclareStatement { identifier: _, datatype: _, span: _ } => {}
+                Statements::ExternDeclareStatement {
+                    identifier: _,
+                    datatype: _,
+                    span: _,
+                } => {}
                 _ => {
                     if let Some(err) = self.errors.last() {
                         if err.span == (255, 0).into() {
@@ -271,7 +290,7 @@ impl Analyzer {
                             });
                     } else {
                         self.error(
-                            format!("Variable \"{}\" is not defined here", identifier),
+                            format!("Variable \"{identifier}\" is not defined here"),
                             *span,
                         );
                     }
@@ -309,8 +328,7 @@ impl Analyzer {
                         if value_type != *ptr_type {
                             self.error(
                                 format!(
-                                    "Pointer expected type `{}`, but found `{}`",
-                                    ptr_type, value_type
+                                    "Pointer expected type `{ptr_type}`, but found `{value_type}`"
                                 ),
                                 *span,
                             );
@@ -321,42 +339,46 @@ impl Analyzer {
                         const IMPLEMENTATION_FORMAT: &str = "fn deref_assign(&self, value: _)";
 
                         let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
-                            self.error(
-                                format!("Type `{}` cannot be deref-assigned", alias),
-                                *span
-                            );
+                            self.error(format!("Type `{alias}` cannot be deref-assigned"), *span);
                             Type::Void
                         });
 
-                        if struct_type == Type::Void { return };
+                        if struct_type == Type::Void {
+                            return;
+                        };
 
                         if let Type::Struct(_, functions) = struct_type {
-                            if let Some(Type::Function(args, datatype, false)) = functions.get("deref_assign") {
-                                if !(
-                                    args.get(0).unwrap_or(&Type::Undefined) == &Type::Alias(alias.clone())
+                            if let Some(Type::Function(args, datatype, false)) =
+                                functions.get("deref_assign")
+                            {
+                                if !(args.first().unwrap_or(&Type::Undefined)
+                                    == &Type::Alias(alias.clone())
                                     && args.get(1).unwrap_or(&Type::Undefined) != &Type::Undefined
-                                    && *datatype.clone() == Type::Void
-                                ) {
+                                    && *datatype.clone() == Type::Void)
+                                {
                                     self.error(
-                                        format!("Type `{}` has WRONG implementation for deref-assign: {}", alias, IMPLEMENTATION_FORMAT),
+                                        format!("Type `{alias}` has WRONG implementation for deref-assign: {IMPLEMENTATION_FORMAT}"),
                                         *span
                                     );
                                     return;
                                 }
 
                                 let expected_value = args.get(1).unwrap();
-                                let value_type = self.visit_expression(value, Some(expected_value.clone()));
+                                let value_type =
+                                    self.visit_expression(value, Some(expected_value.clone()));
 
                                 if *expected_value != value_type {
                                     self.error(
-                                        format!("Deref-assign of type `{}` expected type `{}`, but found `{}`", alias, expected_value, value_type),
+                                        format!("Deref-assign of type `{alias}` expected type `{expected_value}`, but found `{value_type}`"),
                                         *span
                                     );
                                 }
                             } else {
                                 self.error(
-                                    format!("Type `{}` has no implementation for deref-assign: {}", alias, IMPLEMENTATION_FORMAT),
-                                    *span
+                                    format!(
+                                        "Type `{alias}` has no implementation for deref-assign: {IMPLEMENTATION_FORMAT}"
+                                    ),
+                                    *span,
                                 );
                             }
                         } else {
@@ -365,10 +387,7 @@ impl Analyzer {
                     }
 
                     _ => {
-                        self.error(
-                            format!("Type `{}` cannot be deref-assigned", instance),
-                            *span,
-                        );
+                        self.error(format!("Type `{instance}` cannot be deref-assigned"), *span);
                     }
                 }
             }
@@ -390,8 +409,7 @@ impl Analyzer {
                         if index_type != Type::USIZE {
                             self.error(
                                 format!(
-                                    "Expected index with type `usize`, but found `{}`",
-                                    index_type
+                                    "Expected index with type `usize`, but found `{index_type}`"
                                 ),
                                 *span,
                             );
@@ -401,7 +419,7 @@ impl Analyzer {
 
                         if value_type != *typ {
                             self.error(
-                                format!("Array has type `{}`, but found `{}`", typ, value_type),
+                                format!("Array has type `{typ}`, but found `{value_type}`"),
                                 *span,
                             );
                         }
@@ -412,8 +430,7 @@ impl Analyzer {
                         if index_type != Type::USIZE {
                             self.error(
                                 format!(
-                                    "Expected index with type `usize`, but found `{}`",
-                                    index_type
+                                    "Expected index with type `usize`, but found `{index_type}`"
                                 ),
                                 *span,
                             );
@@ -423,7 +440,7 @@ impl Analyzer {
 
                         if value_type != *typ {
                             self.error(
-                                format!("Array has type `{}`, but found `{}`", typ, value_type),
+                                format!("Array has type `{typ}`, but found `{value_type}`"),
                                 *span,
                             );
                         }
@@ -433,57 +450,54 @@ impl Analyzer {
 
                         if value_type != *ptr_type {
                             self.error(
-                                format!(
-                                    "Pointer has type `{}`, but found `{}`",
-                                    ptr_type, value_type
-                                ),
+                                format!("Pointer has type `{ptr_type}`, but found `{value_type}`"),
                                 *span,
                             );
                         }
                     }
                     Type::Alias(alias) => {
-                        const IMPLEMENTATION_FORMAT: &str = "fn slice_assign(&self, index: usize, value: _)";
+                        const IMPLEMENTATION_FORMAT: &str =
+                            "fn slice_assign(&self, index: usize, value: _)";
 
                         let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
-                            self.error(
-                                format!("Type `{}` cannot be slice-assigned", alias),
-                                *span
-                            );
+                            self.error(format!("Type `{alias}` cannot be slice-assigned"), *span);
                             Type::Void
                         });
 
-                        if struct_type == Type::Void { return; }
+                        if struct_type == Type::Void {
+                            return;
+                        }
 
                         if let Type::Struct(_, functions) = struct_type {
-                            if let Some(Type::Function(args, datatype, _)) = functions.get("slice_assign") {
-                                if !(
-                                    args.get(0).unwrap_or(&Type::Undefined) == &Type::Alias(alias.clone())
+                            if let Some(Type::Function(args, datatype, _)) =
+                                functions.get("slice_assign")
+                            {
+                                if !(args.first().unwrap_or(&Type::Undefined)
+                                    == &Type::Alias(alias.clone())
                                     && args.get(1).unwrap_or(&Type::Undefined) == &Type::USIZE
                                     && args.get(2).unwrap_or(&Type::Undefined) != &Type::Undefined
-                                    && *datatype.clone() == Type::Void
-                                ) {
+                                    && *datatype.clone() == Type::Void)
+                                {
                                     self.error(
-                                        format!("Type `{}` has WRONG implementation for slice-assign: {}", alias, IMPLEMENTATION_FORMAT),
+                                        format!("Type `{alias}` has WRONG implementation for slice-assign: {IMPLEMENTATION_FORMAT}"),
                                         *span
                                     );
                                 }
                             } else {
                                 self.error(
-                                    format!("Type `{}` has no implementation for slice-assign: {}", alias, IMPLEMENTATION_FORMAT),
-                                    *span
+                                    format!(
+                                        "Type `{alias}` has no implementation for slice-assign: {IMPLEMENTATION_FORMAT}"
+                                    ),
+                                    *span,
                                 );
                             }
                         } else {
-                            self.error(
-                                format!("Type `{}` cannot be slice-assigned", alias),
-                                *span
-                            );
+                            self.error(format!("Type `{alias}` cannot be slice-assigned"), *span);
                         }
-
                     }
                     _ => {
                         self.error(
-                            format!("Unable to apply slicing to `{}` type", instance),
+                            format!("Unable to apply slicing to `{instance}` type"),
                             *span,
                         );
                     }
@@ -521,10 +535,7 @@ impl Analyzer {
                 let value_type = self.visit_expression(value, Some(unwrapped_object_type.clone()));
                 if object_type != value_type {
                     self.error(
-                        format!(
-                            "Field has type `{}`, but found `{}`",
-                            object_type, value_type
-                        ),
+                        format!("Field has type `{object_type}`, but found `{value_type}`"),
                         *span,
                     );
                 }
@@ -593,7 +604,7 @@ impl Analyzer {
                             .add_var(identifier.clone(), value_type, true, *span);
                     }
                     (None, None) => {
-                        self.error(format!("Variable `{}` has unknown type", identifier), *span);
+                        self.error(format!("Variable `{identifier}` has unknown type"), *span);
                     }
                 }
             }
@@ -665,7 +676,9 @@ impl Analyzer {
                     self.error(
                         format!(
                             "Function `{}` returns type `{}`, but found `{}`",
-                            name.replace("@!", ""), datatype, ret
+                            name.replace("@!", ""),
+                            datatype,
+                            ret
                         ),
                         *header_span,
                     );
@@ -692,7 +705,7 @@ impl Analyzer {
                 span,
             } => {
                 let func = self.scope.get_fn(name).unwrap_or_else(|| {
-                    self.error(format!("Function `{}` is not defined here", name), *span);
+                    self.error(format!("Function `{name}` is not defined here"), *span);
                     Type::Void
                 });
 
@@ -704,7 +717,7 @@ impl Analyzer {
                     if arguments.len() > func_args.len() {
                         expected_args.resize(arguments.len(), Type::Void);
                     }
-                    
+
                     let call_args = arguments
                         .iter()
                         .zip(expected_args)
@@ -740,7 +753,11 @@ impl Analyzer {
                                 }
                             };
 
-                            if &expected != provided && !is_void_ptr && expected != Type::Void && *provided != Type::Null {
+                            if &expected != provided
+                                && !is_void_ptr
+                                && expected != Type::Void
+                                && *provided != Type::Null
+                            {
                                 self.error(
                                     format!(
                                         "Argument #{} must be `{}`, but found `{}`",
@@ -755,10 +772,7 @@ impl Analyzer {
                     );
 
                     if *func_type != Type::Void {
-                        self.warning(
-                            format!("Unused `{}` result from function", func_type),
-                            *span,
-                        );
+                        self.warning(format!("Unused `{func_type}` result from function"), *span);
                     }
                 } else {
                     unreachable!()
@@ -781,24 +795,26 @@ impl Analyzer {
                 span,
             } => {
                 let pre_type = Type::Struct(fields.clone(), IndexMap::new());
-                if !self.scope.structures.insert(
-                    name.clone(),
-                    element::ScopeElement {
-                        datatype: pre_type,
-                        public: *public,
-                    },
-                ).is_none() {
-                    self.error(
-                        format!("Structure `{}` already declared", name),
-                        *span
-                    );
+                if self
+                    .scope
+                    .structures
+                    .insert(
+                        name.clone(),
+                        element::ScopeElement {
+                            datatype: pre_type,
+                            public: *public,
+                        },
+                    )
+                    .is_some()
+                {
+                    self.error(format!("Structure `{name}` already declared"), *span);
                     return;
                 }
 
                 let mut structure_scope = Scope::new();
                 structure_scope.parent = Some(Box::new(self.scope.clone()));
                 self.scope = structure_scope;
-                
+
                 functions.iter().for_each(|func| {
                     let mut wrapped_statement = func.1.clone();
                     let mut fn_name = String::new();
@@ -813,7 +829,7 @@ impl Analyzer {
                         header_span,
                     } = wrapped_statement.clone()
                     {
-                        function_name = format!("@!{}", function_name);
+                        function_name = format!("@!{function_name}");
                         fn_name = function_name.clone();
                         if arguments
                             .iter()
@@ -847,7 +863,7 @@ impl Analyzer {
 
                     self.visit_statement(&wrapped_statement);
                     let signature = self.scope.get_fn(&fn_name).unwrap();
-                    let struct_ptr = self.scope.get_mut_struct(&name).unwrap();
+                    let struct_ptr = self.scope.get_mut_struct(name).unwrap();
 
                     if let Type::Struct(fields, mut functions) = struct_ptr.datatype.clone() {
                         let fn_name = fn_name.replace("@!", "");
@@ -906,7 +922,7 @@ impl Analyzer {
                 if !functions.is_empty() {
                     self.error(
                         String::from("Methods in enums are currently disabled! @compiler"),
-                        *span
+                        *span,
                     );
                 }
 
@@ -960,10 +976,7 @@ impl Analyzer {
 
                 if condition_type != Type::Bool {
                     self.error(
-                        format!(
-                            "Expected `bool` type in expression, but found `{}`",
-                            condition_type
-                        ),
+                        format!("Expected `bool` type in expression, but found `{condition_type}`"),
                         *span,
                     );
                     return;
@@ -1026,8 +1039,7 @@ impl Analyzer {
                     if then_block_type != else_block_type {
                         self.error(
                             format!(
-                                "Scopes has incompatible types: `{}` and `{}`",
-                                then_block_type, else_block_type
+                                "Scopes has incompatible types: `{then_block_type}` and `{else_block_type}`"
                             ),
                             *span,
                         );
@@ -1043,10 +1055,7 @@ impl Analyzer {
 
                 if condition_type != Type::Bool {
                     self.error(
-                        format!(
-                            "Expected `bool` type in expression, but found `{}`",
-                            condition_type
-                        ),
+                        format!("Expected `bool` type in expression, but found `{condition_type}`"),
                         *span,
                     );
                     return;
@@ -1152,7 +1161,7 @@ impl Analyzer {
                                     }
                                 } else {
                                     self.error(
-                                        format!("Structure `{}` has no implementation for: fn iterate(&self) (_, bool)", alias),
+                                        format!("Structure `{alias}` has no implementation for: fn iterate(&self) (_, bool)"),
                                         *span
                                     );
                                 }
@@ -1160,8 +1169,7 @@ impl Analyzer {
                             _ => {
                                 self.error(
                                     format!(
-                                        "Type `{}` is not supported for iteration",
-                                        iterator_type
+                                        "Type `{iterator_type}` is not supported for iteration"
                                     ),
                                     *span,
                                 );
@@ -1171,7 +1179,7 @@ impl Analyzer {
                     }
                     _ => {
                         self.error(
-                            format!("Type `{}` is not supported for iteration", iterator_type),
+                            format!("Type `{iterator_type}` is not supported for iteration"),
                             *span,
                         );
                         return;
@@ -1215,7 +1223,7 @@ impl Analyzer {
             Statements::ImportStatement { path: _, span } => {
                 self.error(
                     String::from("Imports are currently disabled due unstability. @compiler"),
-                    *span
+                    *span,
                 );
 
                 // match path {
@@ -1360,63 +1368,77 @@ impl Analyzer {
                 //         self.error(String::from("Import must be string constant"), *span);
                 //     }
                 // }
-            },
+            }
 
             Statements::IncludeStatement { path, span } => {
-                let (import_path, path_span) = if let Expressions::Value(Value::String(path), span) = path { (path, span) } else { unreachable!() };
-                let included_path;
-
-                match import_path.chars().nth(0) {
+                let (import_path, path_span) =
+                    if let Expressions::Value(Value::String(path), span) = path {
+                        (path, span)
+                    } else {
+                        unreachable!()
+                    };
+                let included_path = match import_path.chars().nth(0) {
                     Some('@') => {
                         // standart library path
 
-                        let lib_path = std::env::var(STANDART_LIBRARY_VAR).unwrap_or(std::env::current_dir().unwrap().to_str().unwrap().to_owned());
+                        let lib_path = std::env::var(STANDART_LIBRARY_VAR).unwrap_or(
+                            std::env::current_dir()
+                                .unwrap()
+                                .to_str()
+                                .unwrap()
+                                .to_owned(),
+                        );
 
                         let mut import_path = import_path.clone().replace(".dn", "");
                         let _ = import_path.remove(0);
 
-                        let formatted_path = format!("{}/{}.dn", lib_path, import_path);
-                        included_path = PathBuf::from(formatted_path);
-                    },
+                        let formatted_path = format!("{lib_path}/{import_path}.dn");
+                        PathBuf::from(formatted_path)
+                    }
                     Some(_) => {
                         // relative path
-                        included_path = PathBuf::from(import_path);
-                    },
+                        PathBuf::from(import_path)
+                    }
                     None => {
-                        self.error(
-                            String::from("Empty include path provided"),
-                            *path_span
-                        );
+                        self.error(String::from("Empty include path provided"), *path_span);
                         return;
                     }
-                }
+                };
 
                 // Reading source code
                 let src = std::fs::read_to_string(&included_path).unwrap_or_else(|err| {
                     self.error(
-                        format!("Unable to read source code. System error: {}", err),
-                        *path_span
+                        format!("Unable to read source code. System error: {err}"),
+                        *path_span,
                     );
                     String::new()
                 });
 
                 // Getting file name
-                let fname = included_path.file_name().unwrap_or_else(|| {
-                    self.error(
-                        String::from("Unable to resolve provided include"),
-                        *path_span
-                    );
-                    OsStr::new("")
-                }).to_str().unwrap_or_else(|| {
-                    self.error(
-                        String::from("Unable to resolve provided include"),
-                        *path_span
-                    );
-                    ""
-                });
+                let fname = included_path
+                    .file_name()
+                    .unwrap_or_else(|| {
+                        self.error(
+                            String::from("Unable to resolve provided include"),
+                            *path_span,
+                        );
+                        OsStr::new("")
+                    })
+                    .to_str()
+                    .unwrap_or_else(|| {
+                        self.error(
+                            String::from("Unable to resolve provided include"),
+                            *path_span,
+                        );
+                        ""
+                    });
 
-                if fname.is_empty() { return };
-                if src.is_empty() { return };
+                if fname.is_empty() {
+                    return;
+                };
+                if src.is_empty() {
+                    return;
+                };
 
                 let module_name = fname
                     .split(".")
@@ -1433,7 +1455,9 @@ impl Analyzer {
                 let (tokens, _) = match lexer.tokenize() {
                     Ok(result) => result,
                     Err((errors, _)) => {
-                        errors.into_iter().for_each(|err| self.errors.push(err.into()));
+                        errors
+                            .into_iter()
+                            .for_each(|err| self.errors.push(err.into()));
                         return;
                     }
                 };
@@ -1443,7 +1467,9 @@ impl Analyzer {
                 let (ast, _) = match parser.parse() {
                     Ok(ast) => ast,
                     Err((errors, _)) => {
-                        errors.into_iter().for_each(|err| self.errors.push(err.into()));
+                        errors
+                            .into_iter()
+                            .for_each(|err| self.errors.push(err.into()));
                         return;
                     }
                 };
@@ -1453,42 +1479,38 @@ impl Analyzer {
                 let (symtable, _) = match analyzer.analyze(&ast) {
                     Ok(res) => res,
                     Err((errors, _)) => {
-                        errors.into_iter().for_each(|err| self.errors.push(err.into()));
+                        errors.into_iter().for_each(|err| self.errors.push(err));
                         return;
                     }
                 };
 
                 analyzer.scope.functions.into_iter().for_each(|func| {
                     if func.1.public && self.scope.get_fn(&func.0).is_none() {
-                        self.scope.add_fn(func.0, func.1.datatype, true).unwrap_or_else(|err| {
-                            self.error(
-                                err,
-                                *span
-                            );
-                        });
+                        self.scope
+                            .add_fn(func.0, func.1.datatype, true)
+                            .unwrap_or_else(|err| {
+                                self.error(err, *span);
+                            });
                     }
                 });
 
                 analyzer.scope.structures.into_iter().for_each(|structure| {
                     if structure.1.public && self.scope.get_struct(&structure.0).is_none() {
-                        self.scope.add_struct(structure.0, structure.1.datatype, true).unwrap_or_else(|err| {
-                            self.error(
-                                err,
-                                *span
-                            );
-                        });
+                        self.scope
+                            .add_struct(structure.0, structure.1.datatype, true)
+                            .unwrap_or_else(|err| {
+                                self.error(err, *span);
+                            });
                     }
                 });
 
                 analyzer.scope.enums.into_iter().for_each(|enumeration| {
                     if enumeration.1.public && self.scope.get_enum(&enumeration.0).is_none() {
-                        self.scope.add_enum(
-                            enumeration.0,
-                            enumeration.1.datatype,
-                            true
-                        ).unwrap_or_else(|err| {
-                            self.error(err, *span);
-                        });
+                        self.scope
+                            .add_enum(enumeration.0, enumeration.1.datatype, true)
+                            .unwrap_or_else(|err| {
+                                self.error(err, *span);
+                            });
                     }
                 });
 
@@ -1499,15 +1521,20 @@ impl Analyzer {
                 });
             }
 
-            Statements::ExternDeclareStatement { identifier, datatype, span } => {
+            Statements::ExternDeclareStatement {
+                identifier,
+                datatype,
+                span,
+            } => {
                 if self.scope.get_var(identifier).is_some() {
                     self.error(
-                        format!("Identifier `{}` is already declared", identifier),
-                        *span
+                        format!("Identifier `{identifier}` is already declared"),
+                        *span,
                     )
                 }
 
-                self.scope.add_var(identifier.to_string(), datatype.clone(), true, (0, 0));
+                self.scope
+                    .add_var(identifier.to_string(), datatype.clone(), true, (0, 0));
 
                 // making variable `used`
                 let _ = self.scope.get_var(identifier);
@@ -1672,7 +1699,7 @@ impl Analyzer {
                     }
 
                     (Type::Pointer(_), Type::Pointer(_)) => {
-                         if operand != "+" && operand != "-" {
+                        if operand != "+" && operand != "-" {
                             self.error(
                                 "Unexpected binary operator for pointer found".to_string(),
                                 *span,
@@ -1683,7 +1710,8 @@ impl Analyzer {
                     }
 
                     (Type::Alias(left), Type::Alias(right)) => {
-                        let implementation_format: String = format!("fn binary(&self, other: *{}, operand: *char) {}", left, left);
+                        let implementation_format: String =
+                            format!("fn binary(&self, other: *{left}, operand: *char) {left}");
 
                         let struct_type = self.scope.get_struct(&left).unwrap_or_else(|| {
                             self.error(
@@ -1700,8 +1728,7 @@ impl Analyzer {
                         if left != right {
                             self.error(
                                 format!(
-                                    "Cannot apply binary \"{}\" to different types `{}` and `{}`",
-                                    operand, left, right
+                                    "Cannot apply binary \"{operand}\" to different types `{left}` and `{right}`"
                                 ),
                                 *span,
                             );
@@ -1720,16 +1747,20 @@ impl Analyzer {
                                     && *datatype.clone() == Type::Alias(left.clone()))
                                 {
                                     self.error(
-                                        format!("Type `{}` has wrong implementation for binary: {}", left, implementation_format),
-                                        *span
+                                        format!(
+                                            "Type `{left}` has wrong implementation for binary: {implementation_format}"
+                                        ),
+                                        *span,
                                     );
                                 }
 
                                 *datatype.clone()
                             } else {
                                 self.error(
-                                    format!("Type `{}` has no implementation for binary operations: {}", left, implementation_format),
-                                    *span
+                                    format!(
+                                        "Type `{left}` has no implementation for binary operations: {implementation_format}"
+                                    ),
+                                    *span,
                                 );
                                 expected.unwrap_or(Type::Alias(left))
                             }
@@ -1740,10 +1771,7 @@ impl Analyzer {
 
                     _ => {
                         self.error(
-                            format!(
-                                "Cannot apply binary \"{}\" to `{}` and `{}`",
-                                operand, left, right
-                            ),
+                            format!("Cannot apply binary \"{operand}\" to `{left}` and `{right}`"),
                             *span,
                         );
                         expected.unwrap_or(left)
@@ -1769,7 +1797,7 @@ impl Analyzer {
                     (Type::Bool, "!") => obj,
 
                     (Type::Alias(alias), _) => {
-                        let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
+                        let struct_type = self.scope.get_struct(alias).unwrap_or_else(|| {
                             self.error(
                                 format!("Type `{}` isn't avaible for unary operations", &alias),
                                 *span,
@@ -1792,7 +1820,7 @@ impl Analyzer {
                                     && *datatype.clone() == Type::Alias(alias.clone()))
                                 {
                                     self.error(
-                                        format!("Type `{}` has wrong implementation for unary: fn unary(&self, operand: *char) {}", alias, alias),
+                                        format!("Type `{alias}` has wrong implementation for unary: fn unary(&self, operand: *char) {alias}"),
                                         *span
                                     );
                                 }
@@ -1800,7 +1828,7 @@ impl Analyzer {
                                 *datatype.clone()
                             } else {
                                 self.error(
-                                    format!("Type `{}` has wrong implementation for unary: fn unary(&self, operand: *char) {}", alias, alias),
+                                    format!("Type `{alias}` has wrong implementation for unary: fn unary(&self, operand: *char) {alias}"),
                                     *span
                                 );
                                 Type::Alias(alias.clone())
@@ -1812,7 +1840,7 @@ impl Analyzer {
 
                     _ => {
                         self.error(
-                            format!("Cannot apply unary \"{}\" to `{}`", operand, obj),
+                            format!("Cannot apply unary \"{operand}\" to `{obj}`"),
                             *span,
                         );
                         obj
@@ -1831,24 +1859,30 @@ impl Analyzer {
                 let right = self.visit_expression(rhs, Some(left.clone()));
 
                 match (left.clone(), right.clone()) {
-                    (l, r) if (matches!(l, Type::Pointer(_)) && r == Type::Null)
-                    || (matches!(r, Type::Pointer(_)) && l == Type::Null) => {
+                    (l, r)
+                        if (matches!(l, Type::Pointer(_)) && r == Type::Null)
+                            || (matches!(r, Type::Pointer(_)) && l == Type::Null) =>
+                    {
                         if !matches!(operand.as_str(), "==" | "!=") {
                             self.error(
-                                String::from("Null boolean checker only allows operators: `==`, `!=`"),
-                                *span
+                                String::from(
+                                    "Null boolean checker only allows operators: `==`, `!=`",
+                                ),
+                                *span,
                             );
                         }
 
                         Type::Bool
-                    },
+                    }
 
                     (l, r) if Self::is_integer(&l) && Self::is_integer(&r) => Type::Bool,
 
-                    (l, r) if (Self::is_integer(&l) && r == Type::Char)
-                           || (Self::is_integer(&r) && l == Type::Char) => {
+                    (l, r)
+                        if (Self::is_integer(&l) && r == Type::Char)
+                            || (Self::is_integer(&r) && l == Type::Char) =>
+                    {
                         Type::Bool
-                    },
+                    }
 
                     (l, r) if Self::is_float(&l) && Self::is_float(&r) => Type::Bool,
                     (l, r) if l == r && SUPPORTED_EXTRA_TYPES.contains(&l) => Type::Bool,
@@ -1860,7 +1894,8 @@ impl Analyzer {
                     (Type::Alias(left), Type::Alias(right)) => {
                         if self.scope.get_enum(&left).is_some()
                             && self.scope.get_enum(&right).is_some()
-                            && left == right {
+                            && left == right
+                        {
                             return Type::Bool;
                         }
 
@@ -1879,8 +1914,7 @@ impl Analyzer {
                         if left != right {
                             self.error(
                                 format!(
-                                    "Cannot apply boolean \"{}\" to different types `{}` and `{}`",
-                                    operand, left, right
+                                    "Cannot apply boolean \"{operand}\" to different types `{left}` and `{right}`"
                                 ),
                                 *span,
                             );
@@ -1899,7 +1933,7 @@ impl Analyzer {
                                     && *datatype.clone() == Type::I32)
                                 {
                                     self.error(
-                                        format!("Type `{}` has wrong implementation for comparison: fn compare(&self, other: *{}) i32", left, left),
+                                        format!("Type `{left}` has wrong implementation for comparison: fn compare(&self, other: *{left}) i32"),
                                         *span
                                     );
                                 }
@@ -1907,7 +1941,7 @@ impl Analyzer {
                                 Type::Bool
                             } else {
                                 self.error(
-                                    format!("Type `{}` has wrong implementation for comparison: fn compare(&self, other: *{}) i32", left, left),
+                                    format!("Type `{left}` has wrong implementation for comparison: fn compare(&self, other: *{left}) i32"),
                                     *span
                                 );
                                 Type::Bool
@@ -1919,10 +1953,7 @@ impl Analyzer {
 
                     _ => {
                         self.error(
-                            format!(
-                                "Cannot apply boolean \"{}\" to `{}` and `{}`",
-                                operand, left, right
-                            ),
+                            format!("Cannot apply boolean \"{operand}\" to `{left}` and `{right}`"),
                             *span,
                         );
                         Type::Bool
@@ -2000,7 +2031,7 @@ impl Analyzer {
                                 Type::Struct(fields, _) => {
                                     let field_type = fields.get(&field.clone()).unwrap_or_else(|| {
                                         self.error(
-                                            format!("Type `{}` has no field named `{}`", prev_type_display, field),
+                                            format!("Type `{prev_type_display}` has no field named `{field}`"),
                                             *field_span
                                         );
                                         &Type::Void
@@ -2024,7 +2055,7 @@ impl Analyzer {
                                     let opt = fields.iter().find(|&x| x == field);
                                     if opt.is_none() {
                                         self.error(
-                                            format!("Type `{}` has no choice named `{}`", prev_type_display, field),
+                                            format!("Type `{prev_type_display}` has no choice named `{field}`"),
                                             *field_span
                                         );
                                     }
@@ -2033,7 +2064,7 @@ impl Analyzer {
                                 },
                                 _ => {
                                     self.error(
-                                        format!("Type `{}` has no accessible fields", prev_type_display),
+                                        format!("Type `{prev_type_display}` has no accessible fields"),
                                         *field_span
                                     );
                                 }
@@ -2066,7 +2097,7 @@ impl Analyzer {
                                 },
                                 _ => {
                                     self.error(
-                                        format!("Type `{}` has no numbered fields", prev_type_display),
+                                        format!("Type `{prev_type_display}` has no numbered fields"),
                                         *idx_span
                                     )
                                 }
@@ -2077,7 +2108,7 @@ impl Analyzer {
                                 Type::Struct(_, functions) | Type::Enum(_, functions) => {
                                     let function_type = functions.get(name).unwrap_or_else(|| {
                                         self.error(
-                                            format!("Type `{}` has no function named `{}`", prev_type_display, name),
+                                            format!("Type `{prev_type_display}` has no function named `{name}`"),
                                             *span
                                         );
                                         &Type::Void
@@ -2153,7 +2184,7 @@ impl Analyzer {
                                 },
                                 Type::ImportObject(imp) => {
                                     let import = self.symtable.imports.get(&imp).unwrap().clone();
-                                    let name = format!("{}.{}", imp, name);
+                                    let name = format!("{imp}.{name}");
 
                                     if let Some(Type::Function(args, datatype, is_var_args)) = import.functions.get(&name) {
                                         prev_type_display = *datatype.clone();
@@ -2193,7 +2224,7 @@ impl Analyzer {
                                         });
                                     } else {
                                         self.error(
-                                            format!("Import `{}` has no functions named `{}()`", imp, name),
+                                            format!("Import `{imp}` has no functions named `{name}()`"),
                                             *span
                                         );
                                     };
@@ -2201,7 +2232,7 @@ impl Analyzer {
                                 // Type::Enum(_, functions) => {},
                                 _ => {
                                     self.error(
-                                        format!("Type `{}` isn't supported for function calls", prev_type),
+                                        format!("Type `{prev_type}` isn't supported for function calls"),
                                         *span
                                     );
                                 }
@@ -2212,7 +2243,7 @@ impl Analyzer {
                                 Type::ImportObject(imp) => {
                                     let import = self.symtable.imports.get(&imp).unwrap().clone();
 
-                                    let name = format!("{}.{}", imp, name); 
+                                    let name = format!("{imp}.{name}"); 
                                     if let Some(Type::Struct(struct_fields, _)) = import.structs.get(&name) {
 
                                         let mut assigned_fields = HashMap::new();
@@ -2249,7 +2280,7 @@ impl Analyzer {
                                         if !unassigned.is_empty() {
                                             let fmt = format!("`{}`", unassigned.join("` , `"));
                                             self.error(
-                                                format!("Missing structure fields: {}", fmt),
+                                                format!("Missing structure fields: {fmt}"),
                                                 *span
                                             );
                                         }
@@ -2284,7 +2315,7 @@ impl Analyzer {
                 span,
             } => {
                 let func = self.scope.get_fn(name).unwrap_or_else(|| {
-                    self.error(format!("Function `{}` is not defined here", name), *span);
+                    self.error(format!("Function `{name}` is not defined here"), *span);
                     Type::Void
                 });
                 if func == Type::Void {
@@ -2351,16 +2382,12 @@ impl Analyzer {
 
                     let mut return_type = *func_type;
                     if Self::is_integer(&return_type)
-                    && (
-                        Self::is_integer(expected.as_ref().unwrap_or(&Type::Void))
-                        || matches!(
-                            expected.as_ref().unwrap_or(&Type::Void),
-                            Type::Char
-                        )
-                    ) {
-                        if Self::integer_order(expected.as_ref().unwrap()) <= Self::integer_order(&return_type) {
-                            return_type = expected.unwrap();
-                        }
+                        && (Self::is_integer(expected.as_ref().unwrap_or(&Type::Void))
+                            || matches!(expected.as_ref().unwrap_or(&Type::Void), Type::Char))
+                        && Self::integer_order(expected.as_ref().unwrap())
+                            <= Self::integer_order(&return_type)
+                    {
+                        return_type = expected.unwrap();
                     }
 
                     return_type
@@ -2382,49 +2409,48 @@ impl Analyzer {
             }
             Expressions::Dereference { object, span } => {
                 let obj = self.visit_expression(object, expected.clone());
-                
+
                 match obj {
                     Type::Pointer(ptr_type) => *ptr_type,
                     Type::Alias(alias) => {
                         const IMPLEMENTATION_FORMAT: &str = "fn deref(&self) _";
 
                         let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
-                            self.error(
-                                format!("Type `{}` cannot be dereferenced", alias),
-                                *span
-                            );
+                            self.error(format!("Type `{alias}` cannot be dereferenced"), *span);
                             Type::Void
                         });
 
-                        if struct_type == Type::Void { return expected.unwrap_or(Type::Void) }
+                        if struct_type == Type::Void {
+                            return expected.unwrap_or(Type::Void);
+                        }
 
                         if let Type::Struct(_, functions) = struct_type {
-                            if let Some(Type::Function(args, datatype, _)) = functions.get("deref") {
+                            if let Some(Type::Function(args, datatype, _)) = functions.get("deref")
+                            {
                                 if *args != vec![Type::Alias(alias.clone())] {
                                     self.error(
-                                        format!("Type `{}` has WRONG implementation for dereference: {}", alias, IMPLEMENTATION_FORMAT),
+                                        format!("Type `{alias}` has WRONG implementation for dereference: {IMPLEMENTATION_FORMAT}"),
                                         *span
                                     );
                                 }
                                 *datatype.clone()
                             } else {
                                 self.error(
-                                    format!("Type `{}` has no implementation for dereference: {}", alias, IMPLEMENTATION_FORMAT),
-                                    *span
+                                    format!(
+                                        "Type `{alias}` has no implementation for dereference: {IMPLEMENTATION_FORMAT}"
+                                    ),
+                                    *span,
                                 );
                                 expected.unwrap_or(Type::Alias(alias))
                             }
                         } else {
-                            self.error(
-                                format!("Type `{}` cannot be dereferenced", alias),
-                                *span
-                            );
+                            self.error(format!("Type `{alias}` cannot be dereferenced"), *span);
                             expected.unwrap_or(struct_type)
                         }
                     }
 
                     _ => {
-                        self.error(format!("Type {} cannot be dereferenced!", obj), *span);
+                        self.error(format!("Type {obj} cannot be dereferenced!"), *span);
                         expected.unwrap_or(obj)
                     }
                 }
@@ -2442,7 +2468,7 @@ impl Analyzer {
                     let val_type = self.visit_expression(val, None);
                     if val_type != arr_type {
                         self.error(
-                            format!("Array has type {}, but element has {}", arr_type, val_type),
+                            format!("Array has type {arr_type}, but element has {val_type}"),
                             Parser::get_span_expression(val.clone()),
                         );
                     }
@@ -2504,53 +2530,53 @@ impl Analyzer {
                         const IMPLEMENTATION_FORMAT: &str = "fn slice(&self, index: usize) _";
 
                         let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
-                            self.error(
-                                format!("Type `{}` cannot be sliced", alias),
-                                *span
-                            );
+                            self.error(format!("Type `{alias}` cannot be sliced"), *span);
                             Type::Void
                         });
 
-                        if struct_type == Type::Void { return expected.unwrap_or(Type::Void) }
+                        if struct_type == Type::Void {
+                            return expected.unwrap_or(Type::Void);
+                        }
 
                         if let Type::Struct(_, functions) = struct_type {
-                            if let Some(Type::Function(args, datatype, _)) = functions.get("slice") {
-                                if !(
-                                    *args == vec![Type::Alias(alias.clone()), Type::USIZE]
-                                    && *datatype.clone() != Type::Void
-                                ) {
+                            if let Some(Type::Function(args, datatype, _)) = functions.get("slice")
+                            {
+                                if !(*args == vec![Type::Alias(alias.clone()), Type::USIZE]
+                                    && *datatype.clone() != Type::Void)
+                                {
                                     self.error(
-                                        format!("Type `{}` has WRONG implementation for slice: {}", alias, IMPLEMENTATION_FORMAT),
-                                        *span
+                                        format!(
+                                            "Type `{alias}` has WRONG implementation for slice: {IMPLEMENTATION_FORMAT}"
+                                        ),
+                                        *span,
                                     );
                                 }
 
                                 *datatype.clone()
                             } else {
                                 self.error(
-                                    format!("Type `{}` has no implementation for slice: {}", alias, IMPLEMENTATION_FORMAT),
-                                    *span
+                                    format!(
+                                        "Type `{alias}` has no implementation for slice: {IMPLEMENTATION_FORMAT}"
+                                    ),
+                                    *span,
                                 );
                                 expected.unwrap_or(Type::Alias(alias))
                             }
                         } else {
-                            self.error(
-                                format!("Type `{}` cannot be sliced", alias),
-                                *span
-                            );
+                            self.error(format!("Type `{alias}` cannot be sliced"), *span);
                             expected.unwrap_or(struct_type)
                         }
                     }
 
                     _ => {
-                        self.error(format!("Type `{}` is not supported for slice", obj), *span);
+                        self.error(format!("Type `{obj}` is not supported for slice"), *span);
                         expected.unwrap_or(Type::Void)
                     }
                 }
             }
             Expressions::Struct { name, fields, span } => {
                 let structure = self.scope.get_struct(name).unwrap_or_else(|| {
-                    self.error(format!("Structure `{}` does not exist here", name), *span);
+                    self.error(format!("Structure `{name}` does not exist here"), *span);
                     Type::Void
                 });
 
@@ -2570,7 +2596,7 @@ impl Analyzer {
                             //     self.error(err, *span);
                             //     Type::Void
                             // });
-                            
+
                             let field_type = field_type.clone();
                             let provided_type =
                                 self.visit_expression(field.1, Some(field_type.clone()));
@@ -2602,7 +2628,7 @@ impl Analyzer {
                         .collect::<Vec<String>>();
                     if !unassigned.is_empty() {
                         let fmt = format!("`{}`", unassigned.join("` , `"));
-                        self.error(format!("Missing structure fields: {}", fmt), *span);
+                        self.error(format!("Missing structure fields: {fmt}"), *span);
                     }
 
                     Type::Alias(name.clone())
@@ -2631,13 +2657,15 @@ impl Analyzer {
                 scope_type
             }
 
-            Expressions::Value(value, span) => match self.visit_value(value.clone(), expected.clone()) {
-                Ok(tty) => tty,
-                Err(err) => {
-                    self.error(err, *span);
-                    expected.unwrap_or(Type::Void)
+            Expressions::Value(value, span) => {
+                match self.visit_value(value.clone(), expected.clone()) {
+                    Ok(tty) => tty,
+                    Err(err) => {
+                        self.error(err, *span);
+                        expected.unwrap_or(Type::Void)
+                    }
                 }
-            },
+            }
             Expressions::None => Type::Void,
         }
     }
@@ -2646,7 +2674,9 @@ impl Analyzer {
         match value {
             Value::Integer(int) => {
                 if expected.is_some()
-                && (Self::is_integer(&expected.clone().unwrap()) || expected.as_ref().unwrap() == &Type::Char) {
+                    && (Self::is_integer(&expected.clone().unwrap())
+                        || expected.as_ref().unwrap() == &Type::Char)
+                {
                     let exp = expected.unwrap();
                     match exp {
                         Type::I8 => {
@@ -2697,12 +2727,12 @@ impl Analyzer {
                         }
 
                         Type::Char => {
-                            if int < 0 || int > 255 {
+                            if !(0..=255).contains(&int) {
                                 return Err(String::from("Constant is out of `char` type range"));
                             }
                         }
 
-                        _ => return Err(format!("Expected `{}` but found integer constant", exp)),
+                        _ => return Err(format!("Expected `{exp}` but found integer constant")),
                     }
 
                     return Ok(exp);
@@ -2721,8 +2751,10 @@ impl Analyzer {
                 Ok(Type::I32)
             }
             Value::Float(float) => {
-                if expected.is_some() && Self::is_float(expected.as_ref().unwrap()) {
-                    return Ok(expected.unwrap());
+                if let Some(exp) = expected
+                    && Self::is_float(&exp)
+                {
+                    return Ok(exp);
                 }
 
                 if float > f32::MAX as f64 {
@@ -2748,21 +2780,17 @@ impl Analyzer {
                 match self.scope.get_var(&id) {
                     Some(var) => {
                         if !var.initialized {
-                            return Err(format!("Variable `{}` isn't initalized", id));
+                            return Err(format!("Variable `{id}` isn't initalized"));
                         }
 
-                        match expected.unwrap_or(Type::Undefined) {
-                            Type::Char => {
-                                if Self::is_integer(&var.datatype) {
-                                    return Ok(Type::Char);
-                                }
-                            }
-
-                            _ => {}
+                        if expected.unwrap_or(Type::Undefined) == Type::Char
+                            && Self::is_integer(&var.datatype)
+                        {
+                            return Ok(Type::Char);
                         }
                         Ok(var.datatype)
                     }
-                    None => Err(format!("Identifier `{}` is not defined here", id)),
+                    None => Err(format!("Identifier `{id}` is not defined here")),
                 }
             }
             Value::String(_) => Ok(Type::Pointer(Box::new(Type::Char))),
@@ -2779,19 +2807,16 @@ impl Analyzer {
     pub fn verify_macrocall(
         &mut self,
         name: &String,
-        arguments: &Vec<Expressions>,
+        arguments: &[Expressions],
         span: &(usize, usize),
     ) -> Type {
         let macro_object = self.compiler_macros.get(name).cloned().unwrap_or_else(|| {
-            self.error(
-                format!("There's no macro called `{}!()`", name),
-                *span
-            );
+            self.error(format!("There's no macro called `{name}!()`"), *span);
 
             CompilerMacros::None
         });
 
-        return macro_object.verify_call(self, arguments, span);
+        macro_object.verify_call(self, arguments, span)
     }
 
     fn verify_cast(&self, from: &Type, to: &Type) -> Result<(), String> {
@@ -2800,16 +2825,25 @@ impl Analyzer {
             _ if Self::is_float(from) && Self::is_float(to) => Ok(()),
 
             _ if (Self::is_integer(from) && Self::is_float(to))
-            || (Self::is_float(from) && Self::is_integer(to))=> Ok(()),
+                || (Self::is_float(from) && Self::is_integer(to)) =>
+            {
+                Ok(())
+            }
 
             _ if (Self::is_integer(from) && to == &Type::Char)
-            || (from == &Type::Char && Self::is_integer(to)) => Ok(()),
+                || (from == &Type::Char && Self::is_integer(to)) =>
+            {
+                Ok(())
+            }
 
             _ if (from == &Type::Bool && Self::is_integer(to))
-            || (Self::is_integer(from) && to == &Type::Bool) => Ok(()),
+                || (Self::is_integer(from) && to == &Type::Bool) =>
+            {
+                Ok(())
+            }
 
             _ if from == to => Ok(()),
-            _ => Err(format!("Cast `{}` -> `{}` is unavaible", from, to))
+            _ => Err(format!("Cast `{from}` -> `{to}` is unavaible")),
         }
     }
 }
@@ -2930,11 +2964,11 @@ impl Analyzer {
                             return Ok(enum_type);
                         }
                     } else {
-                        return Err(format!("Import `{}` is not declared here", module_name));
+                        return Err(format!("Import `{module_name}` is not declared here"));
                     }
                 }
 
-                Err(format!("Type `{}` is not defined in this scope", typ))
+                Err(format!("Type `{typ}` is not defined in this scope"))
             }
 
             Type::Pointer(ptr_type) => {

@@ -351,7 +351,7 @@ impl Parser {
 
                     return Expressions::Tuple {
                         values: Vec::new(),
-                        span: (span_start, span_end)
+                        span: (span_start, span_end),
                     };
                 }
 
@@ -917,22 +917,20 @@ mod tests {
             ("i16", Type::I16),
             ("i32", Type::I32),
             ("i64", Type::I64),
-
             ("u8", Type::U8),
             ("u16", Type::U16),
             ("u32", Type::U32),
             ("u64", Type::U64),
             ("usize", Type::USIZE),
-
             ("f32", Type::F32),
             ("f64", Type::F64),
             ("bool", Type::Bool),
-
             ("char", Type::Char),
-            ("void", Type::Void)
-        ].into_iter().for_each(|(typ, exp)| {
+            ("void", Type::Void),
+        ]
+        .into_iter()
+        .for_each(|(typ, exp)| {
             assert_eq!(parser.get_basic_type(String::from(typ), (0, 0)), exp);
         });
     }
-
 }

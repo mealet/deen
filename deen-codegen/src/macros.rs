@@ -71,9 +71,11 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 .unwrap()
                                 .into()
                         }
-                        Type::F32 => {
-                            self.builder.build_float_ext(arg.1.into_float_value(), self.context.f64_type(), "").unwrap().into()
-                        }
+                        Type::F32 => self
+                            .builder
+                            .build_float_ext(arg.1.into_float_value(), self.context.f64_type(), "")
+                            .unwrap()
+                            .into(),
                         Type::Alias(alias) => {
                             let alias_type = self.get_alias_type(arg.0.clone(), None).unwrap();
 
@@ -185,9 +187,11 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 .unwrap()
                                 .into()
                         }
-                        Type::F32 => {
-                            self.builder.build_float_ext(arg.1.into_float_value(), self.context.f64_type(), "").unwrap().into()
-                        }
+                        Type::F32 => self
+                            .builder
+                            .build_float_ext(arg.1.into_float_value(), self.context.f64_type(), "")
+                            .unwrap()
+                            .into(),
                         Type::Alias(alias) => {
                             let alias_type = self.get_alias_type(arg.0.clone(), None).unwrap();
 
@@ -382,19 +386,23 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
             }
             "cast" => {
                 let from = arguments.first().unwrap().clone();
-                let to = arguments.iter().nth(1).unwrap().clone();
+                let to = arguments.get(1).unwrap().clone();
 
                 let from_value = self.compile_expression(from, None);
                 let to_type = self.compile_expression(to, None);
                 let target_basic_type = self.get_basic_type(to_type.0.clone());
 
                 match (&from_value.0, &to_type.0) {
-                    (from, to) if from == to => {
-                        return from_value;
-                    }
+                    (from, to) if from == to => from_value,
 
-                    (from, to) if deen_semantic::Analyzer::is_integer(from) && deen_semantic::Analyzer::is_integer(to)
-                    || from == &Type::Char || to == &Type::Char || from == &Type::Bool || to == &Type::Bool => {
+                    (from, to)
+                        if deen_semantic::Analyzer::is_integer(from)
+                            && deen_semantic::Analyzer::is_integer(to)
+                            || from == &Type::Char
+                            || to == &Type::Char
+                            || from == &Type::Bool
+                            || to == &Type::Bool =>
+                    {
                         let unsigned = deen_semantic::Analyzer::is_unsigned_integer(to);
 
                         let from_order = deen_semantic::Analyzer::integer_order(from);
@@ -402,66 +410,143 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
 
                         let value = if from_order > to_order {
                             // truncating
-                            self.builder.build_int_truncate(from_value.1.into_int_value(), target_basic_type.into_int_type(), "").unwrap().into()
+                            self.builder
+                                .build_int_truncate(
+                                    from_value.1.into_int_value(),
+                                    target_basic_type.into_int_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
                         } else if from_order < to_order {
                             // extending
                             if unsigned {
-                                self.builder.build_int_z_extend(from_value.1.into_int_value(), target_basic_type.into_int_type(), "").unwrap().into()
+                                self.builder
+                                    .build_int_z_extend(
+                                        from_value.1.into_int_value(),
+                                        target_basic_type.into_int_type(),
+                                        "",
+                                    )
+                                    .unwrap()
+                                    .into()
                             } else {
-                                self.builder.build_int_s_extend(from_value.1.into_int_value(), target_basic_type.into_int_type(), "").unwrap().into()
+                                self.builder
+                                    .build_int_s_extend(
+                                        from_value.1.into_int_value(),
+                                        target_basic_type.into_int_type(),
+                                        "",
+                                    )
+                                    .unwrap()
+                                    .into()
                             }
                         } else {
                             // casting
-                            self.builder.build_bit_cast(from_value.1, target_basic_type.into_int_type(), "").unwrap()
+                            self.builder
+                                .build_bit_cast(from_value.1, target_basic_type.into_int_type(), "")
+                                .unwrap()
                         };
 
-                        return (to_type.0, value);
+                        (to_type.0, value)
                     }
 
-                    (from, to) if deen_semantic::Analyzer::is_float(from) && deen_semantic::Analyzer::is_float(to) => {
+                    (from, to)
+                        if deen_semantic::Analyzer::is_float(from)
+                            && deen_semantic::Analyzer::is_float(to) =>
+                    {
                         let from_order = deen_semantic::Analyzer::float_order(from);
                         let to_order = deen_semantic::Analyzer::float_order(to);
 
                         let value = if from_order > to_order {
                             // truncating
-                            self.builder.build_float_trunc(from_value.1.into_float_value(), target_basic_type.into_float_type(), "").unwrap().into()
+                            self.builder
+                                .build_float_trunc(
+                                    from_value.1.into_float_value(),
+                                    target_basic_type.into_float_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
                         } else {
                             // extending
-                            self.builder.build_float_ext(from_value.1.into_float_value(), target_basic_type.into_float_type(), "").unwrap().into()
+                            self.builder
+                                .build_float_ext(
+                                    from_value.1.into_float_value(),
+                                    target_basic_type.into_float_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
                         };
 
-                        return (to_type.0, value);
+                        (to_type.0, value)
                     }
 
-                    (from, to) if deen_semantic::Analyzer::is_float(from) && deen_semantic::Analyzer::is_integer(to) => {
+                    (from, to)
+                        if deen_semantic::Analyzer::is_float(from)
+                            && deen_semantic::Analyzer::is_integer(to) =>
+                    {
                         let unsigned = deen_semantic::Analyzer::is_unsigned_integer(to);
 
                         let value = if unsigned {
-                            self.builder.build_float_to_unsigned_int(from_value.1.into_float_value(), target_basic_type.into_int_type(), "").unwrap().into()
+                            self.builder
+                                .build_float_to_unsigned_int(
+                                    from_value.1.into_float_value(),
+                                    target_basic_type.into_int_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
                         } else {
-                            self.builder.build_float_to_signed_int(from_value.1.into_float_value(), target_basic_type.into_int_type(), "").unwrap().into()
+                            self.builder
+                                .build_float_to_signed_int(
+                                    from_value.1.into_float_value(),
+                                    target_basic_type.into_int_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
                         };
 
-                        return (to_type.0, value);
+                        (to_type.0, value)
                     }
 
-                    (from, to) if deen_semantic::Analyzer::is_integer(from) && deen_semantic::Analyzer::is_float(to) => {
+                    (from, to)
+                        if deen_semantic::Analyzer::is_integer(from)
+                            && deen_semantic::Analyzer::is_float(to) =>
+                    {
                         let unsigned = deen_semantic::Analyzer::is_unsigned_integer(from);
 
                         let value = if unsigned {
-                            self.builder.build_unsigned_int_to_float(from_value.1.into_int_value(), target_basic_type.into_float_type(), "").unwrap().into()
+                            self.builder
+                                .build_unsigned_int_to_float(
+                                    from_value.1.into_int_value(),
+                                    target_basic_type.into_float_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
                         } else {
-                            self.builder.build_signed_int_to_float(from_value.1.into_int_value(), target_basic_type.into_float_type(), "").unwrap().into()
+                            self.builder
+                                .build_signed_int_to_float(
+                                    from_value.1.into_int_value(),
+                                    target_basic_type.into_float_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
                         };
 
-                        return (to_type.0, value);
+                        (to_type.0, value)
                     }
-                    
-                    _ => panic!("Unimplemented cast type catched: `{}` -> `{}`", from_value.0, to_type.0)
+
+                    _ => panic!(
+                        "Unimplemented cast type catched: `{}` -> `{}`",
+                        from_value.0, to_type.0
+                    ),
                 }
             }
             _ => {
-                panic!("Provided macros is under development stage: `{}!()`", id)
+                panic!("Provided macros is under development stage: `{id}!()`")
             }
         }
     }

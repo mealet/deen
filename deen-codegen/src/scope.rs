@@ -47,7 +47,10 @@ impl<'ctx> Scope<'ctx> {
         })
     }
 
-    pub fn get_mut_variable(&mut self, id: impl std::convert::AsRef<str>) -> Option<&mut Variable<'ctx>> {
+    pub fn get_mut_variable(
+        &mut self,
+        id: impl std::convert::AsRef<str>,
+    ) -> Option<&mut Variable<'ctx>> {
         self.variables.get_mut(id.as_ref()).or_else(|| {
             self.parent
                 .as_mut()
@@ -72,7 +75,10 @@ impl<'ctx> Scope<'ctx> {
         })
     }
 
-    pub fn get_mut_function(&mut self, id: impl std::convert::AsRef<str>) -> Option<&mut Function<'ctx>> {
+    pub fn get_mut_function(
+        &mut self,
+        id: impl std::convert::AsRef<str>,
+    ) -> Option<&mut Function<'ctx>> {
         self.functions.get_mut(id.as_ref()).or_else(|| {
             self.parent
                 .as_mut()
@@ -181,7 +187,7 @@ impl<'ctx> CodeGen<'ctx> {
                         let structure = self.scope.get_struct(&alias).unwrap();
 
                         if let Some(destructor) = structure.functions.get("drop") {
-                            let called = self.scope.get_function(format!("struct_{}__drop", alias)).unwrap().called;
+                            let called = self.scope.get_function(format!("struct_{alias}__drop")).unwrap().called;
                             if destructor.arguments == vec![Type::Pointer(Box::new(var.datatype))] && !called {
                                 let _ = self.builder.build_call(
                                     destructor.value,

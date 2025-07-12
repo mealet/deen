@@ -39,7 +39,7 @@ fn binary_expression() {
                     panic!("Wrong LHS found")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -98,7 +98,7 @@ fn binary_advanced_expression() {
                     panic!("Wrong LHS found")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -136,7 +136,7 @@ fn unary_negative_expression() {
                     panic!("Wrong object expression found")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -174,7 +174,7 @@ fn unary_not_expression() {
                     panic!("Wrong object expression found")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -217,7 +217,7 @@ fn boolean_eq_expression() {
                     panic!("Wrong object expression found")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -260,7 +260,7 @@ fn boolean_ne_expression() {
                     panic!("Wrong object expression found")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -303,7 +303,7 @@ fn boolean_bt_expression() {
                     panic!("Wrong object expression found")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -346,7 +346,7 @@ fn boolean_lt_expression() {
                     panic!("Wrong object expression found")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -422,7 +422,7 @@ fn boolean_advanced_expression() {
                     panic!("Wrong boolean expression found");
                 }
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -465,7 +465,7 @@ fn bitwise_expression() {
                     panic!("Wrong object expression found")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -499,7 +499,7 @@ fn argument_expression() {
                 assert_eq!(name, "some_arg");
                 assert_eq!(r#type, Type::I32);
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -536,7 +536,7 @@ fn argument_advanced_expression() {
                     Type::Pointer(Box::new(Type::Array(Box::new(Type::I32), 5)))
                 );
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -580,7 +580,7 @@ fn subelement_expression() {
                     panic!("Wrong subelement in subelement expr found")
                 }
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -646,7 +646,7 @@ fn subelement_advanced_expression() {
                     // panic!("Wrong subelement in subelement expr found")
                 }
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -680,7 +680,7 @@ fn fncall_expression() {
                 assert_eq!(name, "call_me");
                 assert!(arguments.is_empty());
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -731,7 +731,7 @@ fn fncall_advanced_expression() {
                     panic!("Argument does not matches expected")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -764,7 +764,7 @@ fn reference_expression() {
                     panic!("Ref object doesn't matches expected")
                 }
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -797,7 +797,7 @@ fn reference_advanced_expression() {
                     panic!("Ref object doesn't matches expected")
                 }
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -830,7 +830,7 @@ fn dereference_expression() {
                     panic!("Ref object doesn't matches expected")
                 }
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -867,7 +867,7 @@ fn dereference_advanced_expression() {
                     panic!("First level dereference object isn't dereference expr")
                 }
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -914,7 +914,7 @@ fn array_expression() {
                     panic!("Arg #3 is wrong")
                 }
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -957,7 +957,7 @@ fn tuple_expression() {
                     panic!("Argument is wrong")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -1001,7 +1001,7 @@ fn tuple_advanced_expression() {
                     panic!("Argument is wrong")
                 };
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -1040,7 +1040,7 @@ fn slice_expression() {
                     }
                 }
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
@@ -1076,7 +1076,7 @@ fn struct_expression() {
                 assert!(fields.contains_key("name"));
                 assert!(fields.contains_key("money"));
             }
-            _ => panic!("Wrong expression value found: {:?}", value),
+            _ => panic!("Wrong expression value found: {value:?}"),
         }
     } else {
         panic!("Statements side failure");
