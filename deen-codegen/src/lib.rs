@@ -306,7 +306,7 @@ impl<'ctx> CodeGen<'ctx> {
                             vec![expected_basic_value.into(), provided_basic_value.into()],
                             self.get_source_line(span.0),
                         );
-                        self.builder.build_unconditional_branch(ok_block).unwrap();
+                        self.build_branch(ok_block);
                         self.builder.position_at_end(ok_block);
 
                         // getting ptr
@@ -1314,7 +1314,7 @@ impl<'ctx> CodeGen<'ctx> {
                     _ => unreachable!(),
                 }
 
-                let _ = self.builder.build_unconditional_branch(iterator_block);
+                let _ = self.build_branch(iterator_block);
 
                 // exit
 
@@ -2703,7 +2703,7 @@ impl<'ctx> CodeGen<'ctx> {
                             vec![expected_basic_value.into(), provided_basic_value.into()],
                             self.get_source_line(span.0),
                         );
-                        self.builder.build_unconditional_branch(ok_block).unwrap();
+                        self.build_branch(ok_block);
 
                         self.builder.position_at_end(ok_block);
 
