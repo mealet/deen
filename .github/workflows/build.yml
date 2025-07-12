@@ -59,11 +59,18 @@ jobs:
     - name: Install Windows dependencies
       if: matrix.os == 'windows-latest'
       shell: powershell
-      continue-on-error: true
       run: |
-        choco install llvm --version=18.1.8 -y
-        $env:LLVM_SYS_180_PREFIX = "C:\Program Files\LLVM"
-        echo "LLVM_SYS_180_PREFIX=$env:LLVM_SYS_180_PREFIX" >> $env:GITHUB_ENV
+        choco install llvm --version=18.1.8 -y 2>$null
+        if (Test-Path "C:\Program Files\LLVM") {
+          $env:LLVM_SYS_180_PREFIX = "C:\Program Files\LLVM"
+          echo "LLVM_SYS_180_PREFIX=$env:LLVM_SYS_180_PREFIX" >> $env:GITHUB_ENV
+        } elseif (Test-Path "C:\tools\llvm") {
+          $env:LLVM_SYS_180_PREFIX = "C:\tools\llvm"
+          echo "LLVM_SYS_180_PREFIX=$env:LLVM_SYS_180_PREFIX" >> $env:GITHUB_ENV
+        } else {
+          Write-Host "LLVM installation not found in expected locations"
+          exit 1
+        }
 
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
