@@ -65,11 +65,16 @@ jobs:
     # Windows dependencies
     - name: Install Windows dependencies
       if: matrix.os == 'windows-latest'
-      continue-on-error: true
       run: |
-        choco install llvm --version=18.1.8
+        # Try to uninstall existing LLVM first
+        choco uninstall llvm --yes || true
+        # Install LLVM 18.1.8
+        choco install llvm --version=18.1.8 --yes
+        # Set environment variables
         echo "LLVM_SYS_180_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
         echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
+        # Verify installation
+        Get-ChildItem "C:\Program Files\LLVM" -ErrorAction SilentlyContinue
 
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
