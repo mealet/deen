@@ -1,4 +1,6 @@
-use crate::{enumeration::Enumeration, function::Function, structure::Structure, variable::Variable, CodeGen};
+use crate::{
+    CodeGen, enumeration::Enumeration, function::Function, structure::Structure, variable::Variable,
+};
 use deen_parser::types::Type;
 use std::collections::HashMap;
 
@@ -13,6 +15,12 @@ pub struct Scope<'ctx> {
     typedefs: HashMap<String, Type>,
 }
 
+impl<'ctx> Default for Scope<'ctx> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'ctx> Scope<'ctx> {
     pub fn new() -> Self {
         Self {
@@ -22,7 +30,7 @@ impl<'ctx> Scope<'ctx> {
             functions: HashMap::new(),
             structures: HashMap::new(),
             enumerations: HashMap::new(),
-            typedefs: HashMap::new()
+            typedefs: HashMap::new(),
         }
     }
 
@@ -32,26 +40,50 @@ impl<'ctx> Scope<'ctx> {
     }
 
     pub fn get_variable(&self, id: impl std::convert::AsRef<str>) -> Option<Variable<'ctx>> {
-        self.variables
-            .get(id.as_ref())
-            .cloned()
-            .or_else(|| self.parent.as_ref().and_then(|parent| parent.get_variable(id)))
+        self.variables.get(id.as_ref()).cloned().or_else(|| {
+            self.parent
+                .as_ref()
+                .and_then(|parent| parent.get_variable(id))
+        })
+    }
+
+    pub fn get_mut_variable(
+        &mut self,
+        id: impl std::convert::AsRef<str>,
+    ) -> Option<&mut Variable<'ctx>> {
+        self.variables.get_mut(id.as_ref()).or_else(|| {
+            self.parent
+                .as_mut()
+                .and_then(|parent| parent.get_mut_variable(id))
+        })
     }
 
     pub fn remove_variable(&mut self, id: impl std::convert::AsRef<str>) -> Option<Variable<'ctx>> {
         self.variables.remove(id.as_ref())
     }
 
-    // functions 
+    // functions
     pub fn set_function(&mut self, id: impl std::convert::AsRef<str>, object: Function<'ctx>) {
         self.functions.insert(id.as_ref().into(), object);
     }
 
     pub fn get_function(&self, id: impl std::convert::AsRef<str>) -> Option<Function<'ctx>> {
-        self.functions
-            .get(id.as_ref())
-            .cloned()
-            .or_else(|| self.parent.as_ref().and_then(|parent| parent.get_function(id)))
+        self.functions.get(id.as_ref()).cloned().or_else(|| {
+            self.parent
+                .as_ref()
+                .and_then(|parent| parent.get_function(id))
+        })
+    }
+
+    pub fn get_mut_function(
+        &mut self,
+        id: impl std::convert::AsRef<str>,
+    ) -> Option<&mut Function<'ctx>> {
+        self.functions.get_mut(id.as_ref()).or_else(|| {
+            self.parent
+                .as_mut()
+                .and_then(|parent| parent.get_mut_function(id))
+        })
     }
 
     // structures
@@ -60,16 +92,22 @@ impl<'ctx> Scope<'ctx> {
     }
 
     pub fn get_struct(&self, id: impl std::convert::AsRef<str>) -> Option<Structure<'ctx>> {
-        self.structures
-            .get(id.as_ref())
-            .cloned()
-            .or_else(|| self.parent.as_ref().and_then(|parent| parent.get_struct(id)))
+        self.structures.get(id.as_ref()).cloned().or_else(|| {
+            self.parent
+                .as_ref()
+                .and_then(|parent| parent.get_struct(id))
+        })
     }
 
-    pub fn get_mut_struct(&mut self, id: impl std::convert::AsRef<str>) -> Option<&mut Structure<'ctx>> {
-        self.structures
-            .get_mut(id.as_ref())
-            .or_else(|| self.parent.as_mut().and_then(|parent| parent.get_mut_struct(id)))
+    pub fn get_mut_struct(
+        &mut self,
+        id: impl std::convert::AsRef<str>,
+    ) -> Option<&mut Structure<'ctx>> {
+        self.structures.get_mut(id.as_ref()).or_else(|| {
+            self.parent
+                .as_mut()
+                .and_then(|parent| parent.get_mut_struct(id))
+        })
     }
 
     // enums
@@ -84,10 +122,15 @@ impl<'ctx> Scope<'ctx> {
             .or_else(|| self.parent.as_ref().and_then(|parent| parent.get_enum(id)))
     }
 
-    pub fn get_mut_enum(&mut self, id: impl std::convert::AsRef<str>) -> Option<&mut Enumeration<'ctx>> {
-        self.enumerations
-            .get_mut(id.as_ref())
-            .or_else(|| self.parent.as_mut().and_then(|parent| parent.get_mut_enum(id)))
+    pub fn get_mut_enum(
+        &mut self,
+        id: impl std::convert::AsRef<str>,
+    ) -> Option<&mut Enumeration<'ctx>> {
+        self.enumerations.get_mut(id.as_ref()).or_else(|| {
+            self.parent
+                .as_mut()
+                .and_then(|parent| parent.get_mut_enum(id))
+        })
     }
 
     // typedefs
@@ -96,12 +139,13 @@ impl<'ctx> Scope<'ctx> {
     }
 
     pub fn get_typedef(&self, id: impl std::convert::AsRef<str>) -> Option<Type> {
-        self.typedefs
-            .get(id.as_ref())
-            .cloned()
-            .or_else(|| self.parent.as_ref().and_then(|parent| parent.get_typedef(id)))
+        self.typedefs.get(id.as_ref()).cloned().or_else(|| {
+            self.parent
+                .as_ref()
+                .and_then(|parent| parent.get_typedef(id))
+        })
     }
-    
+
     // tech
     pub fn stricted_variables(&self) -> HashMap<String, Variable<'ctx>> {
         self.variables.to_owned()
@@ -136,14 +180,15 @@ impl<'ctx> CodeGen<'ctx> {
     pub fn cleanup_variables(&mut self) {
         let scope_variables = self.scope.stricted_variables();
 
-        scope_variables.into_iter().for_each(|(_, var)| {
+        scope_variables.into_iter().for_each(|(name, var)| {
             match var.datatype.clone() {
                 Type::Alias(alias) => {
-                    if let Some("struct") = self.get_alias_type(var.datatype, None) {
-                        let structure = self.scope.get_struct(alias).unwrap();
+                    if matches!(self.get_alias_type(var.datatype.clone(), None), Some("struct")) && name != "self" && !var.no_drop {
+                        let structure = self.scope.get_struct(&alias).unwrap();
 
                         if let Some(destructor) = structure.functions.get("drop") {
-                            if destructor.arguments == vec![Type::SelfRef] {
+                            let called = self.scope.get_function(format!("struct_{alias}__drop")).unwrap().called;
+                            if destructor.arguments == vec![Type::Pointer(Box::new(var.datatype))] && !called {
                                 let _ = self.builder.build_call(
                                     destructor.value,
                                     &[
@@ -172,12 +217,14 @@ impl<'ctx> CodeGen<'ctx> {
     pub fn exit_scope(&mut self) {
         if let Some(parent) = self.scope.parent.to_owned() {
             let insert_block = self.builder.get_insert_block().unwrap();
-            
+
             if let Some(instr) = insert_block.get_terminator() {
                 self.builder.position_before(&instr);
                 self.cleanup_variables();
 
                 self.builder.position_at_end(insert_block);
+            } else {
+                self.cleanup_variables();
             }
 
             self.scope = parent;

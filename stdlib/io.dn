@@ -1,0 +1,62 @@
+extern "C" fn getchar() char;
+extern "C" fn printf(*char, ...);
+
+extern "C" fn fflush(*i8);
+extern "C" fn fprintf(*i8, *char, ...);
+
+// standart streams
+_extern_declare stdout **i8
+_extern_declare stderr **i8
+_extern_declare stdin **i8
+
+include "@string";
+include "@bytes";
+
+// standart input
+pub struct Stdin {
+  fn read_line(buffer: *String) {
+    let ch = getchar();
+    while (ch != '\0') {
+      if ch == '\n' || ch == '\0' {
+        break;
+      }
+
+      buffer.push(ch);
+      ch = getchar();
+    }
+  }
+
+  fn getchar() char {
+    let chr = getchar();
+    return chr;
+  }
+}
+
+// output streams
+pub struct Stdout {
+  fn print(input: *char) {
+    printf("%s", input);
+  }
+
+  fn println(input: *char) {
+    printf("%s\n", input);
+  }
+
+  fn flush() {
+    fflush(*stdout);
+  }
+}
+
+pub struct Stderr {
+  fn print(input: *char) {
+    fprintf(*stderr, "%s", input);
+  }
+
+  fn println(input: *char) {
+    fprintf(*stderr, "%s\n", input);
+  }
+
+  fn flush() {
+    fflush(*stderr);
+  }
+}

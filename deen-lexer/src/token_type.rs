@@ -1,3 +1,16 @@
+//! ## Token Type
+//! Public enumeration of all avaible in Lexical Analyzer types of token
+//!
+//! ## Example:
+//! ```rust
+//! use deen_lexer::token_type::TokenType;
+//!
+//! let string_tty = TokenType::String;
+//! println!("{}", string_tty);
+//!
+//! assert!(string_tty.to_string() == "String");
+//! ```
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum TokenType {
     Identifier, // abc
@@ -9,15 +22,19 @@ pub enum TokenType {
     String,      // "hello"
     Char,        // 'c'
     Boolean,     // true/false
+    Null,        // NULL
 
     Equal,    // =
     Plus,     // +
     Minus,    // -
     Multiply, // *
     Divide,   // /
+    Modulus,  // %
 
     Lt,  // <
     Bt,  // >
+    Leq, // <=, =<
+    Beq, // >=, =>
     Eq,  // ==
     Ne,  // !=
     Or,  // ||

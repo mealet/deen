@@ -1,3 +1,18 @@
+//! ## Token
+//! **Token** - a structure that contains information of current lexeme: value, token_type and
+//! position in source code.
+//!
+//! ## Example:
+//! ```rust
+//! use deen_lexer::{token::Token, token_type::TokenType};
+//!
+//! let number = Token::new(String::from("123"), TokenType::Number, (0, 2));
+//!
+//! assert!(number.value == "123");
+//! assert!(number.token_type == TokenType::Number);
+//! assert!(number.span == (0, 2));
+//! ```
+
 use crate::token_type::TokenType;
 
 #[derive(Debug, Clone, Eq, PartialEq)]

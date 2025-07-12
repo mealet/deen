@@ -116,14 +116,14 @@ impl Scope {
 
                 Ok(())
             }
-            None => Err(format!("Variable \"{}\" is not defined her", name)),
+            None => Err(format!("Variable \"{name}\" is not defined her")),
         }
     }
 
     #[inline]
     pub fn add_fn(&mut self, name: String, return_type: Type, public: bool) -> Result<(), String> {
         if self.functions.contains_key(&name) {
-            return Err(format!("Function `{}` already declared", name));
+            return Err(format!("Function `{name}` already declared"));
         }
         self.functions.insert(
             name.clone(),
@@ -144,6 +144,7 @@ impl Scope {
     }
 
     #[inline]
+    #[allow(unused)]
     pub fn add_struct(
         &mut self,
         name: String,
@@ -151,7 +152,7 @@ impl Scope {
         public: bool,
     ) -> Result<(), String> {
         if self.structures.contains_key(&name) {
-            return Err(format!("Structure `{}` already declared", name));
+            return Err(format!("Structure `{name}` already declared"));
         }
         self.structures.insert(
             name.clone(),
@@ -176,11 +177,20 @@ impl Scope {
     }
 
     #[inline]
+    pub fn get_mut_struct(&mut self, name: &str) -> Option<&mut ScopeElement> {
+        self.structures.get_mut(name).or_else(|| {
+            self.parent
+                .as_mut()
+                .and_then(|parent| parent.get_mut_struct(name))
+        })
+    }
+
+    #[inline]
     pub fn add_enum(&mut self, name: String, enum_type: Type, public: bool) -> Result<(), String> {
         if self.enums.contains_key(&name) {
-            return Err(format!("Enum `{}` already declared", name));
+            return Err(format!("Enum `{name}` already declared"));
         }
-        self.structures.insert(
+        self.enums.insert(
             name.clone(),
             ScopeElement {
                 datatype: enum_type,
@@ -205,7 +215,7 @@ impl Scope {
     #[inline]
     pub fn add_typedef(&mut self, name: String, typ: Type) -> Result<(), String> {
         if self.typedefs.contains_key(&name) {
-            return Err(format!("Type `{}` already declared", name));
+            return Err(format!("Type `{name}` already declared"));
         }
         self.typedefs.insert(name, typ);
         Ok(())

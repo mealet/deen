@@ -1,3 +1,12 @@
+//! # Expressions
+//! Each expression in Deen has its own syntax (such as Statements). <br/>
+//! _To see syntax rules for every Expression, check the [`Expressions`] enum_
+//!
+//! **Expression** is a syntactic entity in programming language that combines types and values
+//! into single instance. <br/>
+//! Expressions can be components of [`Statements`]. <br/>
+//! Read: <https://en.wikipedia.org/wiki/Expression_(computer_science)>
+
 use crate::{
     BINARY_OPERATORS, BITWISE_OPERATORS, BOOLEAN_OPERATORS, PRIORITY_BINARY_OPERATORS,
     PRIORITY_BOOLEAN_OPERATORS, Parser, statements::Statements, types::Type, value::Value,
@@ -7,23 +16,28 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expressions {
+    /// `OBJECT BINOP EXPRESSION`
     Binary {
         operand: String,
         lhs: Box<Expressions>,
         rhs: Box<Expressions>,
         span: (usize, usize),
     },
+    /// `UNOP OBJECT`
     Unary {
         operand: String,
         object: Box<Expressions>,
         span: (usize, usize),
     },
+
+    /// `OBJECT BOOLOP EXPRESSION`
     Boolean {
         operand: String,
         lhs: Box<Expressions>,
         rhs: Box<Expressions>,
         span: (usize, usize),
     },
+    /// `OBJECT BITOP EXPRESSION`
     Bitwise {
         operand: String,
         lhs: Box<Expressions>,
@@ -31,56 +45,68 @@ pub enum Expressions {
         span: (usize, usize),
     },
 
+    /// `IDENTIFIER: TYPE`
     Argument {
         name: String,
         r#type: Type,
         span: (usize, usize),
     },
+    /// `OBJECT.SUBELEMENT_1.SUBELEMENT_2`
     SubElement {
         head: Box<Expressions>,
         subelements: Vec<Expressions>,
         span: (usize, usize),
     },
 
+    /// `IDENTIFIER ( EXPRESSION, EXPRESSION, ... )`
     FnCall {
         name: String,
         arguments: Vec<Expressions>,
         span: (usize, usize),
     },
+    /// `IDENTIFIER! ( EXPRESSION, EXPRESSION, ... )`
     MacroCall {
         name: String,
         arguments: Vec<Expressions>,
         span: (usize, usize),
     },
 
+    /// `&EXPRESSION`
     Reference {
         object: Box<Expressions>,
         span: (usize, usize),
     },
+
+    /// `*EXPRESSION`
     Dereference {
         object: Box<Expressions>,
         span: (usize, usize),
     },
 
+    /// `[EXPRESSION, EXPRESSION, ...]`
     Array {
         values: Vec<Expressions>,
         len: usize,
         span: (usize, usize),
     },
+    /// `(EXPRESSION, EXPRESSION, ...)`
     Tuple {
         values: Vec<Expressions>,
         span: (usize, usize),
     },
+    /// `OBJECT[EXPRESSION]`
     Slice {
         object: Box<Expressions>,
         index: Box<Expressions>,
         span: (usize, usize),
     },
+    /// `IDENTIFIER { .IDENTIFIER = EXPRESSION, .IDENTIFIER = EXPRESSION }`
     Struct {
         name: String,
         fields: HashMap<String, Expressions>,
         span: (usize, usize),
     },
+    /// `{ STATEMENTS }`
     Scope {
         block: Vec<Statements>,
         span: (usize, usize),
@@ -199,6 +225,9 @@ impl Parser {
     }
 
     pub fn binary_expression(&mut self, node: Expressions) -> Expressions {
+        let node_span = Self::get_span_expression(node.clone());
+        let span_end;
+
         let current = self.current();
 
         match current.token_type {
@@ -207,6 +236,10 @@ impl Parser {
 
                 let lhs = node;
                 let rhs = self.expression();
+
+                self.position -= 2;
+                span_end = self.current().span.1;
+                self.position += 2;
 
                 if PRIORITY_BINARY_OPERATORS.contains(&tty) {
                     let new_node = rhs.clone();
@@ -233,7 +266,7 @@ impl Parser {
                             operand,
                             lhs: Box::new(priority_node),
                             rhs,
-                            span,
+                            span: (node_span.0, span_end),
                         };
                     }
                 }
@@ -242,7 +275,7 @@ impl Parser {
                     operand: current.value,
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
-                    span: (current.span.0, self.current().span.1),
+                    span: (node_span.0, span_end),
                 }
             }
             _ => unreachable!(),
@@ -251,6 +284,9 @@ impl Parser {
 
     pub fn boolean_expression(&mut self, node: Expressions) -> Expressions {
         // FIXME: Expressions like `true || false` returns error "Undefined term found"
+
+        let node_span = Self::get_span_expression(node.clone());
+        let span_end;
 
         let current = self.current();
 
@@ -261,6 +297,10 @@ impl Parser {
 
                 let lhs = node.clone();
                 let rhs = self.expression();
+
+                self.position -= 2;
+                span_end = self.current().span.1;
+                self.position += 2;
 
                 if PRIORITY_BOOLEAN_OPERATORS.contains(&self.current().token_type) {
                     let operand = self.current().value;
@@ -278,7 +318,7 @@ impl Parser {
                         operand,
                         lhs: Box::new(lhs_node),
                         rhs: Box::new(rhs_node),
-                        span: (current.span.0, self.current().span.1),
+                        span: (node_span.0, span_end),
                     };
                 }
 
@@ -286,7 +326,7 @@ impl Parser {
                     operand: current.value,
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
-                    span: (current.span.0, self.current().span.1),
+                    span: (node_span.0, span_end),
                 }
             }
             _ => unreachable!(),
@@ -294,6 +334,9 @@ impl Parser {
     }
 
     pub fn bitwise_expression(&mut self, node: Expressions) -> Expressions {
+        let node_span = Self::get_span_expression(node.clone());
+        let span_end;
+
         let current = self.current();
 
         match current.token_type {
@@ -303,11 +346,15 @@ impl Parser {
                 let lhs = Box::new(node);
                 let rhs = Box::new(self.expression());
 
+                self.position -= 2;
+                span_end = self.current().span.1;
+                self.position += 2;
+
                 Expressions::Bitwise {
                     operand: current.value,
                     lhs,
                     rhs,
-                    span: (current.span.0, self.current().span.1),
+                    span: (node_span.0, span_end),
                 }
             }
             _ => unreachable!(),
@@ -369,14 +416,17 @@ impl Parser {
 
         let object = Box::new(expr.clone());
         let index = Box::new(self.expression());
-        let span_end = self.current().span.1;
 
         if self.current().token_type != TokenType::RBrack {
-            self.error(String::from(""), (self.span_expression(expr).0, span_end));
+            self.error(
+                String::from("Index end not found"),
+                (self.span_expression(expr).0, self.current().span.1),
+            );
             return Expressions::None;
         }
 
         let _ = self.next();
+        let span_end = self.current().span.1;
         Expressions::Slice {
             object,
             index,
@@ -454,7 +504,7 @@ impl Parser {
 
             if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
                 self.error(
-                    String::from("Values must be separated by semicolons"),
+                    String::from("Values must be separated by commas"),
                     (span_start, self.current().span.1),
                 );
                 while !self.expect(TokenType::RBrace)
@@ -491,10 +541,7 @@ impl Parser {
         if self.expect(start) {
             current = self.next()
         } else if self.expect(end.clone()) {
-            self.error(
-                String::from("Unexpected enumeration end found"),
-                current.span,
-            );
+            let _ = self.next();
             return Vec::new();
         }
 

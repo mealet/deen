@@ -1,0 +1,175 @@
+extern "C" fn abs(i64) i64; 
+extern "C" fn fabs(f64) f64; 
+
+extern "C" fn ceil(f64) f64; 
+extern "C" fn floor(f64) f64; 
+extern "C" fn round(f64) f64; 
+
+extern "C" fn sqrt(f64) f64; 
+extern "C" fn cbrt(f64) f64; 
+extern "C" fn pow(f64, f64) f64; 
+
+extern "C" fn exp(f64) f64; 
+extern "C" fn log(f64) f64; 
+extern "C" fn log2(f64) f64; 
+extern "C" fn log10(f64) f64; 
+
+extern "C" fn sin(f64) f64; 
+extern "C" fn cos(f64) f64; 
+extern "C" fn tan(f64) f64; 
+extern "C" fn asin(f64) f64; 
+extern "C" fn acos(f64) f64; 
+extern "C" fn atan(f64) f64; 
+
+extern "C" fn rand() i32; 
+extern "C" fn time(*void) usize; 
+extern "C" fn srand(usize); 
+
+pub struct Random {
+  fn init() Random {
+    srand(time(NULL));
+    return Random {};
+  }
+
+  fn random(from: i32, to: i32) i32 {
+    return from + rand() % (to - from + 1);
+  }
+}
+
+pub struct Math {
+  // CONSTANTS
+
+  fn PI() f64 {
+    return 3.1415926535897932384626
+  }
+
+  fn E() f64 {
+    return 2.7182818284
+  }
+
+  // basic
+  fn abs(value: i64) i64 {
+    return abs(value);
+  }
+
+  fn fabs(value: f64) f64 {
+    return fabs(value);
+  }
+
+  fn sign(value: i64) i64 {
+    if value == 0 {
+      return 0;
+    } else if value > 0 {
+      return 1;
+    } else {
+      return -1;
+    }
+  }
+
+  fn min(a: i64, b: i64) i64 {
+    if a < b { return a } else { return b }
+  }
+
+  fn minf(a: f64, b: f64) f64 {
+    if a < b { return a } else { return b }
+  }
+
+  fn max(a: i64, b: i64) i64 {
+    if a > b { return a } else { return b }
+  }
+
+  fn maxf(a: f64, b: f64) f64 {
+    if a > b { return a } else { return b }
+  }
+
+  fn pow(base: i64, exponent: i64) i64 {
+    return cast!(
+      pow(cast!(base, f64), cast!(exponent, f64)),
+      i64
+    );
+  }
+
+  fn powf(base: f64, exponent: f64) f64 {
+    return pow(base, exponent);
+  }
+
+  fn sqrt(value: i64) i64 {
+    return cast!(
+      sqrt(cast!(value, f64)),
+      i64
+    );
+  }
+
+  fn sqrtf(value: f64) f64 {
+    return sqrt(value);
+  }
+
+  fn cbrt(value: i64) i64 {
+    return cast!(
+      cbrt(cast!(value, f64)),
+      i64
+    );
+  }
+
+  fn cbrtf(value: f64) f64 {
+    return cbrt(value);
+  }
+  
+  // logariphmic and exp
+
+  fn exp(value: f64) f64 {
+    return exp(value);
+  }
+
+  fn log(value: f64) f64 {
+    return log(value);
+  }
+
+  fn log2(value: f64) f64 {
+    return log2(value);
+  }
+
+  fn log10(value: f64) f64 {
+    return log10(value);
+  }
+
+  // float values operating
+
+  fn ceil(value: f64) f64 {
+    return ceil(value);
+  }
+
+  fn floor(value: f64) f64 {
+    return floor(value);
+  }
+
+  fn round(value: f64) f64 {
+    return round(value);
+  }
+
+  // trigonometry
+
+  fn sin(value: f64) f64 {
+    return sin(value);
+  }
+
+  fn cos(value: f64) f64 {
+    return cos(value);
+  }
+
+  fn tan(value: f64) f64 {
+    return tan(value);
+  }
+
+  fn asin(value: f64) f64 {
+    return asin(value);
+  }
+
+  fn acos(value: f64) f64 {
+    return acos(value);
+  }
+
+  fn atan(value: f64) f64 {
+    return atan(value);
+  }
+}

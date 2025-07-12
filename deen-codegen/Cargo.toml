@@ -11,5 +11,6 @@ license.workspace = true
 deen-parser = { path = "../deen-parser" }
 deen-semantic = { path = "../deen-semantic" }
 inkwell = { version = "0.5.0", features = ["llvm18-0"] }
+llvm-sys = { version = "180", features = ["prefer-static"] }
 miette = { version = "7.5.0", features = ["fancy"] }
 thiserror = "2.0.12"

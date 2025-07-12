@@ -1,3 +1,29 @@
+//! # Deen Lexical Analyzer
+//! Tools to convert user's source code into abstracted data structures - tokens. <br/>
+//! Wikipedia Explanation: <https://en.wikipedia.org/wiki/Lexical_analysis> <br/>
+//!
+//! Main tool here is the [`Lexer`] structure (you can also check examples there)
+//!
+//! ## Usage
+//! ```rust
+//! use deen_lexer::Lexer;
+//!
+//! let input = "1 + 1";
+//! let filename = "example.dn";
+//!
+//! let mut lexer = Lexer::new(input, filename);
+//! let lexer_result = lexer.tokenize();
+//!
+//! assert!(lexer_result.is_ok());
+//!
+//! let (tokens, warns) = lexer_result.unwrap();
+//!
+//! assert!(warns.is_empty());
+//! assert!(tokens.len() == 4); // 3 tokens and EOF (End Of File)
+//!
+//! println!("{:?}", tokens);
+//! ```
+
 use crate::{
     error::{LexerError, LexerWarning},
     macros::{std_keyword, std_symbol, std_token, std_type},
@@ -7,30 +33,45 @@ use crate::{
 use miette::NamedSource;
 use std::collections::HashMap;
 
+/// Error Handling Module
 pub mod error;
+/// Helpful Macros Module
 mod macros;
+/// Token Object and Implementations
 pub mod token;
+/// Token Types Enumeration
 pub mod token_type;
 
-type LexerOk = (Vec<Token>, Vec<LexerWarning>);
-type LexerErr = (Vec<LexerError>, Vec<LexerWarning>);
+pub type LexerOk = (Vec<Token>, Vec<LexerWarning>);
+pub type LexerErr = (Vec<LexerError>, Vec<LexerWarning>);
 
+/// Main lexical analyzer instance
+///
+/// ### Usage example:
 pub struct Lexer {
+    /// Named source code (from [`miette`])
     source: NamedSource<String>,
 
+    // Compiler's reserved symbols
     std_symbols: HashMap<char, Token>,
+    // Compiler's reserved keywords
     std_words: HashMap<String, Token>,
 
+    // Vector of handled Lexer errors
     errors: Vec<error::LexerError>,
+    // Vector of handled Lexer warnings
     warnings: Vec<error::LexerWarning>,
 
+    // Input's characters
     input: Vec<char>,
+    // Current Lexer position
     position: usize,
+    // Current Lexer character
     char: char,
 }
 
 impl Lexer {
-    // basic
+    /// Basic analyzer structure builder
     pub fn new(source: &str, filename: &str) -> Self {
         let mut lexer = Lexer {
             source: NamedSource::new(filename, source.to_owned()),
@@ -40,6 +81,7 @@ impl Lexer {
                 std_symbol!('-', TokenType::Minus),
                 std_symbol!('*', TokenType::Multiply),
                 std_symbol!('/', TokenType::Divide),
+                std_symbol!('%', TokenType::Modulus),
                 std_symbol!('=', TokenType::Equal),
                 std_symbol!('!', TokenType::Not),
                 std_symbol!('^', TokenType::Xor),
@@ -72,11 +114,13 @@ impl Lexer {
                 std_keyword!("pub"),
                 std_keyword!("fn"),
                 std_keyword!("import"),
+                std_keyword!("include"),
                 std_keyword!("extern"),
                 std_keyword!("return"),
                 std_keyword!("struct"),
                 std_keyword!("enum"),
                 std_keyword!("typedef"),
+                std_keyword!("_extern_declare"),
                 // Types
                 std_type!("i8"),
                 std_type!("i16"),
@@ -87,13 +131,15 @@ impl Lexer {
                 std_type!("u32"),
                 std_type!("u64"),
                 std_type!("usize"),
-                std_type!("string"),
-                std_type!("char"),
+                std_type!("f32"),
+                std_type!("f64"),
                 std_type!("bool"),
+                std_type!("char"),
                 std_type!("void"),
                 // Values
                 std_token!("true", TokenType::Boolean),
                 std_token!("false", TokenType::Boolean),
+                std_token!("NULL", TokenType::Null),
             ]),
 
             errors: Vec::new(),
@@ -108,7 +154,7 @@ impl Lexer {
         lexer
     }
 
-    // fundamental
+    // Fundamental Lexer functions
 
     fn error(&mut self, message: String, span: (usize, usize)) {
         self.errors.push(error::LexerError {
@@ -135,7 +181,7 @@ impl Lexer {
         }
     }
 
-    // filters
+    // Filters
 
     fn is_eof(&self) -> bool {
         self.char == '\0'
@@ -145,7 +191,18 @@ impl Lexer {
         ['a', 'b', 'c', 'd', 'e', 'f'].contains(&value.to_ascii_lowercase())
     }
 
-    // helpful
+    // Helpful functions
+
+    fn character_escape(escape: char) -> Option<char> {
+        match escape {
+            '0' => Some('\0'),
+            'n' => Some('\n'),
+            'r' => Some('\r'),
+            't' => Some('\t'),
+            '\\' => Some('\\'),
+            _ => None,
+        }
+    }
 
     fn get_number(&mut self) -> (String, TokenType) {
         #[derive(PartialEq)]
@@ -325,19 +382,22 @@ impl Lexer {
         }
     }
 
-    // main
+    // Main tokenizer function
 
+    /// Tokenizer function. <br/>
+    /// - **Ok**: tuple of vector with tokens and vector with warnings
+    /// - **Err**: tuple of vector with errors and vector with warnings
     pub fn tokenize(&mut self) -> Result<LexerOk, LexerErr> {
         let mut output = Vec::new();
 
         while !self.is_eof() {
             match self.char {
-                '\0' => self.getc(),
-                '\n' | ' ' => self.getc(),
+                '\n' | '\0' => self.getc(),
+                _ if self.char.is_whitespace() => self.getc(),
                 '/' => {
                     self.getc();
                     if self.char == '/' {
-                        while self.char != '\n' {
+                        while self.char != '\n' && self.char != '\0' {
                             self.getc();
                         }
                         continue;
@@ -345,7 +405,7 @@ impl Lexer {
                     output.push(Token::new(
                         String::from("/"),
                         TokenType::Divide,
-                        (self.position - 1, self.position - 1),
+                        (self.position - 1, self.position),
                     ));
                 }
                 chr if self.std_symbols.contains_key(&chr) => {
@@ -361,17 +421,18 @@ impl Lexer {
                                 if self.char == '\\' {
                                     self.getc();
 
-                                    match self.char {
-                                        '0' => captured_string.push('\0'),
-                                        'n' => captured_string.push('\n'),
-                                        'r' => captured_string.push('\r'),
-                                        't' => captured_string.push('\t'),
-                                        _ => {
-                                            continue;
-                                        }
+                                    let character_escape = Self::character_escape(self.char);
+
+                                    if let Some(character_escape) = character_escape {
+                                        captured_string.push(character_escape);
+                                        self.getc();
+                                    } else {
+                                        self.error(
+                                            String::from("Unknown character escape found"),
+                                            (self.position - 2, 2),
+                                        );
                                     }
 
-                                    self.getc();
                                     continue;
                                 }
 
@@ -391,12 +452,27 @@ impl Lexer {
 
                             self.getc();
 
-                            let chr = self.char;
+                            let mut chr = self.char;
+
+                            if chr == '\\' {
+                                self.getc();
+                                let character_escape = Self::character_escape(self.char)
+                                    .unwrap_or_else(|| {
+                                        self.error(
+                                            String::from("Unexpected character escape found"),
+                                            (span_start, self.position),
+                                        );
+                                        ' '
+                                    });
+
+                                chr = character_escape;
+                            }
 
                             self.getc();
+
                             if self.char != '\'' {
                                 self.error(
-                                    String::from("Unexpected character escape found"),
+                                    String::from("Undefined character found"),
                                     (span_start, self.position),
                                 );
                                 self.getc();
@@ -405,7 +481,7 @@ impl Lexer {
                             output.push(Token::new(
                                 chr.to_string(),
                                 TokenType::Char,
-                                (span_start, self.position - 1),
+                                (span_start, self.position),
                             ));
                             self.getc();
                         }
@@ -413,18 +489,37 @@ impl Lexer {
                             let span_start = self.position;
                             self.getc();
 
-                            if self.char == '=' {
-                                output.push(Token::new(
-                                    String::from("=="),
-                                    TokenType::Eq,
-                                    (span_start - 1, self.position - 1),
-                                ));
-                                self.getc();
-                            } else {
-                                let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start - 1, self.position - 1);
+                            match self.char {
+                                '=' => {
+                                    output.push(Token::new(
+                                        String::from("=="),
+                                        TokenType::Eq,
+                                        (span_start - 1, self.position - 1),
+                                    ));
+                                    self.getc();
+                                }
+                                '>' => {
+                                    output.push(Token::new(
+                                        String::from("=>"),
+                                        TokenType::Beq,
+                                        (span_start - 1, self.position - 1),
+                                    ));
+                                    self.getc();
+                                }
+                                '<' => {
+                                    output.push(Token::new(
+                                        String::from("=<"),
+                                        TokenType::Leq,
+                                        (span_start - 1, self.position - 1),
+                                    ));
+                                    self.getc();
+                                }
+                                _ => {
+                                    let mut formatted_token = matched_token;
+                                    formatted_token.span = (span_start - 1, self.position);
 
-                                output.push(formatted_token);
+                                    output.push(formatted_token);
+                                }
                             }
                         }
                         TokenType::Lt => {
@@ -435,7 +530,15 @@ impl Lexer {
                                     output.push(Token::new(
                                         String::from("<<"),
                                         TokenType::LShift,
-                                        (span_start, self.position - 1),
+                                        (span_start, self.position),
+                                    ));
+                                    self.getc();
+                                }
+                                '=' => {
+                                    output.push(Token::new(
+                                        String::from("<="),
+                                        TokenType::Leq,
+                                        (span_start, self.position),
                                     ));
                                     self.getc();
                                 }
@@ -455,7 +558,15 @@ impl Lexer {
                                     output.push(Token::new(
                                         String::from(">>"),
                                         TokenType::RShift,
-                                        (span_start, self.position - 1),
+                                        (span_start, self.position),
+                                    ));
+                                    self.getc();
+                                }
+                                '=' => {
+                                    output.push(Token::new(
+                                        String::from(">="),
+                                        TokenType::Beq,
+                                        (span_start, self.position),
                                     ));
                                     self.getc();
                                 }
@@ -491,12 +602,12 @@ impl Lexer {
                                 output.push(Token::new(
                                     String::from("||"),
                                     TokenType::Or,
-                                    (span_start, self.position - 1),
+                                    (span_start, self.position),
                                 ));
                                 self.getc();
                             } else {
                                 let mut formatted_token = matched_token;
-                                formatted_token.span = (span_start, self.position - 2);
+                                formatted_token.span = (span_start, self.position - 1);
 
                                 output.push(formatted_token);
                             }
@@ -512,24 +623,24 @@ impl Lexer {
                                         output.push(Token::new(
                                             String::from("&&"),
                                             TokenType::And,
-                                            (span_start, self.position - 1),
+                                            (span_start, self.position),
                                         ));
                                     } else {
                                         output.push(Token::new(
                                             String::from("&"),
                                             TokenType::Ref,
-                                            (span_start, self.position - 2)
+                                            (span_start, self.position - 2),
                                         ));
                                         output.push(Token::new(
                                             String::from("&"),
                                             TokenType::Ref,
-                                            (span_start + 1, self.position - 1)
+                                            (span_start + 1, self.position - 1),
                                         ));
                                     }
                                 }
                                 ' ' => {
                                     let mut formatted_token = matched_token;
-                                    formatted_token.span = (span_start, self.position - 2);
+                                    formatted_token.span = (span_start, self.position - 1);
 
                                     output.push(formatted_token);
                                 }
@@ -537,14 +648,14 @@ impl Lexer {
                                     output.push(Token::new(
                                         String::from("&"),
                                         TokenType::Ref,
-                                        (span_start, self.position - 2),
+                                        (span_start, self.position - 1),
                                     ));
                                 }
                             }
                         }
                         _ => {
                             let mut formatted_token = matched_token;
-                            formatted_token.span = (span_start, span_start);
+                            formatted_token.span = (span_start, span_start + 1);
 
                             output.push(formatted_token);
                             self.getc();
@@ -580,7 +691,10 @@ impl Lexer {
                     }
                 }
                 _ => {
-                    self.error(String::from("Undefined char found"), (self.position - 1, 1));
+                    self.error(
+                        format!("Undefined char found: {}", self.char),
+                        (self.position - 1, 1),
+                    );
                     self.getc();
                 }
             }
@@ -595,5 +709,60 @@ impl Lexer {
         }
 
         Ok((output, self.warnings.clone()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn getc_test() {
+        let mut lexer = Lexer::new("123456789", "test.dn");
+
+        let mut chr = lexer.char;
+        let mut current = 1;
+
+        while chr != '\0' {
+            assert_eq!(chr, char::from_digit(current, 10).unwrap_or(' '));
+            lexer.getc();
+
+            current += 1;
+            chr = lexer.char;
+        }
+    }
+
+    #[test]
+    fn is_eof_test() {
+        let mut lexer = Lexer::new("1", "test.dn");
+        lexer.getc();
+
+        assert!(lexer.is_eof());
+    }
+
+    #[test]
+    fn is_hexadecimal_literal_test() {
+        let lexer = Lexer::new("", "test.dn");
+
+        ['a', 'b', 'c', 'd', 'e', 'f']
+            .iter()
+            .for_each(|chr| assert!(lexer.is_hexadecimal_literal(chr)));
+
+        assert!(!lexer.is_hexadecimal_literal(&' '));
+    }
+
+    #[test]
+    fn character_escape_test() {
+        [
+            ('0', '\0'),
+            ('n', '\n'),
+            ('r', '\r'),
+            ('t', '\t'),
+            ('\\', '\\'),
+        ]
+        .into_iter()
+        .for_each(|(chr, exp)| assert_eq!(Lexer::character_escape(chr), Some(exp)));
+
+        assert!(Lexer::character_escape(' ').is_none())
     }
 }

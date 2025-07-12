@@ -1,37 +1,55 @@
+//! # Statements
+//! Each statement in Deen has it's own syntax. <br/>
+//! _To see syntax rules for every Statement, check the [`Statements`] enum_
+//!
+//! **Statement** is a syntactic unit of programming language that describes program actions. <br/>
+//! Statement may have internal components named [`Expressions`]. <br/>
+//! Read: <https://en.wikipedia.org/wiki/Statement_(computer_science)>
+
 use crate::{END_STATEMENT, Parser, expressions::Expressions, types::Type, value::Value};
 use deen_lexer::token_type::TokenType;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statements {
+    /// `OBJECT = EXPRESSION`
     AssignStatement {
         object: Expressions,
         value: Expressions,
         span: (usize, usize),
     },
+
+    /// `OBJECT BINOP= EXPRESSION`
     BinaryAssignStatement {
         object: Expressions,
         operand: String,
         value: Expressions,
         span: (usize, usize),
     },
+
+    /// `*OBJECT = EXPRESSION`
     DerefAssignStatement {
         object: Expressions,
         value: Expressions,
         span: (usize, usize),
     },
+
+    /// `OBJECT[EXPRESSION] = EXPRESSION`
     SliceAssignStatement {
         object: Expressions,
         index: Expressions,
         value: Expressions,
         span: (usize, usize),
     },
+
+    /// `OBJECT.FIELD= EXPRESSION`
     FieldAssignStatement {
         object: Expressions,
         value: Expressions,
         span: (usize, usize),
     },
 
+    /// `let IDENTIFIER = EXPRESSION`
     AnnotationStatement {
         identifier: String,
         datatype: Option<Type>,
@@ -39,6 +57,7 @@ pub enum Statements {
         span: (usize, usize),
     },
 
+    /// `pub/NOTHING fn IDENTIFIER ( IDENTIFIER: TYPE, IDENTIFIER: TYPE, ... ) TYPE/NOTHING { STATEMENTS }`
     FunctionDefineStatement {
         name: String,
         datatype: Type,
@@ -48,50 +67,75 @@ pub enum Statements {
         span: (usize, usize),
         header_span: (usize, usize),
     },
+    /// `NAME ( EXPRESSION, EXPRESSION, ... )`
     FunctionCallStatement {
         name: String,
         arguments: Vec<Expressions>,
         span: (usize, usize),
     },
 
+    /// `MACRONAME! ( EXPRESSION, EXPRESSION, ... )`
     MacroCallStatement {
         name: String,
         arguments: Vec<Expressions>,
         span: (usize, usize),
     },
 
+    /// ```text
+    /// struct IDENTIFIER {
+    ///     IDENTIFIER: TYPE,
+    ///     ...,
+    ///
+    ///     (FunctionDefineStatement)
+    /// }
+    /// ```
     StructDefineStatement {
         name: String,
-        fields: HashMap<String, Type>,
-        functions: HashMap<String, Statements>,
+        fields: IndexMap<String, Type>,
+        functions: IndexMap<String, Statements>,
         public: bool,
         span: (usize, usize),
     },
 
+    /// ```text
+    /// enum IDENTIFIER {
+    ///     IDENTIFIER,
+    ///     ...,
+    ///
+    ///     (FunctionDefineStatement)
+    /// }
+    /// ```
     EnumDefineStatement {
         name: String,
         fields: Vec<String>,
-        functions: HashMap<String, Statements>,
+        functions: IndexMap<String, Statements>,
         public: bool,
         span: (usize, usize),
     },
+
+    /// `typedef IDENTIFIER TYPE`
     TypedefStatement {
         alias: String,
         datatype: Type,
         span: (usize, usize),
     },
 
+    /// `if EXPRESSION { STATEMENTS } else { STATEMENTS }`
     IfStatement {
         condition: Expressions,
         then_block: Vec<Statements>,
         else_block: Option<Vec<Statements>>,
         span: (usize, usize),
     },
+
+    /// `while EXPRESSION { STATEMENTS }`
     WhileStatement {
         condition: Expressions,
         block: Vec<Statements>,
         span: (usize, usize),
     },
+
+    /// `for IDENTIFIER = OBJECT { STATEMENTS }`
     ForStatement {
         binding: String,
         iterator: Expressions,
@@ -99,10 +143,19 @@ pub enum Statements {
         span: (usize, usize),
     },
 
+    /// `import "PATH"`
     ImportStatement {
         path: Expressions,
         span: (usize, usize),
     },
+
+    /// `include "PATH"`
+    IncludeStatement {
+        path: Expressions,
+        span: (usize, usize),
+    },
+
+    /// `extern "EXT_TYPE" pub/NOTHING fn IDENTIFIER ( TYPE, TYPE, ... ) TYPE/NOTHING`
     ExternStatement {
         identifier: String,
         arguments: Vec<Type>,
@@ -110,16 +163,28 @@ pub enum Statements {
         extern_type: String,
         is_var_args: bool,
         public: bool,
-        span: (usize, usize)
+        span: (usize, usize),
     },
 
+    /// `_extern_declare IDENTIFIER EXPRESSION`
+    ExternDeclareStatement {
+        identifier: String,
+        datatype: Type,
+        span: (usize, usize),
+    },
+
+    /// `break`
     BreakStatements {
         span: (usize, usize),
     },
+
+    /// `return EXPRESSION`
     ReturnStatement {
         value: Expressions,
         span: (usize, usize),
     },
+
+    /// `{ STATEMENTS }`
     ScopeStatement {
         block: Vec<Statements>,
         span: (usize, usize),
@@ -209,6 +274,33 @@ impl Parser {
         } else {
             self.error(
                 String::from("Unexpected import syntax found"),
+                (span_start, span_end),
+            );
+            Statements::None
+        }
+    }
+
+    pub fn include_statement(&mut self) -> Statements {
+        let span_start = self.current().span.0;
+        if self.current().token_type == TokenType::Keyword {
+            let _ = self.next();
+        }
+
+        let path = self.expression();
+        self.position -= 1;
+
+        let span_end = self.current().span.1;
+        let _ = self.next();
+        self.skip_eos();
+
+        if let Expressions::Value(Value::String(_), _) = path {
+            Statements::IncludeStatement {
+                path,
+                span: (span_start, span_end),
+            }
+        } else {
+            self.error(
+                String::from("Unexpected include syntax found"),
                 (span_start, span_end),
             );
             Statements::None
@@ -401,6 +493,7 @@ impl Parser {
                 ),
                 (span_start, self.current().span.1),
             );
+            let _ = self.next();
             return Statements::None;
         }
 
@@ -476,7 +569,9 @@ impl Parser {
 
                     if let Expressions::Reference { object, span: _ } = arg {
                         if let Expressions::Value(Value::Identifier(id), _) = *object.clone() {
-                            if id == "self" { return (id, Type::SelfRef) }
+                            if id == "self" {
+                                return (id, Type::SelfRef);
+                            }
                         }
                     }
 
@@ -605,7 +700,11 @@ impl Parser {
         }
     }
 
-    pub fn slice_assign_statement(&mut self, object: Expressions, span: (usize, usize)) -> Statements {
+    pub fn slice_assign_statement(
+        &mut self,
+        object: Expressions,
+        span: (usize, usize),
+    ) -> Statements {
         let brackets_span_start = self.current().span.0;
         if self.expect(TokenType::LBrack) {
             let _ = self.next();
@@ -724,8 +823,8 @@ impl Parser {
         }
 
         let _ = self.next();
-        let mut fields = HashMap::new();
-        let mut functions = HashMap::new();
+        let mut fields = IndexMap::new();
+        let mut functions = IndexMap::new();
 
         while !self.expect(TokenType::RBrace) {
             match self.current().token_type {
@@ -841,7 +940,7 @@ impl Parser {
         let _ = self.next();
 
         let mut fields = Vec::new();
-        let mut functions = HashMap::new();
+        let mut functions = IndexMap::new();
 
         while !self.expect(TokenType::RBrace) {
             match self.current().token_type {
@@ -942,6 +1041,35 @@ impl Parser {
         }
     }
 
+    pub fn extern_declare_statement(&mut self) -> Statements {
+        let span_start = self.current().span.0;
+        if self.expect(TokenType::Keyword) {
+            let _ = self.next();
+        }
+
+        if !self.expect(TokenType::Identifier) {
+            self.error(
+                String::from("Expected extern-declare identifier"),
+                self.current().span,
+            );
+        }
+
+        let identifier = self.current().value;
+        let _ = self.next();
+
+        let datatype = self.parse_type();
+        let span_end = self.current().span.1;
+
+        self.skip_eos();
+        let span = (span_start, span_end);
+
+        Statements::ExternDeclareStatement {
+            identifier,
+            datatype,
+            span,
+        }
+    }
+
     pub fn extern_statement(&mut self) -> Statements {
         let span_start = self.current().span.0;
         if self.expect(TokenType::Keyword) {
@@ -966,8 +1094,9 @@ impl Parser {
         if !self.expect(TokenType::Keyword) && self.current().value != "fn" {
             self.error(
                 String::from("Extern statement supports only functions declarations"),
-                self.current().span
+                self.current().span,
             );
+            self.skip_statement();
         }
 
         let _ = self.next();
@@ -976,7 +1105,7 @@ impl Parser {
         } else {
             self.error(
                 String::from("Expected extern function identifier after keyword"),
-                self.current().span
+                self.current().span,
             );
             "undefined".to_string()
         };
@@ -985,7 +1114,7 @@ impl Parser {
         if !self.expect(TokenType::LParen) {
             self.error(
                 String::from("Expected arguments types block for external function"),
-                self.current().span
+                self.current().span,
             );
         }
 
@@ -996,21 +1125,26 @@ impl Parser {
         while !self.expect(TokenType::RParen) {
             if self.expect(TokenType::Dot) {
                 if self.next().token_type == TokenType::Dot
-                && self.next().token_type == TokenType::Dot {
+                    && self.next().token_type == TokenType::Dot
+                {
                     is_var_args = true;
                     let _ = self.next();
                 } else {
                     self.position -= 1;
                     self.error(
                         String::from("Unexpected argument declaration found"),
-                        self.current().span
+                        self.current().span,
                     );
                 }
                 continue;
             }
 
-            if self.expect(TokenType::RParen) { break }
-            if self.expect(TokenType::Semicolon) { break }
+            if self.expect(TokenType::RParen) {
+                break;
+            }
+            if self.expect(TokenType::Semicolon) {
+                break;
+            }
             if self.expect(TokenType::Comma) {
                 let _ = self.next();
                 continue;
@@ -1031,6 +1165,14 @@ impl Parser {
         let span_end = self.current().span.1;
         self.skip_eos();
 
-        Statements::ExternStatement { identifier, arguments, return_type, extern_type, public, is_var_args, span: (span_start, span_end) }
+        Statements::ExternStatement {
+            identifier,
+            arguments,
+            return_type,
+            extern_type,
+            public,
+            is_var_args,
+            span: (span_start, span_end),
+        }
     }
 }

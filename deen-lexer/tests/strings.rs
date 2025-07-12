@@ -59,7 +59,7 @@ fn basic_char() {
     assert_eq!(
         tokens,
         vec![
-            Token::new(String::from("a"), TokenType::Char, (0, 2)),
+            Token::new(String::from("a"), TokenType::Char, (0, 3)),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]
     )
@@ -73,7 +73,7 @@ fn advanced_char() {
     assert_eq!(
         tokens,
         vec![
-            Token::new(String::from("👀"), TokenType::Char, (0, 2)),
+            Token::new(String::from("👀"), TokenType::Char, (0, 3)),
             Token::new(String::new(), TokenType::EOF, (0, 0))
         ]
     )

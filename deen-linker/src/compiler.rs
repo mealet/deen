@@ -1,3 +1,9 @@
+use inkwell::{
+    OptimizationLevel,
+    module::Module,
+    targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
+};
+
 pub struct ObjectCompiler;
 
 impl ObjectCompiler {
@@ -27,9 +33,3 @@ impl ObjectCompiler {
             .unwrap();
     }
 }
-
-use inkwell::{
-    OptimizationLevel,
-    module::Module,
-    targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
-};

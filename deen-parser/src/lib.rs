@@ -1,3 +1,26 @@
+//! # Deen Syntax Analyzer
+//! Toolkit for analyzing and creating Abstract Syntax Tree from [`deen_lexer`] tokens. <br/>
+//! Wikipedia Explanation: <https://en.wikipedia.org/wiki/Parsing>
+//!
+//! Main tool is the [`Parser`] structure
+//!
+//! ## Usage
+//! ```ignore
+//! use deen_parser::Parser;
+//!
+//! let tokens = {
+//!     // ...
+//! };
+//!
+//! let mut parser = Parser::new(tokens, "source code", "source name");
+//! match parser.parse() {
+//!     Ok((ast, warnings)) => {
+//!         println!("{:#?}", ast);
+//!     },
+//!     Err((errors, warnings)) => {},
+//! }
+//! ```
+
 use crate::{
     error::{ParserError, ParserWarning},
     expressions::Expressions,
@@ -8,25 +31,33 @@ use crate::{
 use deen_lexer::{token::Token, token_type::TokenType};
 use miette::NamedSource;
 
+/// Custom Defined Error Types
 pub mod error;
+/// Expressions Enum
 pub mod expressions;
+/// Statements Enum
 pub mod statements;
+/// Compiler's Types
 pub mod types;
+/// Basic Values Enum
 pub mod value;
 
-type ParserOk = (Vec<Statements>, Vec<ParserWarning>);
-type ParserErr = (Vec<ParserError>, Vec<ParserWarning>);
+pub type ParserOk = (Vec<Statements>, Vec<ParserWarning>);
+pub type ParserErr = (Vec<ParserError>, Vec<ParserWarning>);
 
-const BINARY_OPERATORS: [TokenType; 4] = [
+const BINARY_OPERATORS: [TokenType; 5] = [
     TokenType::Plus,     // +
     TokenType::Minus,    // -
     TokenType::Divide,   // /
     TokenType::Multiply, // *
+    TokenType::Modulus,  // %
 ];
 
-const BOOLEAN_OPERATORS: [TokenType; 6] = [
+const BOOLEAN_OPERATORS: [TokenType; 8] = [
     TokenType::Lt,  // <
     TokenType::Bt,  // >
+    TokenType::Leq, // <=, =<
+    TokenType::Beq, // >=, =>
     TokenType::Eq,  // ==
     TokenType::Ne,  // !
     TokenType::Or,  // ||
@@ -41,11 +72,20 @@ const BITWISE_OPERATORS: [TokenType; 5] = [
     TokenType::Xor,       // ^
 ];
 
-const PRIORITY_BINARY_OPERATORS: [TokenType; 2] = [TokenType::Multiply, TokenType::Divide];
+const PRIORITY_BINARY_OPERATORS: [TokenType; 3] =
+    [TokenType::Multiply, TokenType::Divide, TokenType::Modulus];
 const PRIORITY_BOOLEAN_OPERATORS: [TokenType; 2] = [TokenType::Or, TokenType::And];
 
 const END_STATEMENT: TokenType = TokenType::Semicolon;
 
+/// Main Syntax Analyzer Object
+///
+/// **Main Functions:**
+/// - [`Parser::new`] - structure builder
+/// - [`Parser::parse`] - main parser functions
+///
+/// Function [`Parser::get_span_expression`] is used to extract span tuple from
+/// [`expressions::Expressions`] enum
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Parser {
     source: NamedSource<String>,
@@ -61,6 +101,9 @@ pub struct Parser {
 impl Parser {
     // main
 
+    /// **Structure Builder** <br/>
+    /// Requires full ownership for vector of tokens, and source code with filename for error
+    /// handling
     pub fn new(tokens: Vec<Token>, source: &str, filename: &str) -> Self {
         Self {
             source: NamedSource::new(filename, source.to_owned()),
@@ -74,6 +117,8 @@ impl Parser {
         }
     }
 
+    /// **Main Parser Function** <br/>
+    /// Requires new created self instance. **Can be called only once!**
     pub fn parse(&mut self) -> Result<ParserOk, ParserErr> {
         let mut output = Vec::new();
 
@@ -125,10 +170,11 @@ impl Parser {
             "u64" => Type::U64,
             "usize" => Type::USIZE,
 
-            "string" => Type::String,
-            "char" => Type::Char,
-
+            "f32" => Type::F32,
+            "f64" => Type::F64,
             "bool" => Type::Bool,
+
+            "char" => Type::Char,
             "void" => Type::Void,
 
             _ => {
@@ -266,6 +312,7 @@ impl Parser {
         let _ = self.next();
 
         match current.token_type {
+            TokenType::Null => Expressions::Value(Value::Null, current.span),
             TokenType::Number => Expressions::Value(
                 Value::Integer(current.value.trim().parse().unwrap()),
                 current.span,
@@ -294,7 +341,20 @@ impl Parser {
                 }
             }
             TokenType::LParen => {
+                self.position -= 1;
                 let span_start = self.current().span.0;
+                self.position += 1;
+
+                if self.expect(TokenType::RParen) {
+                    let span_end = self.current().span.1 + 1;
+                    let _ = self.next();
+
+                    return Expressions::Tuple {
+                        values: Vec::new(),
+                        span: (span_start, span_end),
+                    };
+                }
+
                 let expr = self.expression();
 
                 if self.expect(TokenType::Comma) {
@@ -345,8 +405,7 @@ impl Parser {
                             return self.struct_expression(current.value.clone());
                         }
                         self.position -= 1;
-                        return output
-
+                        return output;
                     }
                     TokenType::Not => {
                         let _ = self.next();
@@ -370,7 +429,7 @@ impl Parser {
                     _ => {}
                 }
 
-                return output;
+                output
             }
 
             TokenType::Ref => Expressions::Reference {
@@ -408,9 +467,9 @@ impl Parser {
                     self.expressions_enum(TokenType::LBrack, TokenType::RBrack, TokenType::Comma);
                 let len = values.len();
 
-                self.position -= 1;
+                // self.position -= 1;
                 let span_end = self.current().span.1;
-                let _ = self.next();
+                // let _ = self.next();
 
                 Expressions::Array {
                     values,
@@ -439,7 +498,11 @@ impl Parser {
 
             TokenType::Type => {
                 let datatype = self.get_basic_type(current.value, current.span);
-                Expressions::Argument { name: "@deen_type".to_string(), r#type: datatype, span: current.span }
+                Expressions::Argument {
+                    name: "@deen_type".to_string(),
+                    r#type: datatype,
+                    span: current.span,
+                }
             }
 
             _ => {
@@ -503,7 +566,9 @@ impl Parser {
             TokenType::Keyword => match current.value.as_str() {
                 "let" => self.annotation_statement(),
                 "import" => self.import_statement(),
+                "include" => self.include_statement(),
                 "extern" => self.extern_statement(),
+                "_extern_declare" => self.extern_declare_statement(),
                 "if" => self.if_statement(),
                 "else" => {
                     self.error(
@@ -622,33 +687,56 @@ impl Parser {
                                 value,
                                 span,
                             },
-                            Statements::FieldAssignStatement { object, value, span } => Statements::DerefAssignStatement { object, value, span },
-                            Statements::BinaryAssignStatement { object, operand, value, span } => Statements::DerefAssignStatement {
+                            Statements::FieldAssignStatement {
+                                object,
+                                value,
+                                span,
+                            } => Statements::DerefAssignStatement {
+                                object,
+                                value,
+                                span,
+                            },
+                            Statements::BinaryAssignStatement {
+                                object,
+                                operand,
+                                value,
+                                span,
+                            } => Statements::DerefAssignStatement {
                                 object: object.clone(),
                                 value: Expressions::Binary {
                                     operand,
                                     lhs: Box::new(object),
                                     rhs: Box::new(value),
-                                    span
+                                    span,
                                 },
-                                span
+                                span,
                             },
-                            Statements::SliceAssignStatement { object, index, value, span } => Statements::DerefAssignStatement {
+                            Statements::SliceAssignStatement {
+                                object,
+                                index,
+                                value,
+                                span,
+                            } => Statements::DerefAssignStatement {
                                 object: Expressions::Slice {
                                     object: Box::new(object),
                                     index: Box::new(index),
-                                    span
+                                    span,
                                 },
                                 value,
-                                span
+                                span,
                             },
-                            Statements::DerefAssignStatement { object, value, span } => {
-                                Statements::DerefAssignStatement {
-                                    object: Expressions::Dereference { object: Box::new(object), span },
-                                    value,
-                                    span
-                                }
-                            }
+                            Statements::DerefAssignStatement {
+                                object,
+                                value,
+                                span,
+                            } => Statements::DerefAssignStatement {
+                                object: Expressions::Dereference {
+                                    object: Box::new(object),
+                                    span,
+                                },
+                                value,
+                                span,
+                            },
                             _ => {
                                 self.error(
                                     String::from("Unsupported for dereference statement found"),
@@ -670,7 +758,10 @@ impl Parser {
             TokenType::Identifier => {
                 let next = self.next();
                 match next.token_type {
-                    TokenType::Equal => self.assign_statement(Expressions::Value(Value::Identifier(current.value), current.span), current.span),
+                    TokenType::Equal => self.assign_statement(
+                        Expressions::Value(Value::Identifier(current.value), current.span),
+                        current.span,
+                    ),
                     TokenType::Not => self.macrocall_statement(current.value, current.span),
                     TokenType::Dot => {
                         let sub_expr = self.subelement_expression(
@@ -694,14 +785,19 @@ impl Parser {
                                     span: (current.span.0, span_end),
                                 }
                             }
-                            TokenType::Plus | TokenType::Minus | TokenType::Multiply | TokenType::Divide => {
+                            TokenType::Plus
+                            | TokenType::Minus
+                            | TokenType::Multiply
+                            | TokenType::Divide => {
                                 let operand = self.current().value;
                                 let _ = self.next();
 
                                 if !self.expect(TokenType::Equal) {
                                     self.error(
-                                        String::from("Unexpected binary expression after subelement"),
-                                        (current.span.0, self.current().span.1)
+                                        String::from(
+                                            "Unexpected binary expression after subelement",
+                                        ),
+                                        (current.span.0, self.current().span.1),
                                     );
                                     return Statements::None;
                                 }
@@ -715,7 +811,7 @@ impl Parser {
                                     object: sub_expr,
                                     operand,
                                     value,
-                                    span: (current.span.0, span_end)
+                                    span: (current.span.0, span_end),
                                 }
                             }
                             TokenType::Semicolon => {
@@ -736,12 +832,17 @@ impl Parser {
                         }
                     }
                     TokenType::LParen => self.call_statement(current.value, current.span),
-                    TokenType::LBrack => self.slice_assign_statement(Expressions::Value(Value::Identifier(current.value), current.span), current.span),
+                    TokenType::LBrack => self.slice_assign_statement(
+                        Expressions::Value(Value::Identifier(current.value), current.span),
+                        current.span,
+                    ),
 
                     tty if BINARY_OPERATORS.contains(&tty) => match self.next().token_type {
-                        TokenType::Equal => {
-                            self.binary_assign_statement(Expressions::Value(Value::Identifier(current.value), current.span), next.value, current.span)
-                        }
+                        TokenType::Equal => self.binary_assign_statement(
+                            Expressions::Value(Value::Identifier(current.value), current.span),
+                            next.value,
+                            current.span,
+                        ),
                         TokenType::Plus | TokenType::Minus => {
                             let span_start = next.span.0;
                             let span_end = self.current().span.1;
@@ -761,7 +862,10 @@ impl Parser {
                             self.skip_eos();
 
                             Statements::BinaryAssignStatement {
-                                object: Expressions::Value(Value::Identifier(current.value), current.span),
+                                object: Expressions::Value(
+                                    Value::Identifier(current.value),
+                                    current.span,
+                                ),
                                 operand: op1,
                                 value: Expressions::Value(
                                     Value::Integer(1),
@@ -797,5 +901,36 @@ impl Parser {
             }
             _ => Statements::Expression(self.expression()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_basic_type_test() {
+        let mut parser = Parser::new(vec![], "", "");
+
+        [
+            ("i8", Type::I8),
+            ("i16", Type::I16),
+            ("i32", Type::I32),
+            ("i64", Type::I64),
+            ("u8", Type::U8),
+            ("u16", Type::U16),
+            ("u32", Type::U32),
+            ("u64", Type::U64),
+            ("usize", Type::USIZE),
+            ("f32", Type::F32),
+            ("f64", Type::F64),
+            ("bool", Type::Bool),
+            ("char", Type::Char),
+            ("void", Type::Void),
+        ]
+        .into_iter()
+        .for_each(|(typ, exp)| {
+            assert_eq!(parser.get_basic_type(String::from(typ), (0, 0)), exp);
+        });
     }
 }

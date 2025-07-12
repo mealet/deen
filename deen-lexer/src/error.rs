@@ -1,3 +1,8 @@
+//! ## Error Handling Module
+//! Here you can find structures of custom defined errors.
+//!
+//! All structures implements [`miette::Diagnostic`] and [`thiserror::Error`]
+
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
 

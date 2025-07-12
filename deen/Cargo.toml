@@ -11,6 +11,7 @@ license.workspace = true
 clap = { version = "4.5.35", features = ["derive"] }
 miette = { version = "7.5.0", features = ["fancy"] }
 inkwell = { version = "0.5.0", features = ["llvm18-0"] }
+llvm-sys = { version = "180", features = ["prefer-static"] }
 colored = "3.0.0"
 thiserror = "2.0.12"
 

@@ -2,7 +2,7 @@ use deen_lexer::{Lexer, token_type::TokenType};
 
 #[test]
 fn basic_types() {
-    let input = String::from("i8 i16 i32 i64 u8 u16 u32 u64 usize string char bool void");
+    let input = String::from("i8 i16 i32 i64 u8 u16 u32 u64 usize char bool void");
     let mut lexer = Lexer::new(&input, "tests.dn");
 
     let tokens = lexer.tokenize().unwrap().0;
@@ -16,7 +16,6 @@ fn basic_types() {
         (TokenType::Type, String::from("u32")),
         (TokenType::Type, String::from("u64")),
         (TokenType::Type, String::from("usize")),
-        (TokenType::Type, String::from("string")),
         (TokenType::Type, String::from("char")),
         (TokenType::Type, String::from("bool")),
         (TokenType::Type, String::from("void")),

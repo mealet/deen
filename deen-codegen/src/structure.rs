@@ -1,6 +1,6 @@
+use crate::function::Function;
 use deen_parser::types::Type;
 use inkwell::types::BasicTypeEnum;
-use crate::function::Function;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]

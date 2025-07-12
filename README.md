@@ -50,7 +50,7 @@ The project is divided into submodules using a virtual workspace environment:
 - `deen-linker` - module linker. Compiles the LLVM IR module to an object file and links it.
 
 ## 💫 Installation
-1. Install any C compiler. Recommended: [gcc](https://gcc.gnu.org/), [clang](https://clang.llvm.org/)
+1. Install [clang](https://clang.llvm.org/)
 2. Download the latest release from GitHub: [Latest Release]
 3. Unpack it anywhere and add to your `PATH` variable. Instructions for: [Windows](https://stackoverflow.com/questions/44272416/how-to-add-a-folder-to-path-environment-variable-in-windows-10-with-screensho), [Linux](https://phoenixnap.com/kb/linux-add-to-path), and [macOS](https://stackoverflow.com/questions/22465332/setting-path-environment-variable-in-macos-permanently)
 4. Restart your system or environment.

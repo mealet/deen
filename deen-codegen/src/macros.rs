@@ -2,8 +2,8 @@ use deen_parser::{expressions::Expressions, types::Type, value::Value};
 use inkwell::{
     AddressSpace,
     module::Linkage,
+    types::BasicType,
     values::{BasicMetadataValueEnum, BasicValueEnum},
-    types::BasicType
 };
 
 use crate::CodeGen;
@@ -71,6 +71,11 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 .unwrap()
                                 .into()
                         }
+                        Type::F32 => self
+                            .builder
+                            .build_float_ext(arg.1.into_float_value(), self.context.f64_type(), "")
+                            .unwrap()
+                            .into(),
                         Type::Alias(alias) => {
                             let alias_type = self.get_alias_type(arg.0.clone(), None).unwrap();
 
@@ -78,7 +83,10 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 "struct" => {
                                     let display_function = self
                                         .scope
-                                        .get_function(format!("{}_{}__{}", alias_type, alias, "display"))
+                                        .get_function(format!(
+                                            "{}_{}__{}",
+                                            alias_type, alias, "display"
+                                        ))
                                         .unwrap();
 
                                     // NOTE: Method `display(&self) *char` won`t give mutability of
@@ -86,17 +94,14 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                     // output.
                                     let self_val: BasicMetadataValueEnum =
                                         if arg.1.is_pointer_value() {
-                                            self.builder
-                                                .build_load(
-                                                    self.get_basic_type(arg.0),
-                                                    arg.1.into_pointer_value(),
-                                                    "",
-                                                )
-                                                .unwrap()
-                                                .into()
+                                            arg.1.into()
                                         } else {
-                                            let alloca = self.builder.build_alloca(arg.1.get_type(), "").unwrap();
-                                            let _ = self.builder.build_store(alloca, arg.1).unwrap();
+                                            let alloca = self
+                                                .builder
+                                                .build_alloca(arg.1.get_type(), "")
+                                                .unwrap();
+                                            let _ =
+                                                self.builder.build_store(alloca, arg.1).unwrap();
                                             alloca.into()
                                         };
 
@@ -182,6 +187,11 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 .unwrap()
                                 .into()
                         }
+                        Type::F32 => self
+                            .builder
+                            .build_float_ext(arg.1.into_float_value(), self.context.f64_type(), "")
+                            .unwrap()
+                            .into(),
                         Type::Alias(alias) => {
                             let alias_type = self.get_alias_type(arg.0.clone(), None).unwrap();
 
@@ -189,22 +199,13 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 "struct" => {
                                     let display_function = self
                                         .scope
-                                        .get_function(format!("{}_{}__{}", alias_type, alias, "display"))
+                                        .get_function(format!(
+                                            "{}_{}__{}",
+                                            alias_type, alias, "display"
+                                        ))
                                         .unwrap();
 
-                                    let self_val: BasicMetadataValueEnum =
-                                        if arg.1.is_pointer_value() {
-                                            self.builder
-                                                .build_load(
-                                                    self.get_basic_type(arg.0),
-                                                    arg.1.into_pointer_value(),
-                                                    "",
-                                                )
-                                                .unwrap()
-                                                .into()
-                                        } else {
-                                            arg.1.into()
-                                        };
+                                    let self_val: BasicMetadataValueEnum = arg.1.into();
 
                                     let output: BasicMetadataValueEnum = self
                                         .builder
@@ -235,27 +236,38 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
 
                 let first_call_args = [
                     vec![
-                        self.context.ptr_type(AddressSpace::default()).const_null().into(),
+                        self.context
+                            .ptr_type(AddressSpace::default())
+                            .const_null()
+                            .into(),
                         self.context.i64_type().const_zero().into(),
                         global_literal,
                     ],
-                    format_values.clone()
-                ].concat();
+                    format_values.clone(),
+                ]
+                .concat();
 
-                let length = self.builder.build_call(
-                    snprintf_fn,
-                    &first_call_args,
-                    ""
-                ).unwrap().try_as_basic_value().left().unwrap();
+                let length = self
+                    .builder
+                    .build_call(snprintf_fn, &first_call_args, "")
+                    .unwrap()
+                    .try_as_basic_value()
+                    .left()
+                    .unwrap();
 
                 let buffer = {
-                    let buffer_size = self.builder.build_int_add(
-                        length.into_int_value(),
-                        self.context.i32_type().const_int(1, false),
-                        ""
-                    ).unwrap();
+                    let buffer_size = self
+                        .builder
+                        .build_int_add(
+                            length.into_int_value(),
+                            self.context.i32_type().const_int(1, false),
+                            "",
+                        )
+                        .unwrap();
 
-                    self.builder.build_array_alloca(self.context.i8_type(), buffer_size, "").unwrap()
+                    self.builder
+                        .build_array_alloca(self.context.i8_type(), buffer_size, "")
+                        .unwrap()
                 };
 
                 // second call for the final format
@@ -283,10 +295,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
             "panic" => {
                 let (mut literal, call_line) =
                     if let Some(Expressions::Value(Value::String(str), span)) = arguments.first() {
-                        (
-                            str.clone(),
-                            self.get_source_line(span.0)
-                        )
+                        (str.clone(), self.get_source_line(span.0))
                     } else {
                         (String::default(), 0)
                     };
@@ -329,22 +338,13 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                 "struct" => {
                                     let display_function = self
                                         .scope
-                                        .get_function(format!("{}_{}__{}", alias_type, alias, "display"))
+                                        .get_function(format!(
+                                            "{}_{}__{}",
+                                            alias_type, alias, "display"
+                                        ))
                                         .unwrap();
 
-                                    let self_val: BasicMetadataValueEnum =
-                                        if arg.1.is_pointer_value() {
-                                            self.builder
-                                                .build_load(
-                                                    self.get_basic_type(arg.0),
-                                                    arg.1.into_pointer_value(),
-                                                    "",
-                                                )
-                                                .unwrap()
-                                                .into()
-                                        } else {
-                                            arg.1.into()
-                                        };
+                                    let self_val: BasicMetadataValueEnum = arg.1.into();
 
                                     let output: BasicMetadataValueEnum = self
                                         .builder
@@ -363,14 +363,19 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                         _ => arg.1.into(),
                     })
                     .collect::<Vec<BasicMetadataValueEnum<'ctx>>>();
-                
+
                 self.build_panic(literal, format_values, call_line);
                 (Type::Void, self.context.bool_type().const_zero().into())
-            },
+            }
             "sizeof" => {
                 let instance = arguments.first().unwrap();
                 let basic_type = {
-                    if let Expressions::Argument { name: _, r#type, span: _ } = instance {
+                    if let Expressions::Argument {
+                        name: _,
+                        r#type,
+                        span: _,
+                    } = instance
+                    {
                         self.get_basic_type(r#type.clone())
                     } else {
                         self.compile_expression(instance.clone(), None).1.get_type()
@@ -378,10 +383,171 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                 };
 
                 (Type::USIZE, basic_type.size_of().unwrap().into())
-            },
+            }
+            "cast" => {
+                let from = arguments.first().unwrap().clone();
+                let to = arguments.get(1).unwrap().clone();
+
+                let from_value = self.compile_expression(from, None);
+                let to_type = self.compile_expression(to, None);
+                let target_basic_type = self.get_basic_type(to_type.0.clone());
+
+                match (&from_value.0, &to_type.0) {
+                    (from, to) if from == to => from_value,
+
+                    (from, to)
+                        if deen_semantic::Analyzer::is_integer(from)
+                            && deen_semantic::Analyzer::is_integer(to)
+                            || from == &Type::Char
+                            || to == &Type::Char
+                            || from == &Type::Bool
+                            || to == &Type::Bool =>
+                    {
+                        let unsigned = deen_semantic::Analyzer::is_unsigned_integer(to);
+
+                        let from_order = deen_semantic::Analyzer::integer_order(from);
+                        let to_order = deen_semantic::Analyzer::integer_order(to);
+
+                        let value = if from_order > to_order {
+                            // truncating
+                            self.builder
+                                .build_int_truncate(
+                                    from_value.1.into_int_value(),
+                                    target_basic_type.into_int_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
+                        } else if from_order < to_order {
+                            // extending
+                            if unsigned {
+                                self.builder
+                                    .build_int_z_extend(
+                                        from_value.1.into_int_value(),
+                                        target_basic_type.into_int_type(),
+                                        "",
+                                    )
+                                    .unwrap()
+                                    .into()
+                            } else {
+                                self.builder
+                                    .build_int_s_extend(
+                                        from_value.1.into_int_value(),
+                                        target_basic_type.into_int_type(),
+                                        "",
+                                    )
+                                    .unwrap()
+                                    .into()
+                            }
+                        } else {
+                            // casting
+                            self.builder
+                                .build_bit_cast(from_value.1, target_basic_type.into_int_type(), "")
+                                .unwrap()
+                        };
+
+                        (to_type.0, value)
+                    }
+
+                    (from, to)
+                        if deen_semantic::Analyzer::is_float(from)
+                            && deen_semantic::Analyzer::is_float(to) =>
+                    {
+                        let from_order = deen_semantic::Analyzer::float_order(from);
+                        let to_order = deen_semantic::Analyzer::float_order(to);
+
+                        let value = if from_order > to_order {
+                            // truncating
+                            self.builder
+                                .build_float_trunc(
+                                    from_value.1.into_float_value(),
+                                    target_basic_type.into_float_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
+                        } else {
+                            // extending
+                            self.builder
+                                .build_float_ext(
+                                    from_value.1.into_float_value(),
+                                    target_basic_type.into_float_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
+                        };
+
+                        (to_type.0, value)
+                    }
+
+                    (from, to)
+                        if deen_semantic::Analyzer::is_float(from)
+                            && deen_semantic::Analyzer::is_integer(to) =>
+                    {
+                        let unsigned = deen_semantic::Analyzer::is_unsigned_integer(to);
+
+                        let value = if unsigned {
+                            self.builder
+                                .build_float_to_unsigned_int(
+                                    from_value.1.into_float_value(),
+                                    target_basic_type.into_int_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
+                        } else {
+                            self.builder
+                                .build_float_to_signed_int(
+                                    from_value.1.into_float_value(),
+                                    target_basic_type.into_int_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
+                        };
+
+                        (to_type.0, value)
+                    }
+
+                    (from, to)
+                        if deen_semantic::Analyzer::is_integer(from)
+                            && deen_semantic::Analyzer::is_float(to) =>
+                    {
+                        let unsigned = deen_semantic::Analyzer::is_unsigned_integer(from);
+
+                        let value = if unsigned {
+                            self.builder
+                                .build_unsigned_int_to_float(
+                                    from_value.1.into_int_value(),
+                                    target_basic_type.into_float_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
+                        } else {
+                            self.builder
+                                .build_signed_int_to_float(
+                                    from_value.1.into_int_value(),
+                                    target_basic_type.into_float_type(),
+                                    "",
+                                )
+                                .unwrap()
+                                .into()
+                        };
+
+                        (to_type.0, value)
+                    }
+
+                    _ => panic!(
+                        "Unimplemented cast type catched: `{}` -> `{}`",
+                        from_value.0, to_type.0
+                    ),
+                }
+            }
             _ => {
-                panic!("Provided macros is under development stage: `{}!()`", id)
-            },
+                panic!("Provided macros is under development stage: `{id}!()`")
+            }
         }
     }
 }
