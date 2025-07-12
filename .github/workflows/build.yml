@@ -59,34 +59,54 @@ jobs:
     - name: Install macOS dependencies
       if: matrix.os == 'macos-latest'
       run: |
-        brew install llvm@18 zstd libffi
-        LLVM_PREFIX=$(brew --prefix llvm@18)
-        echo "LLVM_SYS_180_PREFIX=$LLVM_PREFIX" >> $GITHUB_ENV
-        echo "LIBRARY_PATH=$LLVM_PREFIX/lib:$(brew --prefix zstd)/lib:$(brew --prefix libffi)/lib:$LIBRARY_PATH" >> $GITHUB_ENV
-        echo "LD_LIBRARY_PATH=$LLVM_PREFIX/lib:$(brew --prefix zstd)/lib:$(brew --prefix libffi)/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-        echo "PKG_CONFIG_PATH=$LLVM_PREFIX/lib/pkgconfig:$(brew --prefix zstd)/lib/pkgconfig:$(brew --prefix libffi)/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
-        echo "RUSTFLAGS=-L$LLVM_PREFIX/lib" >> $GITHUB_ENV
+        if [[ "${{ matrix.target }}" == "aarch64-apple-darwin" ]]; then
+          # For Apple Silicon, use brew
+          brew install llvm@18 zstd libffi
+          LLVM_PREFIX=$(brew --prefix llvm@18)
+          echo "LLVM_SYS_180_PREFIX=$LLVM_PREFIX" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=$LLVM_PREFIX/lib:$(brew --prefix zstd)/lib:$(brew --prefix libffi)/lib:$LIBRARY_PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$LLVM_PREFIX/lib:$(brew --prefix zstd)/lib:$(brew --prefix libffi)/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$LLVM_PREFIX/lib/pkgconfig:$(brew --prefix zstd)/lib/pkgconfig:$(brew --prefix libffi)/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "RUSTFLAGS=-L$LLVM_PREFIX/lib" >> $GITHUB_ENV
+        else
+          # For x86_64 cross-compilation, download pre-built LLVM
+          LLVM_VERSION="18.1.8"
+          LLVM_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/clang+llvm-${LLVM_VERSION}-x86_64-apple-darwin.tar.xz"
+          LLVM_DIR="$HOME/llvm-x86_64"
+          
+          echo "Downloading LLVM ${LLVM_VERSION} for x86_64..."
+          curl -L "$LLVM_URL" -o llvm.tar.xz
+          mkdir -p "$LLVM_DIR"
+          tar -xf llvm.tar.xz -C "$LLVM_DIR" --strip-components=1
+          
+          echo "LLVM_SYS_180_PREFIX=$LLVM_DIR" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=$LLVM_DIR/lib:$LIBRARY_PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$LLVM_DIR/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$LLVM_DIR/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "RUSTFLAGS=-L$LLVM_DIR/lib" >> $GITHUB_ENV
+          
+          # Verify installation
+          ls -la "$LLVM_DIR"
+          "$LLVM_DIR/bin/llvm-config" --version
+        fi
 
     # Windows dependencies
     - name: Install Windows dependencies
       if: matrix.os == 'windows-latest'
       shell: powershell
       run: |
-        # Remove any existing LLVM installations
-        try {
-          choco uninstall llvm --yes --ignore-dependencies --force
-        } catch {
-          Write-Host "No existing LLVM to uninstall or uninstall failed"
-        }
+        $llvmVersion = "18.1.8"
+        $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVersion/LLVM-$llvmVersion-win64.exe"
+        $llvmInstaller = "$env:TEMP\LLVM-$llvmVersion-win64.exe"
+        $llvmPath = "C:\LLVM"
         
-        # Install LLVM 18.1.8
-        choco install llvm --version=18.1.8 --yes --force
+        Write-Host "Downloading LLVM $llvmVersion..."
+        Invoke-WebRequest -Uri $llvmUrl -OutFile $llvmInstaller
         
-        # Wait for installation to complete
-        Start-Sleep -Seconds 10
+        Write-Host "Installing LLVM to $llvmPath..."
+        Start-Process -FilePath $llvmInstaller -ArgumentList "/S", "/D=$llvmPath" -Wait
         
         # Set environment variables
-        $llvmPath = "C:\Program Files\LLVM"
         echo "LLVM_SYS_180_PREFIX=$llvmPath" >> $env:GITHUB_ENV
         echo "LIBCLANG_PATH=$llvmPath\bin" >> $env:GITHUB_ENV
         echo "PATH=$llvmPath\bin;$env:PATH" >> $env:GITHUB_ENV
@@ -95,42 +115,11 @@ jobs:
         if (Test-Path "$llvmPath\bin\llvm-config.exe") {
           Write-Host "LLVM installation verified"
           & "$llvmPath\bin\llvm-config.exe" --version
+          Write-Host "LLVM installed to: $llvmPath"
+          Get-ChildItem "$llvmPath" | Select-Object Name
         } else {
           Write-Host "LLVM installation failed - llvm-config.exe not found"
-          Get-ChildItem "$llvmPath" -Recurse -ErrorAction SilentlyContinue | Select-Object Name, FullName
-          exit 1
-        }
-
-    # Alternative Windows installation method if Chocolatey fails
-    - name: Install Windows dependencies (Alternative)
-      if: matrix.os == 'windows-latest' && failure()
-      shell: powershell
-      run: |
-        # Check if LLVM is already installed from previous step
-        if (Test-Path "C:\Program Files\LLVM\bin\llvm-config.exe") {
-          Write-Host "LLVM already installed from Chocolatey"
-          exit 0
-        }
-        
-        Write-Host "Installing LLVM via direct download..."
-        $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/LLVM-18.1.8-win64.exe"
-        $llvmInstaller = "$env:TEMP\LLVM-18.1.8-win64.exe"
-        
-        Invoke-WebRequest -Uri $llvmUrl -OutFile $llvmInstaller
-        Start-Process -FilePath $llvmInstaller -ArgumentList "/S" -Wait
-        
-        # Set environment variables
-        $llvmPath = "C:\Program Files\LLVM"
-        echo "LLVM_SYS_180_PREFIX=$llvmPath" >> $env:GITHUB_ENV
-        echo "LIBCLANG_PATH=$llvmPath\bin" >> $env:GITHUB_ENV
-        echo "PATH=$llvmPath\bin;$env:PATH" >> $env:GITHUB_ENV
-        
-        # Verify installation
-        if (Test-Path "$llvmPath\bin\llvm-config.exe") {
-          Write-Host "LLVM installation verified"
-          & "$llvmPath\bin\llvm-config.exe" --version
-        } else {
-          Write-Host "LLVM installation failed"
+          Get-ChildItem "$llvmPath" -ErrorAction SilentlyContinue | Select-Object Name
           exit 1
         }
 
