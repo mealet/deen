@@ -73,7 +73,11 @@ jobs:
       shell: powershell
       run: |
         # Remove any existing LLVM installations
-        choco uninstall llvm --yes --ignore-dependencies --force || $true
+        try {
+          choco uninstall llvm --yes --ignore-dependencies --force
+        } catch {
+          Write-Host "No existing LLVM to uninstall or uninstall failed"
+        }
         
         # Install LLVM 18.1.8
         choco install llvm --version=18.1.8 --yes --force
@@ -99,7 +103,7 @@ jobs:
 
     # Alternative Windows installation method if Chocolatey fails
     - name: Install Windows dependencies (Alternative)
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-latest' && failure()
       shell: powershell
       run: |
         # Check if LLVM is already installed from previous step
