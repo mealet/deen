@@ -20,6 +20,9 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             name: deen-macos-aarch64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: deen-windows-x86_64
 
     steps:
     - name: Checkout code
@@ -35,7 +38,6 @@ jobs:
       with:
         key: ${{ matrix.target }}
 
-    # Linux dependencies
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'
       run: |
@@ -43,7 +45,6 @@ jobs:
         sudo apt-get install -y llvm-18-dev libclang-18-dev clang-18 libpolly-18-dev
         echo "LLVM_SYS_180_PREFIX=/usr/lib/llvm-18" >> $GITHUB_ENV
 
-    # macOS dependencies
     - name: Install macOS dependencies
       if: matrix.os == 'macos-latest'
       run: |
@@ -55,16 +56,31 @@ jobs:
         echo "PKG_CONFIG_PATH=$LLVM_PREFIX/lib/pkgconfig:$(brew --prefix zstd)/lib/pkgconfig:$(brew --prefix libffi)/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
         echo "RUSTFLAGS=-L$LLVM_PREFIX/lib" >> $GITHUB_ENV
 
+    - name: Install Windows dependencies
+      if: matrix.os == 'windows-latest'
+      shell: powershell
+      run: |
+        choco install llvm --version=18.1.8 -y --allow-downgrade
+        $env:LLVM_SYS_180_PREFIX = "C:\Program Files\LLVM"
+        echo "LLVM_SYS_180_PREFIX=$env:LLVM_SYS_180_PREFIX" >> $env:GITHUB_ENV
+
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
 
     - name: Prepare binary (Unix)
+      if: matrix.os != 'windows-latest'
       run: |
         cp target/${{ matrix.target }}/release/deen ${{ matrix.name }}
         chmod +x ${{ matrix.name }}
+
+    - name: Prepare binary (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: powershell
+      run: |
+        Copy-Item "target/${{ matrix.target }}/release/deen.exe" "${{ matrix.name }}.exe"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.name }}
-        path: ${{ matrix.name }}
+        path: ${{ matrix.name }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
