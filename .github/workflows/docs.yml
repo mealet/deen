@@ -31,9 +31,18 @@ permissions:
   pages: write
   id-token: write
 
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   docs:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
     - uses: actions/checkout@v4
@@ -57,6 +66,9 @@ jobs:
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+    
     - name: Build documentation (with private items)
       if: ${{ github.event.inputs.include_private != 'false' }}
       run: |
@@ -69,11 +81,11 @@ jobs:
         cargo doc --no-deps
         echo '<meta http-equiv="refresh" content="0; url=your_crate_name">' > target/doc/index.html
     
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v4
-      if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./target/doc
-        commit_message: 'Deploy docs: ${{ github.event.head_commit.message || github.event.inputs.deploy_branch }}'
-        force_orphan: true
+        path: './target/doc'
+    
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
