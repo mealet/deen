@@ -10,7 +10,7 @@ on:
       deploy_branch:
         description: 'Branch to deploy from'
         required: true
-        default: 'master'
+        default: 'main'
         type: string
       include_private:
         description: 'Include private items in documentation'
@@ -73,13 +73,17 @@ jobs:
       if: ${{ github.event.inputs.include_private != 'false' }}
       run: |
         cargo doc --no-deps --document-private-items
-        echo '<meta http-equiv="refresh" content="0; url=your_crate_name">' > target/doc/index.html
+        # Копируем содержимое папки крейта в корень документации
+        cp -r target/doc/deen/* target/doc/
+        echo '<meta http-equiv="refresh" content="0; url=index.html">' > target/doc/index.html
     
     - name: Build documentation (public only)
       if: ${{ github.event.inputs.include_private == 'false' }}
       run: |
         cargo doc --no-deps
-        echo '<meta http-equiv="refresh" content="0; url=your_crate_name">' > target/doc/index.html
+        # Копируем содержимое папки крейта в корень документации
+        cp -r target/doc/deen/* target/doc/
+        echo '<meta http-equiv="refresh" content="0; url=index.html">' > target/doc/index.html
     
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
