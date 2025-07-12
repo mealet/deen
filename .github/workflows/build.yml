@@ -57,10 +57,10 @@ jobs:
     - name: Install macOS dependencies
       if: matrix.os == 'macos-latest'
       run: |
-        brew install llvm@18
+        brew install llvm@18 zstd libffi
         echo "LLVM_SYS_180_PREFIX=$(brew --prefix llvm@18)" >> $GITHUB_ENV
-        echo "LDFLAGS=-L$(brew --prefix llvm@18)/lib" >> $GITHUB_ENV
-        echo "CPPFLAGS=-I$(brew --prefix llvm@18)/include" >> $GITHUB_ENV
+        echo "LDFLAGS=-L$(brew --prefix llvm@18)/lib -L$(brew --prefix zstd)/lib -L$(brew --prefix libffi)/lib" >> $GITHUB_ENV
+        echo "CPPFLAGS=-I$(brew --prefix llvm@18)/include -I$(brew --prefix zstd)/include -I$(brew --prefix libffi)/include" >> $GITHUB_ENV
 
     # Windows dependencies
     - name: Install Windows dependencies
