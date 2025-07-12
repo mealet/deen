@@ -17,6 +17,7 @@ jobs:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
@@ -59,8 +60,9 @@ jobs:
       run: |
         brew install llvm@18 zstd libffi
         echo "LLVM_SYS_180_PREFIX=$(brew --prefix llvm@18)" >> $GITHUB_ENV
-        echo "LDFLAGS=-L$(brew --prefix llvm@18)/lib -L$(brew --prefix zstd)/lib -L$(brew --prefix libffi)/lib" >> $GITHUB_ENV
-        echo "CPPFLAGS=-I$(brew --prefix llvm@18)/include -I$(brew --prefix zstd)/include -I$(brew --prefix libffi)/include" >> $GITHUB_ENV
+        echo "LIBRARY_PATH=$(brew --prefix zstd)/lib:$(brew --prefix libffi)/lib:$LIBRARY_PATH" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=$(brew --prefix zstd)/lib:$(brew --prefix libffi)/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo "PKG_CONFIG_PATH=$(brew --prefix zstd)/lib/pkgconfig:$(brew --prefix libffi)/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
 
     # Windows dependencies
     - name: Install Windows dependencies
