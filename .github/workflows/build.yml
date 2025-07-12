@@ -51,7 +51,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y llvm-18-dev libclang-18-dev clang-18
+        sudo apt-get install -y llvm-18-dev libclang-18-dev clang-18 libpolly-18-dev
 
     # macOS dependencies
     - name: Install macOS dependencies
@@ -59,6 +59,8 @@ jobs:
       run: |
         brew install llvm@18
         echo "LLVM_SYS_180_PREFIX=$(brew --prefix llvm@18)" >> $GITHUB_ENV
+        echo "LDFLAGS=-L$(brew --prefix llvm@18)/lib" >> $GITHUB_ENV
+        echo "CPPFLAGS=-I$(brew --prefix llvm@18)/include" >> $GITHUB_ENV
 
     # Windows dependencies
     - name: Install Windows dependencies
@@ -67,6 +69,7 @@ jobs:
       run: |
         choco install llvm --version=18.1.8
         echo "LLVM_SYS_180_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
+        echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
 
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
