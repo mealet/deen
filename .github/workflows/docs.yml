@@ -1,0 +1,69 @@
+name: Deploy Rust Documentation
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_branch:
+        description: 'Branch to deploy from'
+        required: true
+        default: 'main'
+        type: string
+      include_private:
+        description: 'Include private items in documentation'
+        required: false
+        default: true
+        type: boolean
+      clean_cache:
+        description: 'Clean cargo cache before build'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Clean cache
+      if: ${{ github.event.inputs.clean_cache == 'true' }}
+      run: cargo clean
+    
+    - name: Cache dependencies
+      if: ${{ github.event.inputs.clean_cache != 'true' }}
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Build documentation (with private items)
+      if: ${{ github.event.inputs.include_private != 'false' }}
+      run: |
+        cargo doc --no-deps --document-private-items
+        echo '<meta http-equiv="refresh" content="0; url=your_crate_name">' > target/doc/index.html
+    
+    - name: Build documentation (public only)
+      if: ${{ github.event.inputs.include_private == 'false' }}
+      run: |
+        cargo doc --no-deps
+        echo '<meta http-equiv="refresh" content="0; url=your_crate_name">' > target/doc/index.html
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/doc
+        commit_message: 'Deploy docs: ${{ github.event.head_commit.message || github.event.inputs.deploy_branch }}'
