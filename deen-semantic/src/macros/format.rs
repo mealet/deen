@@ -15,7 +15,7 @@ impl MacroObject for FormatMacro {
     ) -> Type {
         const DISPLAY_IMPLEMENTATION_FORMAT: &str = "fn display(&self) *char";
         const MINIMUM_ARGUMENTS_LEN: usize = 1;
-        const RETURN_TYPE: Type = Type::Void;
+        let return_type: Type = Type::Pointer(Box::new(Type::Char));
 
         if arguments.len() < MINIMUM_ARGUMENTS_LEN {
             analyzer.error(
@@ -26,7 +26,7 @@ impl MacroObject for FormatMacro {
                 ),
                 *span,
             );
-            return RETURN_TYPE;
+            return return_type;
         }
 
         if let Some(Expressions::Value(Value::String(literal), literal_span)) = arguments.first() {
@@ -60,7 +60,7 @@ impl MacroObject for FormatMacro {
                     ),
                     *span,
                 );
-                return RETURN_TYPE;
+                return return_type;
             }
         }
 
@@ -140,6 +140,6 @@ impl MacroObject for FormatMacro {
             }
         });
 
-        RETURN_TYPE
+        return_type
     }
 }
