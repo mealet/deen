@@ -1,10 +1,7 @@
 ### 🍀 Description
-**Version:** `<version> <version hash>` <br/>
+**Version:** `<version>` <br/>
 **Related:** _no issue_
 
 <!--
 Here you can describe changes and provide examples
 -->
-
-### 🍏 Full Changelog
-- ...
