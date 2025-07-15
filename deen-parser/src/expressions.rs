@@ -283,44 +283,47 @@ impl Parser {
     }
 
     pub fn boolean_expression(&mut self, node: Expressions) -> Expressions {
-        // FIXME: Expressions like `true || false` returns error "Undefined term found"
+        // FIXME: Expressions like: 1 == 1 || 0 != 5 returns something like:
+        // 1 == (1 || 0) != 5
 
         let node_span = Self::get_span_expression(node.clone());
-        let span_end;
-
         let current = self.current();
 
         match current.token_type {
-            op if PRIORITY_BOOLEAN_OPERATORS.contains(&op) => node,
+            op if PRIORITY_BOOLEAN_OPERATORS.contains(&op) => {
+                let _ = self.next();
+                let rhs = self.expression();
+                let span_end = Self::get_span_expression(rhs.clone()).1;
+
+                Expressions::Boolean {
+                    operand: current.value,
+                    lhs: Box::new(node),
+                    rhs: Box::new(rhs),
+                    span: (node_span.0, span_end)
+                }
+            },
             op if BOOLEAN_OPERATORS.contains(&op) => {
                 let _ = self.next();
 
                 let lhs = node.clone();
-                let rhs = self.expression();
-
-                self.position -= 2;
-                span_end = self.current().span.1;
-                self.position += 2;
 
                 if PRIORITY_BOOLEAN_OPERATORS.contains(&self.current().token_type) {
                     let operand = self.current().value;
-                    let lhs_node = Expressions::Boolean {
-                        operand: current.value,
-                        lhs: Box::new(lhs),
-                        rhs: Box::new(rhs),
-                        span: (current.span.0, self.current().span.1),
-                    };
-
                     let _ = self.next();
-                    let rhs_node = self.expression();
+
+                    let rhs = self.expression();
+                    let span_end = Self::get_span_expression(rhs.clone()).1;
 
                     return Expressions::Boolean {
                         operand,
-                        lhs: Box::new(lhs_node),
-                        rhs: Box::new(rhs_node),
-                        span: (node_span.0, span_end),
-                    };
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
+                        span: (node_span.0, span_end)
+                    }
                 }
+
+                let rhs = self.expression();
+                let span_end = Self::get_span_expression(rhs.clone()).1;
 
                 Expressions::Boolean {
                     operand: current.value,
