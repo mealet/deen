@@ -299,9 +299,9 @@ impl Parser {
                     operand: current.value,
                     lhs: Box::new(node),
                     rhs: Box::new(rhs),
-                    span: (node_span.0, span_end)
+                    span: (node_span.0, span_end),
                 }
-            },
+            }
             op if BOOLEAN_OPERATORS.contains(&op) => {
                 let _ = self.next();
 
@@ -318,8 +318,8 @@ impl Parser {
                         operand,
                         lhs: Box::new(lhs),
                         rhs: Box::new(rhs),
-                        span: (node_span.0, span_end)
-                    }
+                        span: (node_span.0, span_end),
+                    };
                 }
 
                 let rhs = self.expression();
