@@ -1,7 +1,10 @@
 ---
 name: Compiler Enhancement
 about: Provide an enhancement for compiler
+title: ''
 labels: compiler-enhancement
+assignees: ''
+
 ---
 
 <!--

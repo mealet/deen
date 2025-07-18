@@ -1,7 +1,10 @@
 ---
 name: Bug Report
 about: Create a bug report for compiler
+title: ''
 labels: compiler-bug
+assignees: ''
+
 ---
 
 <!--
@@ -9,7 +12,7 @@ Hello! Thank you for this bug report! 🔥
 Please fill the information below and try to shortly describe your situation
 -->
 
-### 👀 What Happened
+## 👀 What Happened
 **I tried this code:**
 ```deen
 // code
@@ -21,7 +24,7 @@ _Explanation_
 **Instead, this happened:**
 _Explanation_
 
-### ⚡ Addition Info
+## ⚡ Addition Info
 <!--
 To see the version run: deen --version
 -->
