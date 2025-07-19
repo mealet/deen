@@ -19,7 +19,8 @@
 
 ## 👀 Description
 **Deen** - a statically-typed compiling programming language inspired by languages like C, C++, Zig, and Rust. <br><br>
-It provides tools for system programming, including: structures, C-like enums with supported functions, type definitions, backward compatibility with C, pointers, recursion, and more.
+It provides tools for system programming, including: structures, C-like enums with supported functions, type definitions, backward compatibility with C, pointers, recursion, and more. <br/>
+See official documentation here: [Deen Documentation](https://deen-docs.vercel.app/)
 
 **⚠️ The project is currently under active development and may be unstable.**
 
@@ -62,96 +63,7 @@ The project is divided into submodules using a virtual workspace environment:
 4. Go to its directory and run: `cargo build --release`
 5. The executable file will be in the `target/release` folder.
 
-## 🧊 Examples
-
-Basic Functions and Standart Output
-```rust
-fn greet(name: *char) *char {
-  return format!("Hello, {}!", name);
-}
-
-fn main() {
-  println!("{}", greet("mealet"));
-}
-```
-**OUTPUT:**
-```
-Hello, mealet!
-```
-----
-
-Structures and Methods
-```rust
-struct Person {
-  age: u32,
-
-  fn birthday(&self) {
-    println!("Happy Birthday!");
-    self.age += 1;
-  }
-}
-
-fn main() {
-  let man = Person { .age = 20 };
-  man.birthday();
-
-  println!("The age is {}", man.age);
-}
-```
-**OUTPUT:**
-```
-Happy Birthday!
-The age is 21
-```
-
-----
-
-Advanced Structures Usage
-```rust
-struct Man {
-  name: *char,
-  age: u32,
-
-  fn new(name: *char, age: u32) Man {
-    return Man { .name = name, .age = age };
-  }
-
-  fn display(&self) *char {
-    return format!("{} <{}>", self.name, self.age);
-  }
-}
-
-fn main() {
-  let man = Man.new("Jason", 35);
-  println!("{}", man);
-}
-```
-**OUTPUT:**
-```
-Jason <35>
-```
-
-----
-
-Using Standart C Library
-```rust
-extern "C" fn malloc(usize) *void;
-extern "C" fn free(*void);
-
-fn main() {
-  let ptr = malloc(sizeof!(i32));
-  
-  // usage (soon will be implemented)
-
-  free(ptr);
-}
-```
-
-
-
 ## 👮 Repository
 The project is licensed under the BSD-3 Clause License. <br>
-For more information see [License File](https://github.com/mealet/deen/blob/master/LICENSE)
-
-You can check contribution guide by: [CONTRIBUTING.md](https://github.com/mealet/deen/blob/master/CONTRIBUTING.md) <br/>
-Official documentation will be provided soon, please wait.
+For more information see [License File](https://github.com/mealet/deen/blob/master/LICENSE) <br/>
+You can check the contribution guide by: [CONTRIBUTING.md](https://github.com/mealet/deen/blob/master/CONTRIBUTING.md).
