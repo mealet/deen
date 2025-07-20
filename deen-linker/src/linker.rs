@@ -4,9 +4,13 @@ pub struct ObjectLinker;
 
 impl ObjectLinker {
     fn detect_compiler() -> Option<String> {
-        const COMPILERS: [&str; 2] = ["clang", "cc"];
+        let candidates = match std::env::consts::OS {
+            "windows" => ["link", "gcc", "clang"],
+            "macos" => ["clang", "gcc", "cc"],
+            _ => ["gcc", "clang", "cc"]
+        };
 
-        for compiler in COMPILERS {
+        for compiler in candidates {
             if std::process::Command::new(compiler)
                 .arg("--version")
                 .output()
@@ -19,7 +23,7 @@ impl ObjectLinker {
         None
     }
 
-    pub fn link(module_name: &str, output: &str, includes: Vec<PathBuf>) -> Result<(), String> {
+    pub fn link(module_name: &str, output: &str, includes: Vec<PathBuf>) -> Result<String, String> {
         let mut output_path = output.to_string();
         if cfg!(windows) && !output.contains(".exe") {
             output_path = format!("{output_path}.exe");
@@ -32,7 +36,7 @@ impl ObjectLinker {
         let input = format!("{module_name}.o");
 
         if let Some(compiler) = Self::detect_compiler() {
-            let linker_output = std::process::Command::new(compiler)
+            let linker_output = std::process::Command::new(&compiler)
                 .arg(input.clone())
                 .args(includes_formatted)
                 .arg("-fPIC")
@@ -45,13 +49,14 @@ impl ObjectLinker {
 
             let output = linker_output.unwrap();
             if output.status.success() {
-                return Ok(());
+                return Ok(compiler);
             }
 
             return Err(String::from_utf8_lossy(&output.stderr).to_string());
         }
+
         Err(String::from(
-            "No supported C compilers found in system. Please install `clang` from official site!",
+            "No supported C compilers found in system. Recommended: gcc/clang",
         ))
     }
 }
