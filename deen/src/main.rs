@@ -319,7 +319,8 @@ fn main() {
             args.include,
         )
         .unwrap_or_else(|err| {
-            cli::error("Linker catched an error!");
+            let object_linker = deen_linker::linker::ObjectLinker::detect_compiler().unwrap_or(String::from("none"));
+            cli::error(&format!("Linker catched an error! (object linker: `{}`)", object_linker));
             println!("\n{err}\n");
 
             cli::error(
