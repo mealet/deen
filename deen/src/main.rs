@@ -313,13 +313,14 @@ fn main() {
         )
     } else {
         deen_linker::compiler::ObjectCompiler::compile_module(module_ref, &module_name);
-        deen_linker::linker::ObjectLinker::link(
+        let compiler = deen_linker::linker::ObjectLinker::link(
             &module_name,
             args.output.to_str().unwrap(),
             args.include,
         )
         .unwrap_or_else(|err| {
-            cli::error("Linker catched an error!");
+            let object_linker = deen_linker::linker::ObjectLinker::detect_compiler().unwrap_or(String::from("none"));
+            cli::error(&format!("Linker catched an error! (object linker: `{}`)", object_linker));
             println!("\n{err}\n");
 
             cli::error(
@@ -337,7 +338,7 @@ fn main() {
 
         cli::info(
             "Successfully",
-            &format!("compiled to binary: `{formatted_output}`"),
+            &format!("compiled to binary (with `{compiler}`): `{formatted_output}`"),
         )
     };
 }
