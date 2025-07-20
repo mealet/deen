@@ -1,5 +1,5 @@
 ### 🍀 Description
-**Version:** `<version>` <br/>
+**Version:** `<version>`
 **Related:** _no issue_
 
 <!--
