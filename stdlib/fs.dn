@@ -137,7 +137,7 @@ pub struct File {
   }
 
   fn get_char(&self) char {
-    if (self.is_open) && (!feof(self.ptr)) {
+    if self.is_open == true && !feof(self.ptr) {
       let chr = fgetc(self.ptr);
       if feof(self.ptr) {
         return '\0'
@@ -200,9 +200,9 @@ pub struct File {
       return FSError.NullFileBuffer;
     }
 
-    if (self.mode != FileMode.Write) && (self.mode != FileMode.WriteBinary)
-    && (self.mode != FileMode.Append) && (self.mode != FileMode.AppendBinary)
-    && (self.mode != FileMode.ReadWrite) && (self.mode != FileMode.ReadAppend) {
+    if self.mode != FileMode.Write && self.mode != FileMode.WriteBinary
+    && self.mode != FileMode.Append && self.mode != FileMode.AppendBinary
+    && self.mode != FileMode.ReadWrite && self.mode != FileMode.ReadAppend {
       self.error_state = FSError.WriteableModeException;
       return FSError.WriteableModeException;
     }
@@ -225,9 +225,9 @@ pub struct File {
       return FSError.NullFileBuffer;
     }
 
-    if (self.mode != FileMode.Write) && (self.mode != FileMode.WriteBinary)
-    && (self.mode != FileMode.Append) && (self.mode != FileMode.AppendBinary)
-    && (self.mode != FileMode.ReadWrite) && (self.mode != FileMode.ReadAppend) {
+    if self.mode != FileMode.Write && self.mode != FileMode.WriteBinary
+    && self.mode != FileMode.Append && self.mode != FileMode.AppendBinary
+    && self.mode != FileMode.ReadWrite && self.mode != FileMode.ReadAppend {
       self.error_state = FSError.WriteableModeException;
       return FSError.WriteableModeException;
     }   
@@ -261,9 +261,9 @@ pub struct File {
       return FSError.NullFileBuffer;
     }
 
-    if (self.mode != FileMode.Write) && (self.mode != FileMode.WriteBinary)
-    && (self.mode != FileMode.Append) && (self.mode != FileMode.AppendBinary)
-    && (self.mode != FileMode.ReadWrite) && (self.mode != FileMode.ReadAppend) {
+    if self.mode != FileMode.Write && self.mode != FileMode.WriteBinary
+    && self.mode != FileMode.Append && self.mode != FileMode.AppendBinary
+    && self.mode != FileMode.ReadWrite && self.mode != FileMode.ReadAppend {
       self.error_state = FSError.WriteableModeException;
       return FSError.WriteableModeException;
     }   
