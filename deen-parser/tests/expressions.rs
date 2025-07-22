@@ -355,7 +355,7 @@ fn boolean_lt_expression() {
 
 #[test]
 fn boolean_advanced_expression() {
-    const SRC: &str = "let a = (1 == 1) && (0 != 5);";
+    const SRC: &str = "let a = 1 == 1 && 0 != 5;";
     const FILENAME: &str = "test.dn";
 
     let mut lexer = Lexer::new(SRC, "test.dn");
