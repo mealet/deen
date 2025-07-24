@@ -80,13 +80,23 @@ impl Scope {
             });
         }
 
-        self.variables
-            .get(name)
-            .cloned()
-            .or_else(|| self.parent.as_mut().and_then(|parent| parent.get_var(name)))
-            .map(|mut var| {
+        self.get_mut_var(name)
+            .map(|var| {
                 var.used = true;
-                self.variables.insert(name.to_owned(), var.clone());
+                var.clone()
+            })
+    }
+
+    pub fn get_mut_var(&mut self, name: &str) -> Option<&mut Variable> {
+        if name == "_" {
+            return None;
+        }
+
+        self.variables
+            .get_mut(name)
+            .or_else(|| self.parent.as_mut().and_then(|parent| parent.get_mut_var(name)))
+            .map(|var| {
+                var.used = true;
                 var
             })
     }
@@ -94,7 +104,7 @@ impl Scope {
     #[inline]
     pub fn check_unused_variables(&self) -> Option<Vec<UnusedVariable>> {
         let mut unused = Vec::new();
-
+        
         self.variables.iter().for_each(|(name, signature)| {
             if !signature.used {
                 unused.push((name.clone(), signature.span));
@@ -104,16 +114,15 @@ impl Scope {
         if unused.is_empty() {
             return None;
         }
+
         Some(unused)
     }
 
     #[inline]
     pub fn set_init_var(&mut self, name: &str, value: bool) -> Result<(), String> {
-        match self.get_var(name) {
-            Some(mut var) => {
+        match self.get_mut_var(name) {
+            Some(var) => {
                 var.initialized = value;
-                self.add_var(name.to_owned(), var.datatype, var.initialized, var.span);
-
                 Ok(())
             }
             None => Err(format!("Variable \"{name}\" is not defined her")),
