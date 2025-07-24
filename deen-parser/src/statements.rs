@@ -826,6 +826,9 @@ impl Parser {
         let mut fields = IndexMap::new();
         let mut functions = IndexMap::new();
 
+        let mut method_mode = false;
+        let mut mode_reported = false;
+
         while !self.expect(TokenType::RBrace) {
             match self.current().token_type {
                 TokenType::RBrace => break,
@@ -837,6 +840,8 @@ impl Parser {
                         );
                         return Statements::None;
                     }
+
+                    method_mode = true;
 
                     let stmt = self.fn_statement();
 
@@ -860,6 +865,14 @@ impl Parser {
                     }
                 }
                 TokenType::Identifier => {
+                    if method_mode && !mode_reported {
+                        self.error(
+                            String::from("Fields after methods declaration found"),
+                            self.current().span
+                        );
+                        mode_reported = true;
+                    }
+
                     let name = self.current().value;
                     let span = self.current().span;
                     let _ = self.next();
@@ -887,7 +900,21 @@ impl Parser {
                         let _ = self.next();
                     }
 
+                    if fields.contains_key(&name) {
+                        self.error(
+                            format!("Field `{}` defined multiple times", name),
+                            span
+                        );
+                    }
+
                     fields.insert(name, field_type);
+                }
+                TokenType::Semicolon => {
+                    self.error(
+                        String::from("Use commas instead of semicolons in structure declaration"),
+                        self.current().span
+                    );
+                    let _ = self.next();
                 }
                 _ => {
                     self.error(
