@@ -13,6 +13,8 @@ extern "C" fn strstr(*char, *char) *char;
 extern "C" fn toupper(char) char;
 extern "C" fn tolower(char) char;
 
+include "@bytes"
+
 pub struct String {
   ptr: *char,
   size: usize,
@@ -278,6 +280,18 @@ pub struct String {
     ptr[0] = '\0';
 
     self.len = 0;
+  }
+
+  fn to_bytes(&self) Bytes {
+    let buffer = Bytes.with_size(self.len);
+    let ptr = self.ptr;
+
+    while *ptr != '\0' {
+      buffer.push(cast!(*ptr, u8));
+      ptr++;
+    }
+
+    return buffer;
   }
 
   fn as_ptr(&self) *char {

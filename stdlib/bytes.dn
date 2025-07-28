@@ -1,5 +1,3 @@
-include "@string"
-
 extern "C" fn malloc(usize) *void;
 extern "C" fn realloc(*void, usize) *void;
 extern "C" fn free(*void);
@@ -28,7 +26,7 @@ pub struct Bytes {
       panic!("Null pointer apeared on heap allocation `Bytes.with_size`");
     }
 
-    return Bytes { .ptr = ptr, .size = sizeof!(u8) * size, .len = size, .iterator_ptr = 0 };
+    return Bytes { .ptr = ptr, .size = sizeof!(u8) * size, .len = 0, .iterator_ptr = 0 };
   }
 
   fn len(&self) usize {
