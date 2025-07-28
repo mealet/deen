@@ -177,6 +177,36 @@ pub struct String {
     ptr[position] = value;
   }
 
+  fn find(&self, value: char) usize {
+    let ptr = strchr(self.ptr, value);
+    let offset: usize = 0;
+
+    while *ptr != '\0' {
+      ptr++;
+      offset++;
+    }
+
+    let len = self.len;
+    let position = len - offset;
+
+    return position;
+  }
+
+  fn find_str(&self, value: *char) usize {
+    let ptr = strstr(self.ptr, value);
+    let offset: usize = 0;
+
+    while *ptr != '\0' {
+      ptr++;
+      offset++;
+    }
+
+    let len = self.len;
+    let position = len - offset;
+
+    return position;
+  }
+
   fn contains(&self, value: char) bool {
     if self.size < 1 {
       panic!("Unable to operate dropped string: `String.contains`");
