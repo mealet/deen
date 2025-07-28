@@ -672,7 +672,7 @@ impl Analyzer {
                         Type::Void
                     });
 
-                if exp != ret {
+                if exp != ret && ret != Type::Undefined {
                     self.error(
                         format!(
                             "Function `{}` returns type `{}`, but found `{}`",
@@ -1036,7 +1036,7 @@ impl Analyzer {
 
                     self.scope = *self.scope.parent.clone().unwrap();
 
-                    if then_block_type != else_block_type {
+                    if then_block_type != else_block_type && (then_block_type != Type::Undefined || else_block_type != Type::Undefined)  {
                         self.error(
                             format!(
                                 "Scopes has incompatible types: `{then_block_type}` and `{else_block_type}`"

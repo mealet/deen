@@ -14,6 +14,8 @@ impl MacroObject for PanicMacro {
         span: &(usize, usize),
     ) -> Type {
         let _ = super::FormatMacro.verify_call(analyzer, arguments, span);
+        analyzer.scope.returned = Type::Undefined;
+
         Type::Void
     }
 }

@@ -608,9 +608,10 @@ impl<'ctx> CodeGen<'ctx> {
                 let mut basic_args: Vec<BasicMetadataValueEnum> = Vec::new();
 
                 let mut function_args = function.arguments.clone();
-                if function_args[function_args.len() - 1] == Type::Void
-                    && function_args[function_args.len() - 2] == Type::Void
-                {
+                
+                if function_args.len() >= 2
+                    && function_args[function_args.len() - 1] == Type::Void
+                    && function_args[function_args.len() - 2] == Type::Void {
                     function_args.resize(arguments.len(), Type::Void);
                 }
 
@@ -3128,6 +3129,8 @@ impl<'ctx> CodeGen<'ctx> {
 
         let args: Vec<BasicMetadataValueEnum> = [vec![message_ptr.into()], specifiers].concat();
         self.builder.build_call(panic_fn, &args, "").unwrap();
+
+        let _ = self.builder.build_return(None);
     }
 
     fn create_panic_function(&mut self) -> FunctionValue<'ctx> {
