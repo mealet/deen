@@ -63,6 +63,10 @@ pub struct String {
     return self.size;
   }
 
+  fn is_empty(&self) bool {
+    return self.len == 0;
+  }
+
   fn push(&self, value: char) {
     if self.size < 1 {
       panic!("Unable to push into dropped string: `String.push`");
