@@ -115,6 +115,10 @@ pub struct String {
     strcat(self.ptr, value);
   }
 
+  fn push_string(&self, value: String) {
+    self.push_str(value.ptr);
+  }
+
   fn pop(&self) char {
     if self.size < 1 {
       panic!("Unable to pop dropped string: `String.pop`");
