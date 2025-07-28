@@ -242,6 +242,26 @@ pub struct String {
     }
   }
 
+  fn reverse(&self) {
+    if self.ptr == NULL || self.len < 1 {
+      return;
+    }
+
+    let ptr = self.ptr;
+    let len = strlen(ptr);
+    let start = 0;
+    let end = len - 1;
+    
+    while (start < end) {
+      let temp: char = ptr[start];
+      ptr[start] = ptr[end];
+      ptr[end] = temp;
+
+      start++;
+      end--;
+    }
+  }
+
   fn clear(&self) {
     let ptr = self.ptr;
     ptr[0] = '\0';
