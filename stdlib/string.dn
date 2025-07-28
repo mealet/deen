@@ -262,6 +262,13 @@ pub struct String {
     }
   }
 
+  fn clone_reversed(&self) String {
+    let instance = self.clone();
+    instance.reverse();
+
+    return instance;
+  }
+
   fn clear(&self) {
     let ptr = self.ptr;
     ptr[0] = '\0';
