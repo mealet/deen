@@ -573,8 +573,21 @@ impl<'ctx> CodeGen<'ctx> {
                     .iter()
                     .for_each(|stmt| self.compile_statement(stmt.clone(), None));
 
-                if datatype == Type::Void || !function.verify(false) {
+                if datatype == Type::Void {
                     self.builder.build_return(None).unwrap();
+                }
+
+                if !function.verify(false) {
+                    let latest_block = function.get_last_basic_block().unwrap();
+                    let prev_pos = self.builder.get_insert_block().unwrap();
+
+                    self.builder.position_at_end(latest_block);
+                    
+                    if !latest_block.get_last_instruction().unwrap().is_terminator() {
+                        self.builder.build_return(None).unwrap();
+                    }
+
+                    self.builder.position_at_end(prev_pos);
                 }
 
                 self.exit_scope();
