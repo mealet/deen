@@ -242,6 +242,13 @@ pub struct String {
     }
   }
 
+  fn clear(&self) {
+    let ptr = self.ptr;
+    ptr[0] = '\0';
+
+    self.len = 0;
+  }
+
   fn as_ptr(&self) *char {
     return self.ptr;
   }
