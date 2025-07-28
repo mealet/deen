@@ -182,7 +182,8 @@ pub struct String {
     }
     return strstr(self.ptr, value) != NULL;
   }
-  fn raw(&self) *char {
+
+  fn as_ptr(&self) *char {
     return self.ptr;
   }
 
@@ -236,6 +237,6 @@ pub struct String {
   }
 
   fn deref(&self) *char {
-    return self.raw();
+    return self.as_ptr();
   }
 }
