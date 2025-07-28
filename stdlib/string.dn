@@ -10,6 +10,9 @@ extern "C" fn strcpy(*char, *char);
 extern "C" fn strchr(*char, char) *char;
 extern "C" fn strstr(*char, *char) *char;
 
+extern "C" fn toupper(char) char;
+extern "C" fn tolower(char) char;
+
 pub struct String {
   ptr: *char,
   size: usize,
@@ -219,6 +222,15 @@ pub struct String {
       panic!("Unable to operate dropped string: `String.contains_str`");
     }
     return strstr(self.ptr, value) != NULL;
+  }
+
+  fn to_uppercase(&self) {
+    let ptr = self.ptr;
+
+    while *ptr != '\0' {
+      *ptr = toupper(*ptr);
+      ptr++;
+    }
   }
 
   fn as_ptr(&self) *char {
