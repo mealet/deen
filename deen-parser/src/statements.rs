@@ -868,7 +868,7 @@ impl Parser {
                     if method_mode && !mode_reported {
                         self.error(
                             String::from("Fields after methods declaration found"),
-                            self.current().span
+                            self.current().span,
                         );
                         mode_reported = true;
                     }
@@ -901,10 +901,7 @@ impl Parser {
                     }
 
                     if fields.contains_key(&name) {
-                        self.error(
-                            format!("Field `{}` defined multiple times", name),
-                            span
-                        );
+                        self.error(format!("Field `{name}` defined multiple times"), span);
                     }
 
                     fields.insert(name, field_type);
@@ -912,7 +909,7 @@ impl Parser {
                 TokenType::Semicolon => {
                     self.error(
                         String::from("Use commas instead of semicolons in structure declaration"),
-                        self.current().span
+                        self.current().span,
                     );
                     let _ = self.next();
                 }

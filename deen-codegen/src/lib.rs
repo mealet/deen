@@ -608,10 +608,11 @@ impl<'ctx> CodeGen<'ctx> {
                 let mut basic_args: Vec<BasicMetadataValueEnum> = Vec::new();
 
                 let mut function_args = function.arguments.clone();
-                
+
                 if function_args.len() >= 2
                     && function_args[function_args.len() - 1] == Type::Void
-                    && function_args[function_args.len() - 2] == Type::Void {
+                    && function_args[function_args.len() - 2] == Type::Void
+                {
                     function_args.resize(arguments.len(), Type::Void);
                 }
 

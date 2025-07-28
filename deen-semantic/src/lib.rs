@@ -1036,7 +1036,10 @@ impl Analyzer {
 
                     self.scope = *self.scope.parent.clone().unwrap();
 
-                    if then_block_type != else_block_type && (then_block_type != Type::Undefined || else_block_type != Type::Undefined)  {
+                    if then_block_type != else_block_type
+                        && (then_block_type != Type::Undefined
+                            || else_block_type != Type::Undefined)
+                    {
                         self.error(
                             format!(
                                 "Scopes has incompatible types: `{then_block_type}` and `{else_block_type}`"

@@ -80,11 +80,10 @@ impl Scope {
             });
         }
 
-        self.get_mut_var(name)
-            .map(|var| {
-                var.used = true;
-                var.clone()
-            })
+        self.get_mut_var(name).map(|var| {
+            var.used = true;
+            var.clone()
+        })
     }
 
     pub fn get_mut_var(&mut self, name: &str) -> Option<&mut Variable> {
@@ -92,19 +91,23 @@ impl Scope {
             return None;
         }
 
-        self.variables
-            .get_mut(name)
-            .or_else(|| self.parent.as_mut().and_then(|parent| parent.get_mut_var(name)))
-            .map(|var| {
-                var.used = true;
-                var
-            })
+        let mut var_instance = self.variables.get_mut(name).or_else(|| {
+            self.parent
+                .as_mut()
+                .and_then(|parent| parent.get_mut_var(name))
+        });
+
+        if let Some(var) = var_instance.as_mut() {
+            var.used = true;
+        }
+
+        var_instance
     }
 
     #[inline]
     pub fn check_unused_variables(&self) -> Option<Vec<UnusedVariable>> {
         let mut unused = Vec::new();
-        
+
         self.variables.iter().for_each(|(name, signature)| {
             if !signature.used {
                 unused.push((name.clone(), signature.span));
