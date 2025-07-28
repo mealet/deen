@@ -233,6 +233,15 @@ pub struct String {
     }
   }
 
+  fn to_lowercase(&self) {
+    let ptr = self.ptr;
+
+    while *ptr != '\0' {
+      *ptr = tolower(*ptr);
+      ptr++;
+    }
+  }
+
   fn as_ptr(&self) *char {
     return self.ptr;
   }
