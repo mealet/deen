@@ -1003,7 +1003,8 @@ impl Analyzer {
 
                 if then_block_type != self.scope.expected
                     && then_block_type != Type::Void
-                    && then_block_type != Type::Undefined {
+                    && then_block_type != Type::Undefined
+                {
                     self.error(
                         format!(
                             "Expected type `{}` for scope, but found `{}`",
