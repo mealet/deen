@@ -2276,14 +2276,14 @@ impl Analyzer {
                                             }
                                         });
 
-                                        let unassigned = assigned_fields.iter().filter(|x| !x.1).map(|x| x.0.to_owned().to_owned()).collect::<Vec<String>>();
-                                        if !unassigned.is_empty() {
-                                            let fmt = format!("`{}`", unassigned.join("` , `"));
-                                            self.error(
-                                                format!("Missing structure fields: {fmt}"),
-                                                *span
-                                            );
-                                        }
+                                        // let unassigned = assigned_fields.iter().filter(|x| !x.1).map(|x| x.0.to_owned().to_owned()).collect::<Vec<String>>();
+                                        // if !unassigned.is_empty() {
+                                        //     let fmt = format!("`{}`", unassigned.join("` , `"));
+                                        //     self.error(
+                                        //         format!("Missing structure fields: {fmt}"),
+                                        //         *span
+                                        //     );
+                                        // }
 
                                         prev_type_display = Type::Alias(name.clone());
                                         prev_type = import.structs.get(&name).unwrap().clone();
@@ -2623,7 +2623,7 @@ impl Analyzer {
 
                     let unassigned = assigned_fields
                         .iter()
-                        .filter(|x| !x.1)
+                        .filter(|x| !x.1 && !x.0.starts_with("__"))
                         .map(|x| x.0.to_owned().to_owned())
                         .collect::<Vec<String>>();
                     if !unassigned.is_empty() {
