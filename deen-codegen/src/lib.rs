@@ -573,7 +573,7 @@ impl<'ctx> CodeGen<'ctx> {
                     .iter()
                     .for_each(|stmt| self.compile_statement(stmt.clone(), None));
 
-                if datatype == Type::Void {
+                if datatype == Type::Void || !function.verify(false) {
                     self.builder.build_return(None).unwrap();
                 }
 
@@ -3131,7 +3131,7 @@ impl<'ctx> CodeGen<'ctx> {
         let args: Vec<BasicMetadataValueEnum> = [vec![message_ptr.into()], specifiers].concat();
         self.builder.build_call(panic_fn, &args, "").unwrap();
 
-        let _ = self.builder.build_return(None);
+        // let _ = self.builder.build_return(None);
     }
 
     fn create_panic_function(&mut self) -> FunctionValue<'ctx> {

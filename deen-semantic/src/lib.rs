@@ -1001,7 +1001,9 @@ impl Analyzer {
 
                 self.scope = *self.scope.parent.clone().unwrap();
 
-                if then_block_type != self.scope.expected && then_block_type != Type::Void {
+                if then_block_type != self.scope.expected
+                    && then_block_type != Type::Void
+                    && then_block_type != Type::Undefined {
                     self.error(
                         format!(
                             "Expected type `{}` for scope, but found `{}`",
@@ -1038,7 +1040,7 @@ impl Analyzer {
 
                     if then_block_type != else_block_type
                         && (then_block_type != Type::Undefined
-                            || else_block_type != Type::Undefined)
+                            && else_block_type != Type::Undefined)
                     {
                         self.error(
                             format!(
