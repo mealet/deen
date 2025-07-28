@@ -59,6 +59,10 @@ pub struct String {
     return self.len;
   }
 
+  fn capacity(&self) usize {
+    return self.size;
+  }
+
   fn push(&self, value: char) {
     if self.size < 1 {
       panic!("Unable to push into dropped string: `String.push`");
