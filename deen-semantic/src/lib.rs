@@ -243,7 +243,8 @@ impl Analyzer {
                     identifier: _,
                     datatype: _,
                     span: _,
-                } => {}
+                } => {},
+                Statements::LinkCStatement { path: _, span: _ } => {},
                 _ => {
                     if let Some(err) = self.errors.last() {
                         if err.span == (255, 0).into() {
@@ -252,7 +253,7 @@ impl Analyzer {
                     }
                     self.error(
                         String::from(
-                            "In global scope only allowed: functions definitions, imports",
+                            "This item is not allowed in global scope!",
                         ),
                         (0, 0),
                     );
@@ -1388,7 +1389,7 @@ impl Analyzer {
                     return;
                 }
 
-                let included_path = Self::expand_library_path(import_path).unwrap_or_else(|err| {
+                let included_path = Self::expand_library_path(import_path, true).unwrap_or_else(|err| {
                     self.error(
                         format!("Unable to resolve provided path: {}", err),
                         *span
@@ -1531,6 +1532,41 @@ impl Analyzer {
 
                 // making variable `used`
                 let _ = self.scope.get_var(identifier);
+            }
+
+            Statements::LinkCStatement { path, span: _ } => {
+                let (link_path, path_span) =
+                    if let Expressions::Value(Value::String(path), span) = path {
+                        (path, span)
+                    } else {
+                        unreachable!()
+                    };
+
+                let formatted_path = Self::expand_library_path(link_path, false).unwrap_or_else(|err| {
+                    self.error(
+                        format!("Unable to resolve linkage path: {}", err),
+                        *path_span
+                    );
+                    PathBuf::new()
+                });
+
+                if formatted_path.as_os_str().is_empty() { return };
+                if !formatted_path.exists() {
+                    self.error(
+                        format!("Provided linkage file does not exists: `{}`", formatted_path.as_os_str().to_str().unwrap()),
+                        *path_span
+                    );
+                    return;
+                }
+                if !formatted_path.is_file() {
+                    self.error(
+                        format!("Provided path is not file: `{}`", formatted_path.as_os_str().to_str().unwrap()),
+                        *path_span
+                    );
+                    return;
+                }
+
+                self.symtable.linked.push(formatted_path);
             }
 
             Statements::ExternStatement {
@@ -2990,7 +3026,7 @@ impl Analyzer {
         }
     }
 
-    fn expand_library_path(path: impl AsRef<str>) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    fn expand_library_path(path: impl AsRef<str>, is_deen_module: bool) -> Result<PathBuf, Box<dyn std::error::Error>> {
         let path = path.as_ref();
 
         if path.starts_with('@') {
@@ -3003,7 +3039,7 @@ impl Analyzer {
             let module_path = format!(
                 "{}{}",
                 path.replace("@", ""),
-                if !path.contains(".dn") { ".dn" } else { "" }
+                if !path.contains(".dn") && is_deen_module { ".dn" } else { "" }
             );
 
             path_buffer.push(module_path);

@@ -3,13 +3,14 @@
 //! Wikipedia Explanation: <https://en.wikipedia.org/wiki/Symbol_table>
 
 use deen_parser::{statements::Statements, types::Type};
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 /// Symbol Table Structure
 #[derive(Debug, Clone, Default)]
 pub struct SymbolTable {
     pub imports: HashMap<String, Import>,
     pub included: HashMap<String, Include>,
+    pub linked: Vec<PathBuf>
 }
 
 /// User Import Instance

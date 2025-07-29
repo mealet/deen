@@ -1387,6 +1387,8 @@ impl<'ctx> CodeGen<'ctx> {
                 }
             }
 
+            Statements::LinkCStatement { path: _, span: _ } => {},
+
             Statements::ExternDeclareStatement {
                 identifier,
                 datatype,

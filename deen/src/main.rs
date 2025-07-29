@@ -290,6 +290,9 @@ fn main() {
         .map(|n| n.to_string())
         .unwrap_or(fname.replace(".dn", ""));
 
+    // Combining linkages
+    let external_linkages = [args.include, symtable.linked.clone()].concat();
+
     // Code Generator Initialization.
     // Creating custom context and a very big wrapper for builder.
     let ctx = deen_codegen::CodeGen::create_context();
@@ -316,7 +319,7 @@ fn main() {
         let compiler = deen_linker::linker::ObjectLinker::link(
             &module_name,
             args.output.to_str().unwrap(),
-            args.include,
+            external_linkages,
         )
         .unwrap_or_else(|err| {
             let object_linker = deen_linker::linker::ObjectLinker::detect_compiler()
