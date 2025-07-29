@@ -10,7 +10,7 @@ use std::{collections::HashMap, path::PathBuf};
 pub struct SymbolTable {
     pub imports: HashMap<String, Import>,
     pub included: HashMap<String, Include>,
-    pub linked: Vec<PathBuf>
+    pub linked: Vec<PathBuf>,
 }
 
 /// User Import Instance

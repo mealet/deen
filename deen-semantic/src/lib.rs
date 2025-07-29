@@ -243,8 +243,8 @@ impl Analyzer {
                     identifier: _,
                     datatype: _,
                     span: _,
-                } => {},
-                Statements::LinkCStatement { path: _, span: _ } => {},
+                } => {}
+                Statements::LinkCStatement { path: _, span: _ } => {}
                 _ => {
                     if let Some(err) = self.errors.last() {
                         if err.span == (255, 0).into() {
@@ -252,9 +252,7 @@ impl Analyzer {
                         };
                     }
                     self.error(
-                        String::from(
-                            "This item is not allowed in global scope!",
-                        ),
+                        String::from("This item is not allowed in global scope!"),
                         (0, 0),
                     );
                     return;
@@ -1004,7 +1002,8 @@ impl Analyzer {
 
                 if then_block_type != self.scope.expected
                     && then_block_type != Type::Void
-                    && then_block_type != Type::Undefined {
+                    && then_block_type != Type::Undefined
+                {
                     self.error(
                         format!(
                             "Expected type `{}` for scope, but found `{}`",
@@ -1389,15 +1388,15 @@ impl Analyzer {
                     return;
                 }
 
-                let included_path = Self::expand_library_path(import_path, true).unwrap_or_else(|err| {
-                    self.error(
-                        format!("Unable to resolve provided path: {}", err),
-                        *span
-                    );
-                    PathBuf::new()
-                });
+                let included_path =
+                    Self::expand_library_path(import_path, true).unwrap_or_else(|err| {
+                        self.error(format!("Unable to resolve provided path: {err}"), *span);
+                        PathBuf::new()
+                    });
 
-                if included_path.as_os_str().is_empty() { return };
+                if included_path.as_os_str().is_empty() {
+                    return;
+                };
 
                 // Reading source code
                 let src = std::fs::read_to_string(&included_path).unwrap_or_else(|err| {
@@ -1542,26 +1541,32 @@ impl Analyzer {
                         unreachable!()
                     };
 
-                let formatted_path = Self::expand_library_path(link_path, false).unwrap_or_else(|err| {
-                    self.error(
-                        format!("Unable to resolve linkage path: {}", err),
-                        *path_span
-                    );
-                    PathBuf::new()
-                });
+                let formatted_path =
+                    Self::expand_library_path(link_path, false).unwrap_or_else(|err| {
+                        self.error(format!("Unable to resolve linkage path: {err}"), *path_span);
+                        PathBuf::new()
+                    });
 
-                if formatted_path.as_os_str().is_empty() { return };
+                if formatted_path.as_os_str().is_empty() {
+                    return;
+                };
                 if !formatted_path.exists() {
                     self.error(
-                        format!("Provided linkage file does not exists: `{}`", formatted_path.as_os_str().to_str().unwrap()),
-                        *path_span
+                        format!(
+                            "Provided linkage file does not exists: `{}`",
+                            formatted_path.as_os_str().to_str().unwrap()
+                        ),
+                        *path_span,
                     );
                     return;
                 }
                 if !formatted_path.is_file() {
                     self.error(
-                        format!("Provided path is not file: `{}`", formatted_path.as_os_str().to_str().unwrap()),
-                        *path_span
+                        format!(
+                            "Provided path is not file: `{}`",
+                            formatted_path.as_os_str().to_str().unwrap()
+                        ),
+                        *path_span,
                     );
                     return;
                 }
@@ -3026,12 +3031,15 @@ impl Analyzer {
         }
     }
 
-    fn expand_library_path(path: impl AsRef<str>, is_deen_module: bool) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    fn expand_library_path(
+        path: impl AsRef<str>,
+        is_deen_module: bool,
+    ) -> Result<PathBuf, Box<dyn std::error::Error>> {
         let path = path.as_ref();
 
         if path.starts_with('@') {
             // standard library path
-            
+
             let deenlib_env = std::env::var(STANDARD_LIBRARY_VAR)?;
             let expanded_stdlib_path = shellexpand::full(&deenlib_env)?;
             let mut path_buffer = PathBuf::from(expanded_stdlib_path.as_ref());
@@ -3039,7 +3047,11 @@ impl Analyzer {
             let module_path = format!(
                 "{}{}",
                 path.replace("@", ""),
-                if !path.contains(".dn") && is_deen_module { ".dn" } else { "" }
+                if !path.contains(".dn") && is_deen_module {
+                    ".dn"
+                } else {
+                    ""
+                }
             );
 
             path_buffer.push(module_path);
