@@ -43,7 +43,7 @@ pub mod symtable;
 pub type SemanticOk = (SymbolTable, Vec<SemanticWarning>);
 pub type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
 
-const STANDART_LIBRARY_VAR: &str = "DEEN_LIB";
+const STANDARD_LIBRARY_VAR: &str = "DEEN_LIB";
 
 /// Main Analyzer Struct
 #[derive(Debug)]
@@ -244,6 +244,7 @@ impl Analyzer {
                     datatype: _,
                     span: _,
                 } => {}
+                Statements::LinkCStatement { path: _, span: _ } => {}
                 _ => {
                     if let Some(err) = self.errors.last() {
                         if err.span == (255, 0).into() {
@@ -251,9 +252,7 @@ impl Analyzer {
                         };
                     }
                     self.error(
-                        String::from(
-                            "In global scope only allowed: functions definitions, imports",
-                        ),
+                        String::from("This item is not allowed in global scope!"),
                         (0, 0),
                     );
                     return;
@@ -1003,7 +1002,8 @@ impl Analyzer {
 
                 if then_block_type != self.scope.expected
                     && then_block_type != Type::Void
-                    && then_block_type != Type::Undefined {
+                    && then_block_type != Type::Undefined
+                {
                     self.error(
                         format!(
                             "Expected type `{}` for scope, but found `{}`",
@@ -1382,32 +1382,20 @@ impl Analyzer {
                     } else {
                         unreachable!()
                     };
-                let included_path = match import_path.chars().nth(0) {
-                    Some('@') => {
-                        // standart library path
 
-                        let lib_path = std::env::var(STANDART_LIBRARY_VAR).unwrap_or(
-                            std::env::current_dir()
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_owned(),
-                        );
+                if import_path.is_empty() {
+                    self.error(String::from("Empty include path provided"), *path_span);
+                    return;
+                }
 
-                        let mut import_path = import_path.clone().replace(".dn", "");
-                        let _ = import_path.remove(0);
+                let included_path =
+                    Self::expand_library_path(import_path, true).unwrap_or_else(|err| {
+                        self.error(format!("Unable to resolve provided path: {err}"), *span);
+                        PathBuf::new()
+                    });
 
-                        let formatted_path = format!("{lib_path}/{import_path}.dn");
-                        PathBuf::from(formatted_path)
-                    }
-                    Some(_) => {
-                        // relative path
-                        PathBuf::from(import_path)
-                    }
-                    None => {
-                        self.error(String::from("Empty include path provided"), *path_span);
-                        return;
-                    }
+                if included_path.as_os_str().is_empty() {
+                    return;
                 };
 
                 // Reading source code
@@ -1543,6 +1531,47 @@ impl Analyzer {
 
                 // making variable `used`
                 let _ = self.scope.get_var(identifier);
+            }
+
+            Statements::LinkCStatement { path, span: _ } => {
+                let (link_path, path_span) =
+                    if let Expressions::Value(Value::String(path), span) = path {
+                        (path, span)
+                    } else {
+                        unreachable!()
+                    };
+
+                let formatted_path =
+                    Self::expand_library_path(link_path, false).unwrap_or_else(|err| {
+                        self.error(format!("Unable to resolve linkage path: {err}"), *path_span);
+                        PathBuf::new()
+                    });
+
+                if formatted_path.as_os_str().is_empty() {
+                    return;
+                };
+                if !formatted_path.exists() {
+                    self.error(
+                        format!(
+                            "Provided linkage file does not exists: `{}`",
+                            formatted_path.as_os_str().to_str().unwrap()
+                        ),
+                        *path_span,
+                    );
+                    return;
+                }
+                if !formatted_path.is_file() {
+                    self.error(
+                        format!(
+                            "Provided path is not file: `{}`",
+                            formatted_path.as_os_str().to_str().unwrap()
+                        ),
+                        *path_span,
+                    );
+                    return;
+                }
+
+                self.symtable.linked.push(formatted_path);
             }
 
             Statements::ExternStatement {
@@ -2999,6 +3028,37 @@ impl Analyzer {
             }
 
             _ => Ok(typ.clone()),
+        }
+    }
+
+    fn expand_library_path(
+        path: impl AsRef<str>,
+        is_deen_module: bool,
+    ) -> Result<PathBuf, Box<dyn std::error::Error>> {
+        let path = path.as_ref();
+
+        if path.starts_with('@') {
+            // standard library path
+
+            let deenlib_env = std::env::var(STANDARD_LIBRARY_VAR)?;
+            let expanded_stdlib_path = shellexpand::full(&deenlib_env)?;
+            let mut path_buffer = PathBuf::from(expanded_stdlib_path.as_ref());
+
+            let module_path = format!(
+                "{}{}",
+                path.replace("@", ""),
+                if !path.contains(".dn") && is_deen_module {
+                    ".dn"
+                } else {
+                    ""
+                }
+            );
+
+            path_buffer.push(module_path);
+            Ok(path_buffer)
+        } else {
+            // relative library path
+            Ok(PathBuf::from(path))
         }
     }
 }

@@ -569,6 +569,7 @@ impl Parser {
                 "include" => self.include_statement(),
                 "extern" => self.extern_statement(),
                 "_extern_declare" => self.extern_declare_statement(),
+                "_link_c" => self.link_c_statement(),
                 "if" => self.if_statement(),
                 "else" => {
                     self.error(

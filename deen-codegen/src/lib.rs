@@ -582,7 +582,7 @@ impl<'ctx> CodeGen<'ctx> {
                     let prev_pos = self.builder.get_insert_block().unwrap();
 
                     self.builder.position_at_end(latest_block);
-                    
+
                     if let Some(instruction) = latest_block.get_last_instruction() {
                         if !instruction.is_terminator() {
                             self.builder.build_return(None).unwrap();
@@ -1386,6 +1386,8 @@ impl<'ctx> CodeGen<'ctx> {
                     self.builder.build_return(Some(&compiled_value.1)).unwrap();
                 }
             }
+
+            Statements::LinkCStatement { path: _, span: _ } => {}
 
             Statements::ExternDeclareStatement {
                 identifier,
