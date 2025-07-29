@@ -13,3 +13,4 @@ deen-lexer = { path = "../deen-lexer" }
 miette = { version = "7.5.0", features = ["fancy"] }
 thiserror = "2.0.12"
 indexmap = "2.9.0"
+shellexpand = "3.1.1"

@@ -43,7 +43,7 @@ pub mod symtable;
 pub type SemanticOk = (SymbolTable, Vec<SemanticWarning>);
 pub type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
 
-const STANDART_LIBRARY_VAR: &str = "DEEN_LIB";
+const STANDARD_LIBRARY_VAR: &str = "DEEN_LIB";
 
 /// Main Analyzer Struct
 #[derive(Debug)]
@@ -1382,33 +1382,21 @@ impl Analyzer {
                     } else {
                         unreachable!()
                     };
-                let included_path = match import_path.chars().nth(0) {
-                    Some('@') => {
-                        // standart library path
 
-                        let lib_path = std::env::var(STANDART_LIBRARY_VAR).unwrap_or(
-                            std::env::current_dir()
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_owned(),
-                        );
+                if import_path.is_empty() {
+                    self.error(String::from("Empty include path provided"), *path_span);
+                    return;
+                }
 
-                        let mut import_path = import_path.clone().replace(".dn", "");
-                        let _ = import_path.remove(0);
+                let included_path = Self::expand_library_path(import_path).unwrap_or_else(|err| {
+                    self.error(
+                        format!("Unable to resolve provided path: {}", err),
+                        *span
+                    );
+                    PathBuf::new()
+                });
 
-                        let formatted_path = format!("{lib_path}/{import_path}.dn");
-                        PathBuf::from(formatted_path)
-                    }
-                    Some(_) => {
-                        // relative path
-                        PathBuf::from(import_path)
-                    }
-                    None => {
-                        self.error(String::from("Empty include path provided"), *path_span);
-                        return;
-                    }
-                };
+                if included_path.as_os_str().is_empty() { return };
 
                 // Reading source code
                 let src = std::fs::read_to_string(&included_path).unwrap_or_else(|err| {
@@ -2999,6 +2987,30 @@ impl Analyzer {
             }
 
             _ => Ok(typ.clone()),
+        }
+    }
+
+    fn expand_library_path(path: impl AsRef<str>) -> Result<PathBuf, Box<dyn std::error::Error>> {
+        let path = path.as_ref();
+
+        if path.starts_with('@') {
+            // standard library path
+            
+            let deenlib_env = std::env::var(STANDARD_LIBRARY_VAR)?;
+            let expanded_stdlib_path = shellexpand::full(&deenlib_env)?;
+            let mut path_buffer = PathBuf::from(expanded_stdlib_path.as_ref());
+
+            let module_path = format!(
+                "{}{}",
+                path.replace("@", ""),
+                if !path.contains(".dn") { ".dn" } else { "" }
+            );
+
+            path_buffer.push(module_path);
+            Ok(path_buffer)
+        } else {
+            // relative library path
+            Ok(PathBuf::from(path))
         }
     }
 }
