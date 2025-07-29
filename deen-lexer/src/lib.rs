@@ -121,6 +121,7 @@ impl Lexer {
                 std_keyword!("enum"),
                 std_keyword!("typedef"),
                 std_keyword!("_extern_declare"),
+                std_keyword!("_link_c"),
                 // Types
                 std_type!("i8"),
                 std_type!("i16"),

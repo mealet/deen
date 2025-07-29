@@ -173,6 +173,12 @@ pub enum Statements {
         span: (usize, usize),
     },
 
+    /// `_link_c "PATH"`
+    LinkCStatement {
+        path: Expressions,
+        span: (usize, usize),
+    },
+
     /// `break`
     BreakStatements {
         span: (usize, usize),
@@ -287,10 +293,8 @@ impl Parser {
         }
 
         let path = self.expression();
-        self.position -= 1;
+        let span_end = Self::get_span_expression(path.clone()).1;
 
-        let span_end = self.current().span.1;
-        let _ = self.next();
         self.skip_eos();
 
         if let Expressions::Value(Value::String(_), _) = path {
@@ -1091,6 +1095,32 @@ impl Parser {
             identifier,
             datatype,
             span,
+        }
+    }
+
+    pub fn link_c_statement(&mut self) -> Statements {
+        let span_start = self.current().span.0;
+        if self.expect(TokenType::Keyword) {
+            let _ = self.next();
+        }
+
+        let path = self.expression();
+        let span_end = Self::get_span_expression(path.clone()).1;
+
+        if let Expressions::Value(Value::String(_), _) = path {
+            Statements::LinkCStatement {
+                path,
+                span: (span_start, span_end),
+            }
+        } else {
+            self.error(
+                String::from("Expected string path for LinkC statement"),
+                (span_start, span_end),
+            );
+            Statements::LinkCStatement {
+                path,
+                span: (span_start, span_end),
+            }
         }
     }
 
