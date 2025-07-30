@@ -291,7 +291,8 @@ fn main() {
         .unwrap_or(fname.replace(".dn", ""));
 
     // Combining linkages
-    let external_linkages = [args.include, symtable.linked.clone()].concat();
+    let linked_list: Vec<std::path::PathBuf> = symtable.linked.iter().cloned().collect();
+    let external_linkages = [args.include, linked_list].concat();
 
     // Code Generator Initialization.
     // Creating custom context and a very big wrapper for builder.

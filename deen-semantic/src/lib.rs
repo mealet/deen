@@ -1571,7 +1571,7 @@ impl Analyzer {
                     return;
                 }
 
-                self.symtable.linked.push(formatted_path);
+                let _ = self.symtable.linked.insert(formatted_path);
             }
 
             Statements::ExternStatement {
