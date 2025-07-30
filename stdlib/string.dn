@@ -253,6 +253,17 @@ pub struct String {
 
   fn replace(&self, from: *char, to: *char) {
     __string_replace(self.ptr, from, to);
+
+    let new_size = strlen(self.ptr);
+    let new_ptr: *char = realloc(self.ptr, new_size);
+
+    if new_ptr == NULL {
+      panic!("Null pointer appeared on heap allocation: `String.replace`");
+    }
+
+    self.ptr = new_ptr;
+    self.size = new_size;
+    self.len = new_size;
   }
 
   fn reverse(&self) {
