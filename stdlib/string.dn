@@ -1,3 +1,6 @@
+_link_c "@string.c"
+
+extern "C" fn __string_replace(*char, *char, *char);
 extern "C" fn memcpy(*void, *void, usize) *void;
 extern "C" fn malloc(usize) *void;
 extern "C" fn realloc(*void, usize) *void;
@@ -246,6 +249,10 @@ pub struct String {
       *ptr = tolower(*ptr);
       ptr++;
     }
+  }
+
+  fn replace(&self, from: *char, to: *char) {
+    __string_replace(self.ptr, from, to);
   }
 
   fn reverse(&self) {
