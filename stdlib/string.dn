@@ -1,3 +1,6 @@
+_link_c "@string.c"
+
+extern "C" fn __string_replace(*char, *char, *char);
 extern "C" fn memcpy(*void, *void, usize) *void;
 extern "C" fn malloc(usize) *void;
 extern "C" fn realloc(*void, usize) *void;
@@ -9,6 +12,11 @@ extern "C" fn strcpy(*char, *char);
 
 extern "C" fn strchr(*char, char) *char;
 extern "C" fn strstr(*char, *char) *char;
+
+extern "C" fn toupper(char) char;
+extern "C" fn tolower(char) char;
+
+include "@bytes"
 
 pub struct String {
   ptr: *char,
@@ -59,6 +67,14 @@ pub struct String {
     return self.len;
   }
 
+  fn capacity(&self) usize {
+    return self.size;
+  }
+
+  fn is_empty(&self) bool {
+    return self.len == 0;
+  }
+
   fn push(&self, value: char) {
     if self.size < 1 {
       panic!("Unable to push into dropped string: `String.push`");
@@ -102,6 +118,10 @@ pub struct String {
     }
 
     strcat(self.ptr, value);
+  }
+
+  fn push_string(&self, value: String) {
+    self.push_str(value.ptr);
   }
 
   fn pop(&self) char {
@@ -169,6 +189,36 @@ pub struct String {
     ptr[position] = value;
   }
 
+  fn find(&self, value: char) usize {
+    let ptr = strchr(self.ptr, value);
+    let offset: usize = 0;
+
+    while *ptr != '\0' {
+      ptr++;
+      offset++;
+    }
+
+    let len = self.len;
+    let position = len - offset;
+
+    return position;
+  }
+
+  fn find_str(&self, value: *char) usize {
+    let ptr = strstr(self.ptr, value);
+    let offset: usize = 0;
+
+    while *ptr != '\0' {
+      ptr++;
+      offset++;
+    }
+
+    let len = self.len;
+    let position = len - offset;
+
+    return position;
+  }
+
   fn contains(&self, value: char) bool {
     if self.size < 1 {
       panic!("Unable to operate dropped string: `String.contains`");
@@ -182,7 +232,87 @@ pub struct String {
     }
     return strstr(self.ptr, value) != NULL;
   }
-  fn raw(&self) *char {
+
+  fn to_uppercase(&self) {
+    let ptr = self.ptr;
+
+    while *ptr != '\0' {
+      *ptr = toupper(*ptr);
+      ptr++;
+    }
+  }
+
+  fn to_lowercase(&self) {
+    let ptr = self.ptr;
+
+    while *ptr != '\0' {
+      *ptr = tolower(*ptr);
+      ptr++;
+    }
+  }
+
+  fn replace(&self, from: *char, to: *char) {
+    __string_replace(self.ptr, from, to);
+
+    let new_size = strlen(self.ptr);
+    let new_ptr: *char = realloc(self.ptr, new_size);
+
+    if new_ptr == NULL {
+      panic!("Null pointer appeared on heap allocation: `String.replace`");
+    }
+
+    self.ptr = new_ptr;
+    self.size = new_size;
+    self.len = new_size;
+  }
+
+  fn reverse(&self) {
+    if self.ptr == NULL || self.len < 1 {
+      return;
+    }
+
+    let ptr = self.ptr;
+    let len = strlen(ptr);
+    let start = 0;
+    let end = len - 1;
+    
+    while (start < end) {
+      let temp: char = ptr[start];
+      ptr[start] = ptr[end];
+      ptr[end] = temp;
+
+      start++;
+      end--;
+    }
+  }
+
+  fn clone_reversed(&self) String {
+    let instance = self.clone();
+    instance.reverse();
+
+    return instance;
+  }
+
+  fn clear(&self) {
+    let ptr = self.ptr;
+    ptr[0] = '\0';
+
+    self.len = 0;
+  }
+
+  fn to_bytes(&self) Bytes {
+    let buffer = Bytes.with_size(self.len);
+    let ptr = self.ptr;
+
+    while *ptr != '\0' {
+      buffer.push(cast!(*ptr, u8));
+      ptr++;
+    }
+
+    return buffer;
+  }
+
+  fn as_ptr(&self) *char {
     return self.ptr;
   }
 
@@ -236,6 +366,6 @@ pub struct String {
   }
 
   fn deref(&self) *char {
-    return self.raw();
+    return self.as_ptr();
   }
 }

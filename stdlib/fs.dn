@@ -232,7 +232,7 @@ pub struct File {
       return FSError.WriteableModeException;
     }   
 
-    let raw_string = value.raw();
+    let raw_string = value.as_ptr();
 
     let pos = 0;
     let chr = raw_string[pos];
