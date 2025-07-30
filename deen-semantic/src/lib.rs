@@ -1509,9 +1509,14 @@ impl Analyzer {
 
                 let include = Include { ast };
                 self.symtable.included.insert(module_name, include);
+
                 symtable.included.into_iter().for_each(|inc| {
-                    self.symtable.included.insert(inc.0, inc.1);
+                    let _ = self.symtable.included.insert(inc.0, inc.1);
                 });
+
+                symtable.linked.into_iter().for_each(|link| {
+                    let _ = self.symtable.linked.insert(link);
+                })
             }
 
             Statements::ExternDeclareStatement {
