@@ -9,7 +9,7 @@
 
 use crate::{
     BINARY_OPERATORS, BITWISE_OPERATORS, BOOLEAN_OPERATORS, PRIORITY_BINARY_OPERATORS,
-    PRIORITY_BOOLEAN_OPERATORS, Parser, statements::Statements, types::Type, value::Value,
+    PRIORITY_BOOLEAN_OPERATORS, Parser, statements::Statements, types::Type, value::Value, error::{self, ParserError}
 };
 use deen_lexer::token_type::TokenType;
 use std::collections::HashMap;
@@ -369,9 +369,14 @@ impl Parser {
             TokenType::LParen => {}
             _ => {
                 self.error(
-                    String::from("Unexpected variation of function call"),
-                    (span.0, self.current().span.1),
+                    ParserError::UnknownExpression {
+                        exception: format!("unknown call expression syntax"),
+                        help: format!("Consider using right syntax: `identifier(value, ...)"),
+                        src: self.source.clone(),
+                        span: error::position_to_span((span.0, self.current().span.1))
+                    }
                 );
+
                 return Expressions::None;
             }
         };
@@ -419,9 +424,14 @@ impl Parser {
 
         if self.current().token_type != TokenType::RBrack {
             self.error(
-                String::from("Index end not found"),
-                (self.span_expression(expr).0, self.current().span.1),
+                ParserError::UnclosedExpression {
+                    exception: format!("unclosed slice index"),
+                    help: format!("Close slice index with brackets"),
+                    src: self.source.clone(),
+                    span: error::position_to_span((self.span_expression(expr).0, self.current().span.1))
+                }
             );
+
             return Expressions::None;
         }
 
@@ -442,9 +452,14 @@ impl Parser {
 
         if !self.expect(TokenType::LBrace) {
             self.error(
-                String::from("Expected `{` after structure initialization"),
-                (span_start, self.current().span.1),
+                ParserError::SyntaxError {
+                    exception: format!("expected curly brackets for structure initialization"),
+                    help: format!("Use syntax: `identifier {{ .field = value, ... }}`"),
+                    src: self.source.clone(),
+                    span: error::position_to_span((span_start, self.current().span.1))
+                }
             );
+
             self.skip_statement();
             return Expressions::None;
         };
@@ -455,9 +470,14 @@ impl Parser {
         while !self.expect(TokenType::RBrace) {
             if !self.expect(TokenType::Dot) {
                 self.error(
-                    String::from("Unexpected field initialization found. Use `.field = value`"),
-                    (span_start, self.current().span.1),
+                    ParserError::SyntaxError {
+                        exception: format!("wrong field initialization syntax"),
+                        help: format!("Use syntax: `identifier {{ .field = value, ... }}`"),
+                        src: self.source.clone(),
+                        span: error::position_to_span(self.current().span)
+                    }
                 );
+
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)
                     && !self.expect(TokenType::EOF)
@@ -470,9 +490,14 @@ impl Parser {
             let _ = self.next();
             if !self.expect(TokenType::Identifier) {
                 self.error(
-                    String::from("Expected field identifier for initialization"),
-                    (span_start, self.current().span.1),
+                    ParserError::SyntaxError {
+                        exception: format!("wrong field initialization syntax"),
+                        help: format!("Use syntax: `identifier {{ .field = value, ... }}`"),
+                        src: self.source.clone(),
+                        span: error::position_to_span(self.current().span)
+                    }
                 );
+
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)
                     && !self.expect(TokenType::EOF)
@@ -487,9 +512,14 @@ impl Parser {
 
             if !self.expect(TokenType::Equal) {
                 self.error(
-                    String::from("Fields must have assignation"),
-                    (span_start, self.current().span.1),
+                    ParserError::SyntaxError {
+                        exception: format!("wrong field initialization syntax"),
+                        help: format!("Use syntax: `identifier {{ .field = value, ... }}`"),
+                        src: self.source.clone(),
+                        span: error::position_to_span(self.current().span)
+                    }
                 );
+
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)
                     && !self.expect(TokenType::EOF)
@@ -504,9 +534,15 @@ impl Parser {
 
             if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
                 self.error(
-                    String::from("Values must be separated by commas"),
-                    (span_start, self.current().span.1),
+                    ParserError::SyntaxError {
+                        exception: format!("values must be separated by commas"),
+                        help: format!("Separate fields with commas"),
+                        src: self.source.clone(),
+                        span: error::position_to_span(self.current().span)
+                    }
                 );
+
+
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)
                     && !self.expect(TokenType::EOF)
