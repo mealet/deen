@@ -24,11 +24,11 @@ pub struct SemanticWarning {
 }
 
 impl From<deen_lexer::error::LexerError> for SemanticError {
-    fn from(value: deen_lexer::error::LexerError) -> Self {
+    fn from(_value: deen_lexer::error::LexerError) -> Self {
         Self {
-            message: value.message,
-            src: value.src,
-            span: value.span,
+            message: Default::default(),
+            src: NamedSource::new("", "".to_string()),
+            span: (0, 0).into(),
         }
     }
 }

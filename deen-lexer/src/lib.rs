@@ -157,12 +157,8 @@ impl Lexer {
 
     // Fundamental Lexer functions
 
-    fn error(&mut self, message: String, span: (usize, usize)) {
-        self.errors.push(error::LexerError {
-            message,
-            span: span.into(),
-            src: self.source.clone(),
-        });
+    fn error(&mut self, error: LexerError) {
+        self.errors.push(error);
     }
 
     fn warning(&mut self, message: String, span: (usize, usize)) {
@@ -206,7 +202,7 @@ impl Lexer {
     }
 
     fn get_number(&mut self) -> (String, TokenType) {
-        #[derive(PartialEq)]
+        #[derive(PartialEq, Debug)]
         enum ParseMode {
             Decimal,
             Hexadecimal,
@@ -229,9 +225,13 @@ impl Lexer {
                     'b' => {
                         if mode != ParseMode::Decimal || !value.is_empty() {
                             self.error(
-                                String::from("Wrong number constant found"),
-                                (span_start, self.position),
+                                LexerError::InvalidNumberConstant {
+                                    const_type: format!("{:?}", mode).to_lowercase(),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(span_start, self.position)
+                                }
                             );
+
                             return (0.to_string(), TokenType::Number);
                         }
 
@@ -242,9 +242,13 @@ impl Lexer {
                     'x' => {
                         if mode != ParseMode::Decimal || !value.is_empty() {
                             self.error(
-                                String::from("Wrong number constant found"),
-                                (span_start, self.position),
+                                LexerError::InvalidNumberConstant {
+                                    const_type: format!("{:?}", mode).to_lowercase(),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(span_start, self.position)
+                                }
                             );
+
                             return (0.to_string(), TokenType::Number);
                         }
 
@@ -305,9 +309,13 @@ impl Lexer {
                 '.' => {
                     if mode != ParseMode::Decimal {
                         self.error(
-                            String::from("Unexpected variation of float constant found"),
-                            (span_start - 1, self.position + 1),
+                            LexerError::InvalidNumberConstant {
+                                const_type: format!("{:?}", mode).to_lowercase(),
+                                src: self.source.clone(),
+                                span: error::position_to_span(span_start - 1, self.position + 1)
+                            }
                         );
+
                         return (String::from("0"), TokenType::FloatNumber);
                     }
 
@@ -328,13 +336,16 @@ impl Lexer {
             ParseMode::Decimal => (
                 value
                     .parse::<i64>()
-                    .unwrap_or_else(|_| {
+                    .unwrap_or_else(|err| {
                         self.error(
-                            String::from(
-                                "IO Module returned an error while parsing Decimal number",
-                            ),
-                            (span_start, self.position),
+                            LexerError::ConstantParserError {
+                                const_type: format!("{:?}", mode).to_lowercase(),
+                                parser_error: err.to_string(),
+                                src: self.source.clone(),
+                                span: error::position_to_span(span_start, self.position)
+                            }
                         );
+
                         0
                     })
                     .to_string(),
@@ -342,10 +353,14 @@ impl Lexer {
             ),
             ParseMode::Binary => (
                 i64::from_str_radix(value.trim(), 2)
-                    .unwrap_or_else(|_| {
+                    .unwrap_or_else(|err| {
                         self.error(
-                            String::from("IO Module returned an error while parsing Binary number"),
-                            (span_start, self.position),
+                            LexerError::ConstantParserError {
+                                const_type: format!("{:?}", mode).to_lowercase(),
+                                parser_error: err.to_string(),
+                                src: self.source.clone(),
+                                span: error::position_to_span(span_start, self.position)
+                            }
                         );
                         0
                     })
@@ -354,13 +369,16 @@ impl Lexer {
             ),
             ParseMode::Hexadecimal => (
                 i64::from_str_radix(value.trim(), 16)
-                    .unwrap_or_else(|_| {
+                    .unwrap_or_else(|err| {
                         self.error(
-                            String::from(
-                                "IO Module returned an error while parsing Hexadecimal number",
-                            ),
-                            (span_start, self.position),
+                            LexerError::ConstantParserError {
+                                const_type: format!("{:?}", mode).to_lowercase(),
+                                parser_error: err.to_string(),
+                                src: self.source.clone(),
+                                span: error::position_to_span(span_start, self.position)
+                            }
                         );
+
 
                         0
                     })
@@ -370,10 +388,14 @@ impl Lexer {
             ParseMode::Float => (
                 value
                     .parse::<f64>()
-                    .unwrap_or_else(|_| {
+                    .unwrap_or_else(|err| {
                         self.error(
-                            String::from("IO Module returned an error while parsing Float number"),
-                            (span_start, self.position + 1),
+                            LexerError::ConstantParserError {
+                                const_type: format!("{:?}", mode).to_lowercase(),
+                                parser_error: err.to_string(),
+                                src: self.source.clone(),
+                                span: error::position_to_span(span_start, self.position)
+                            }
                         );
                         0.0
                     })
@@ -429,8 +451,12 @@ impl Lexer {
                                         self.getc();
                                     } else {
                                         self.error(
-                                            String::from("Unknown character escape found"),
-                                            (self.position - 2, 2),
+                                            LexerError::UnknownCharacterEscape {
+                                                escape: format!("\\{}", self.char),
+
+                                                src: self.source.clone(),
+                                                span: (self.position - 2, 2).into()
+                                            }
                                         );
                                     }
 
@@ -460,8 +486,12 @@ impl Lexer {
                                 let character_escape = Self::character_escape(self.char)
                                     .unwrap_or_else(|| {
                                         self.error(
-                                            String::from("Unexpected character escape found"),
-                                            (span_start, self.position),
+                                            LexerError::UnknownCharacterEscape {
+                                                escape: format!("\\{}", self.char),
+
+                                                src: self.source.clone(),
+                                                span: error::position_to_span(span_start, self.position)
+                                            }
                                         );
                                         ' '
                                     });
@@ -473,8 +503,12 @@ impl Lexer {
 
                             if self.char != '\'' {
                                 self.error(
-                                    String::from("Undefined character found"),
-                                    (span_start, self.position),
+                                    LexerError::UnknownCharacterEscape {
+                                        escape: format!("\\{}", self.char),
+
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(span_start, self.position)
+                                    }
                                 );
                                 self.getc();
                             }
@@ -693,8 +727,11 @@ impl Lexer {
                 }
                 _ => {
                     self.error(
-                        format!("Undefined char found: {}", self.char),
-                        (self.position - 1, 1),
+                        LexerError::UnknownCharacter {
+                            character: self.char,
+                            src: self.source.clone(),
+                            span: (self.position - 1, 1).into()
+                        }
                     );
                     self.getc();
                 }
