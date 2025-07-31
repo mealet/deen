@@ -46,7 +46,7 @@ pub enum LexerError {
     #[error("Unknown character escape: {escape}")]
     #[diagnostic(
         severity(Error),
-        code(deen::lexer::constant_error),
+        code(deen::lexer::literal_error),
         help("If you meant to write a literal backslash, consider using its double version: '\\\\'")
     )]
     UnknownCharacterEscape {
@@ -61,7 +61,7 @@ pub enum LexerError {
     #[error("Unknown character found: '{character}'")]
     #[diagnostic(
         severity(Error),
-        code(deen::lexer::constant_error),
+        code(deen::lexer::unknown),
     )]
     UnknownCharacter {
         character: char,
@@ -74,12 +74,30 @@ pub enum LexerError {
 }
 
 #[derive(Debug, Error, Diagnostic, Clone)]
-#[error("Warning: {message}")]
-#[diagnostic(severity(Warning), code(deen::lexer))]
-pub struct LexerWarning {
-    pub message: String,
-    #[source_code]
-    pub src: NamedSource<String>,
-    #[label("here")]
-    pub span: SourceSpan,
+pub enum LexerWarning {
+    #[error("Extra zeros in constant")]
+    #[diagnostic(
+        severity(Warning),
+        code(deen::lexer::extra_zeros),
+        help("Consider removing unnecessary zeros")
+    )]
+    ExtraZeros {
+        #[source_code]
+        src: NamedSource<String>,
+        #[label("extra zeros here")]
+        span: SourceSpan
+    },
+
+    #[error("Extra zeros in floating number")]
+    #[diagnostic(
+        severity(Warning),
+        code(deen::lexer::extra_float_zeros),
+        help("Consider removing unnecessary zeros")
+    )]
+    ExtraFloatZeros {
+        #[source_code]
+        src: NamedSource<String>,
+        #[label("extra zeros at the end")]
+        span: SourceSpan
+    }
 }

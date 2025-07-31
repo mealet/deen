@@ -161,12 +161,8 @@ impl Lexer {
         self.errors.push(error);
     }
 
-    fn warning(&mut self, message: String, span: (usize, usize)) {
-        self.warnings.push(error::LexerWarning {
-            message,
-            span: span.into(),
-            src: self.source.clone(),
-        })
+    fn warning(&mut self, warning: LexerWarning) {
+        self.warnings.push(warning)
     }
 
     fn getc(&mut self) {
@@ -263,9 +259,12 @@ impl Lexer {
                             }
 
                             self.warning(
-                                String::from("Extra zeroes in constant"),
-                                (span_start - 1, self.position),
+                                LexerWarning::ExtraZeros {
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(span_start - 1, self.position)
+                                }
                             );
+
                             continue;
                         }
 
@@ -278,9 +277,12 @@ impl Lexer {
 
                             if !self.char.is_ascii_digit() {
                                 self.warning(
-                                    String::from("Extra zeroes at float constant end"),
-                                    (span_start - 1, self.position - span_start + 1),
+                                    LexerWarning::ExtraFloatZeros {
+                                        src: self.source.clone(),
+                                        span: (span_start - 1, self.position - span_start + 1).into()
+                                    }
                                 );
+
                                 continue;
                             }
 
@@ -293,8 +295,10 @@ impl Lexer {
                     _ => {
                         if value.is_empty() && self.char.is_ascii_digit() {
                             self.warning(
-                                String::from("Extra zero at the constant start"),
-                                (span_start - 1, self.position),
+                                LexerWarning::ExtraZeros {
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(span_start - 1, self.position)
+                                }
                             );
                         }
 

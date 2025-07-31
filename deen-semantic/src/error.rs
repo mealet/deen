@@ -34,11 +34,11 @@ impl From<deen_lexer::error::LexerError> for SemanticError {
 }
 
 impl From<deen_lexer::error::LexerWarning> for SemanticWarning {
-    fn from(value: deen_lexer::error::LexerWarning) -> Self {
+    fn from(_value: deen_lexer::error::LexerWarning) -> Self {
         Self {
-            message: value.message,
-            src: value.src,
-            span: value.span,
+            message: Default::default(),
+            src: NamedSource::new("", "".to_string()),
+            span: (0, 0).into(),
         }
     }
 }
