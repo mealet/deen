@@ -218,6 +218,7 @@ impl Parser {
                 }
             );
 
+            self.skip_statement();
             return Statements::None;
         }
 
@@ -340,6 +341,7 @@ impl Parser {
         let condition = self.expression();
 
         if self.current().token_type != TokenType::LBrace {
+            self.position -= 1;
             self.error(
                 ParserError::SyntaxError {
                     exception: format!("expected new block after condition"),
@@ -349,6 +351,7 @@ impl Parser {
                 }
             );
 
+            self.skip_statement();
             return Statements::None;
         }
 
