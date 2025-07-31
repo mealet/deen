@@ -8,7 +8,7 @@ use thiserror::Error;
 
 /// Simple function to convert position range to miette span
 pub fn position_to_span(from: usize, to: usize) -> SourceSpan {
-    (from, to - from).into()
+    (from, to.wrapping_sub(from)).into()
 }
 
 #[derive(Debug, Error, Diagnostic, Clone)]

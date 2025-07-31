@@ -6,7 +6,7 @@
 //! Statement may have internal components named [`Expressions`]. <br/>
 //! Read: <https://en.wikipedia.org/wiki/Statement_(computer_science)>
 
-use crate::{END_STATEMENT, Parser, expressions::Expressions, types::Type, value::Value};
+use crate::{END_STATEMENT, Parser, expressions::Expressions, types::Type, value::Value, error::{self, ParserError}};
 use deen_lexer::token_type::TokenType;
 use indexmap::IndexMap;
 
@@ -210,9 +210,14 @@ impl Parser {
 
         if !self.expect(TokenType::Identifier) {
             self.error(
-                String::from("Identifier expected after `let` keyword"),
-                (span_start, self.current().span.1 - span_start),
+                ParserError::SyntaxError {
+                    exception: format!("identifier expected after `let` keyword"),
+                    help: format!("Add identifier after `let` keyword"),
+                    src: self.source.clone(),
+                    span: error::position_to_span((span_start, self.current().span.1))
+                }
             );
+
             return Statements::None;
         }
 
@@ -251,9 +256,14 @@ impl Parser {
             }
             _ => {
                 self.error(
-                    String::from("Expected `=` or `;` after variable declaration"),
-                    (span_start, self.current().span.1 - span_start),
+                    ParserError::SyntaxError {
+                        exception: format!("expected `=` or `;` after variable declaration"),
+                        help: format!("Consider adding assign operator or semicolon after identifier"),
+                        src: self.source.clone(),
+                        span: error::position_to_span((span_start, self.current().span.1))
+                    }
                 );
+
                 Statements::None
             }
         }
