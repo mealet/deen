@@ -408,7 +408,7 @@ impl Analyzer {
                         self.error(
                             SemanticError::UnsupportedType {
                                 exception: format!("type `{instance}` cannot be deref-assigned"),
-                                help: format!(""),
+                                help: format!("no help"),
                                 src: self.source.clone(),
                                 span: error::position_to_span(*span)
                             }
@@ -432,52 +432,60 @@ impl Analyzer {
                         let index_type = self.visit_expression(index, Some(Type::USIZE));
 
                         if index_type != Type::USIZE {
-                            self.error(
-                                format!(
-                                    "Expected index with type `usize`, but found `{index_type}`"
-                                ),
-                                *span,
-                            );
+                            self.error(SemanticError::TypesMismatch {
+                                exception: format!("expected index with `usize` type, but found `{index_type}`"),
+                                help: format!("You can cast integer types to `usize`: cast!(VALUE, usize)"),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                         }
 
                         let value_type = self.visit_expression(value, Some(*typ.clone()));
 
                         if value_type != *typ {
-                            self.error(
-                                format!("Array has type `{typ}`, but found `{value_type}`"),
-                                *span,
-                            );
+                            self.error(SemanticError::TypesMismatch {
+                                exception: format!("array's elements has type `{typ}`, but found `{value_type}`"),
+                                help: format!("Consider changing provided value"),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                         }
                     }
                     Type::DynamicArray(typ) => {
-                        let index_type = self.visit_expression(index, Some(Type::USIZE));
+                        // TODO: Remove dynamic array type
 
-                        if index_type != Type::USIZE {
-                            self.error(
-                                format!(
-                                    "Expected index with type `usize`, but found `{index_type}`"
-                                ),
-                                *span,
-                            );
-                        }
+                        unreachable!()
 
-                        let value_type = self.visit_expression(value, Some(*typ.clone()));
-
-                        if value_type != *typ {
-                            self.error(
-                                format!("Array has type `{typ}`, but found `{value_type}`"),
-                                *span,
-                            );
-                        }
+                        // let index_type = self.visit_expression(index, Some(Type::USIZE));
+                        //
+                        // if index_type != Type::USIZE {
+                        //     self.error(
+                        //         format!(
+                        //             "Expected index with type `usize`, but found `{index_type}`"
+                        //         ),
+                        //         *span,
+                        //     );
+                        // }
+                        //
+                        // let value_type = self.visit_expression(value, Some(*typ.clone()));
+                        //
+                        // if value_type != *typ {
+                        //     self.error(
+                        //         format!("Array has type `{typ}`, but found `{value_type}`"),
+                        //         *span,
+                        //     );
+                        // }
                     }
                     Type::Pointer(ptr_type) => {
                         let value_type = self.visit_expression(value, Some(*ptr_type.clone()));
 
                         if value_type != *ptr_type {
-                            self.error(
-                                format!("Pointer has type `{ptr_type}`, but found `{value_type}`"),
-                                *span,
-                            );
+                            self.error(SemanticError::TypesMismatch {
+                                exception: format!("pointer has type `{ptr_type}`, but found `{value_type}"),
+                                help: format!("Consider changing value, or pointer type"),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                         }
                     }
                     Type::Alias(alias) => {
