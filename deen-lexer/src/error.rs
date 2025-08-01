@@ -11,7 +11,7 @@ pub fn position_to_span(from: usize, to: usize) -> SourceSpan {
     (from, to.wrapping_sub(from)).into()
 }
 
-#[derive(Debug, Error, Diagnostic, Clone)]
+#[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 pub enum LexerError {
     #[error("Invalid number constant")]
     #[diagnostic(
@@ -73,7 +73,7 @@ pub enum LexerError {
     }
 }
 
-#[derive(Debug, Error, Diagnostic, Clone)]
+#[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 pub enum LexerWarning {
     #[error("Extra zeros in constant")]
     #[diagnostic(
