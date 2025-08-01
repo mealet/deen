@@ -1,4 +1,5 @@
-use crate::element::ScopeElement;
+use crate::{element::ScopeElement, error::{self, SemanticError}};
+use miette::NamedSource;
 use deen_parser::types::Type;
 use std::collections::HashMap;
 
@@ -122,13 +123,21 @@ impl Scope {
     }
 
     #[inline]
-    pub fn set_init_var(&mut self, name: &str, value: bool) -> Result<(), String> {
+    pub fn set_init_var(&mut self, name: &str, value: bool, source: NamedSource<String>, span: (usize, usize)) -> Result<(), SemanticError> {
+        // format!("Variable \"{name}\" is not defined her")
         match self.get_mut_var(name) {
             Some(var) => {
                 var.initialized = value;
                 Ok(())
             }
-            None => Err(format!("Variable \"{name}\" is not defined her")),
+            None => Err(
+                SemanticError::UnresolvedName {
+                    exception: format!("variable \"{name}\" is not defined here"),
+                    help: format!("Verify provided identifier"),
+                    src: source,
+                    span: error::position_to_span(span)
+                }
+            ),
         }
     }
 

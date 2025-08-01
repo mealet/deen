@@ -88,7 +88,7 @@ impl MacroObject for FormatMacro {
                                 format!(
                                     "Implementation for DISPLAY must be: {DISPLAY_IMPLEMENTATION_FORMAT}"
                                 ),
-                                deen_parser::Parser::get_span_expression(expr.clone()),
+                                deen_parser::Parser::get_span_expression(&expr),
                             );
                         }
                     } else {
@@ -96,7 +96,7 @@ impl MacroObject for FormatMacro {
                             format!(
                                 "Type `{expr_type}` has no implementation for DISPLAY: {DISPLAY_IMPLEMENTATION_FORMAT}"
                             ),
-                            deen_parser::Parser::get_span_expression(expr.clone()),
+                            deen_parser::Parser::get_span_expression(&expr),
                         );
                     }
                 }
@@ -112,7 +112,7 @@ impl MacroObject for FormatMacro {
                                     format!(
                                         "Implementation for DISPLAY must be: {DISPLAY_IMPLEMENTATION_FORMAT}"
                                     ),
-                                    deen_parser::Parser::get_span_expression(expr.clone()),
+                                    deen_parser::Parser::get_span_expression(&expr),
                                 );
                             }
                         } else {
@@ -120,13 +120,13 @@ impl MacroObject for FormatMacro {
                                 format!(
                                     "Type `{expr_type}` has no implementation for DISPLAY: {DISPLAY_IMPLEMENTATION_FORMAT}"
                                 ),
-                                deen_parser::Parser::get_span_expression(expr.clone()),
+                                deen_parser::Parser::get_span_expression(&expr),
                             );
                         }
                     } else if analyzer.scope.get_enum(&alias).is_none() {
                         analyzer.error(
                             format!("No displayable type with name `{expr_type}` found"),
-                            deen_parser::Parser::get_span_expression(expr.clone()),
+                            deen_parser::Parser::get_span_expression(&expr),
                         );
                     }
                 }
@@ -134,7 +134,7 @@ impl MacroObject for FormatMacro {
                 _ => {
                     analyzer.error(
                         format!("Type `{expr_type}` is not supported for display"),
-                        deen_parser::Parser::get_span_expression(expr.clone()),
+                        deen_parser::Parser::get_span_expression(&expr),
                     );
                 }
             }

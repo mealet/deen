@@ -149,10 +149,10 @@ impl Analyzer {
         ast.iter().for_each(|stmt| self.visit_statement(stmt));
 
         if self.scope.get_fn("main").is_none() && self.scope.is_main {
-            let err = SemanticError {
-                message: String::from("Program has no entry `main` function"),
+            let err = SemanticError::GlobalError {
+                message: format!("Program has no entry `main` function"),
+                help: format!("Consider creating main function: `fn main() {{}}`"),
                 src: self.source.clone(),
-                span: 0.into(),
             };
 
             self.errors.reverse();
@@ -162,7 +162,11 @@ impl Analyzer {
 
         if let Some(unused) = self.scope.check_unused_variables() {
             unused.iter().for_each(|var| {
-                self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                self.warning(SemanticWarning::UnusedVariable {
+                    varname: var.0.clone(),
+                    src: self.source.clone(),
+                    span: error::position_to_span(var.1)
+                });
             });
         }
 
@@ -173,25 +177,13 @@ impl Analyzer {
         Ok((self.symtable.clone(), self.warnings.clone()))
     }
 
-    fn error(&mut self, message: String, span: (usize, usize)) {
-        let span = (span.0, if span.1 <= span.0 { 1 } else { span.1 - span.0 });
-
-        self.errors.push(error::SemanticError {
-            message,
-            span: span.into(),
-            src: self.source.clone(),
-        });
+    fn error(&mut self, error: SemanticError) {
+        self.errors.push(error);
     }
 
     #[allow(unused)]
-    fn warning(&mut self, message: String, span: (usize, usize)) {
-        let span = (span.0, if span.1 <= span.0 { 1 } else { span.1 - span.0 });
-
-        self.warnings.push(error::SemanticWarning {
-            message,
-            span: span.into(),
-            src: self.source.clone(),
-        })
+    fn warning(&mut self, warning: SemanticWarning) {
+        self.warnings.push(warning)
     }
 }
 
@@ -247,14 +239,20 @@ impl Analyzer {
                 Statements::LinkCStatement { path: _, span: _ } => {}
                 _ => {
                     if let Some(err) = self.errors.last() {
-                        if err.span == (255, 0).into() {
-                            return;
-                        };
+                        // if err.span == (255, 0).into() {
+                        //     return;
+                        // };
                     }
+                    
                     self.error(
-                        String::from("This item is not allowed in global scope!"),
-                        (0, 0),
+                        SemanticError::SemanticError  {
+                            exception: format!("This item is not allowed in global scope"),
+                            help: format!("Consider removing this item from global scope"),
+                            src: self.source.clone(),
+                            span: error::position_to_span(deen_parser::Parser::get_span_statement(statement))
+                        }
                     );
+
                     return;
                 }
             }
@@ -273,24 +271,30 @@ impl Analyzer {
 
                         if variable.datatype != value_type {
                             self.error(
-                                format!(
-                                    "Variable has type `{}`, but found `{}`",
-                                    variable.datatype, value_type
-                                ),
-                                *span,
+                                SemanticError::TypesMismatch {
+                                    exception: format!("variable has type `{}`, but found `{}`", variable.datatype, value_type),
+                                    help: format!("Consider changing value, or variable datatype"),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                }
                             );
+
                             return;
                         }
 
                         self.scope
-                            .set_init_var(identifier, true)
+                            .set_init_var(identifier, true, self.source.clone(), *span)
                             .unwrap_or_else(|err| {
-                                self.error(err, *span);
+                                self.error(err);
                             });
                     } else {
                         self.error(
-                            format!("Variable \"{identifier}\" is not defined here"),
-                            *span,
+                            SemanticError::UnresolvedName {
+                                exception: format!("variable \"{identifier}\" is not defined here"),
+                                help: format!("Verify provided identifier"),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            }
                         );
                     }
                 }
@@ -326,10 +330,12 @@ impl Analyzer {
 
                         if value_type != *ptr_type {
                             self.error(
-                                format!(
-                                    "Pointer expected type `{ptr_type}`, but found `{value_type}`"
-                                ),
-                                *span,
+                                SemanticError::TypesMismatch {
+                                    exception: format!("pointer has type `{ptr_type}`, but found `{value_type}`"),
+                                    help: format!("Consider changing provided value, or pointer type"),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                }
                             );
                         }
                     }
@@ -338,7 +344,13 @@ impl Analyzer {
                         const IMPLEMENTATION_FORMAT: &str = "fn deref_assign(&self, value: _)";
 
                         let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
-                            self.error(format!("Type `{alias}` cannot be deref-assigned"), *span);
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!("type `{alias}` cannot be derefence-assigned"),
+                                help: format!("Verify provided type, or change it"),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
+
                             Type::Void
                         });
 
@@ -355,10 +367,13 @@ impl Analyzer {
                                     && args.get(1).unwrap_or(&Type::Undefined) != &Type::Undefined
                                     && *datatype.clone() == Type::Void)
                                 {
-                                    self.error(
-                                        format!("Type `{alias}` has WRONG implementation for deref-assign: {IMPLEMENTATION_FORMAT}"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!("type `{alias}` has WRONG implementation for deref-assign: {IMPLEMENTATION_FORMAT}"),
+                                        help: format!("Consider verifying and changing your method implementation"),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
+
                                     return;
                                 }
 
@@ -368,17 +383,21 @@ impl Analyzer {
 
                                 if *expected_value != value_type {
                                     self.error(
-                                        format!("Deref-assign of type `{alias}` expected type `{expected_value}`, but found `{value_type}`"),
-                                        *span
+                                        SemanticError::TypesMismatch {
+                                            exception: format!("expected type `{expected_value}`, but found `{value_type}`"),
+                                            help: format!("Consider changing value, or implementation format"),
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*span)
+                                        }
                                     );
                                 }
                             } else {
-                                self.error(
-                                    format!(
-                                        "Type `{alias}` has no implementation for deref-assign: {IMPLEMENTATION_FORMAT}"
-                                    ),
-                                    *span,
-                                );
+                                self.error(SemanticError::IllegalImplementation {
+                                    exception: format!("type `{alias}` has no implementation for deref-assign"),
+                                    help: format!("Consider implementing necessary method"),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
                             }
                         } else {
                             unreachable!()
@@ -386,7 +405,14 @@ impl Analyzer {
                     }
 
                     _ => {
-                        self.error(format!("Type `{instance}` cannot be deref-assigned"), *span);
+                        self.error(
+                            SemanticError::UnsupportedType {
+                                exception: format!("type `{instance}` cannot be deref-assigned"),
+                                help: format!(""),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            }
+                        );
                     }
                 }
             }
@@ -551,7 +577,7 @@ impl Analyzer {
 
                 match (datatype, value) {
                     (Some(datatype), Some(value)) => {
-                        let value_span = deen_parser::Parser::get_span_expression(value.clone());
+                        let value_span = deen_parser::Parser::get_span_expression(&value);
                         let value_type = self.visit_expression(value, Some(datatype.clone()));
 
                         if &value_type != datatype {
@@ -764,7 +790,7 @@ impl Analyzer {
                                         expected,
                                         provided
                                     ),
-                                    Parser::get_span_expression(arguments[ind].clone()),
+                                    Parser::get_span_expression(&arguments[ind]),
                                 );
                             }
                         },
@@ -1683,7 +1709,7 @@ impl Analyzer {
                 if expr_type != Type::Void {
                     self.warning(
                         String::from("Unused expression result found"),
-                        deen_parser::Parser::get_span_expression(expr.clone()),
+                        deen_parser::Parser::get_span_expression(&expr),
                     );
                 }
             }
@@ -2172,7 +2198,7 @@ impl Analyzer {
                                                 let self_arg = if is_pointed_struct {
                                                     prev_expr.clone()
                                                 } else {
-                                                    Expressions::Reference { object: Box::new(prev_expr.clone()), span: (deen_parser::Parser::get_span_expression(prev_expr.clone())) }
+                                                    Expressions::Reference { object: Box::new(prev_expr.clone()), span: (deen_parser::Parser::get_span_expression(&prev_expr)) }
                                                 };
 
                                                 arguments.push(self_arg);
@@ -2215,7 +2241,7 @@ impl Analyzer {
                                             if expr_type != expected {
                                                 self.error(
                                                     format!("Argument #{} has type `{}`, but found `{}`", index + 1, raw_expected, raw_expr_type),
-                                                    deen_parser::Parser::get_span_expression(expr.clone())
+                                                    deen_parser::Parser::get_span_expression(&expr)
                                                 );
                                             }
                                         });

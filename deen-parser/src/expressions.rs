@@ -118,79 +118,31 @@ pub enum Expressions {
 
 impl Parser {
     #[inline]
-    pub fn get_span_expression(expr: Expressions) -> (usize, usize) {
+    pub fn get_span_expression(expr: &Expressions) -> (usize, usize) {
         match expr {
-            Expressions::Binary {
-                operand: _,
-                lhs: _,
-                rhs: _,
-                span,
-            } => span,
-            Expressions::Boolean {
-                operand: _,
-                lhs: _,
-                rhs: _,
-                span,
-            } => span,
-            Expressions::Bitwise {
-                operand: _,
-                lhs: _,
-                rhs: _,
-                span,
-            } => span,
-            Expressions::Argument {
-                name: _,
-                r#type: _,
-                span,
-            } => span,
-            Expressions::SubElement {
-                head: _,
-                subelements: _,
-                span,
-            } => span,
-            Expressions::FnCall {
-                name: _,
-                arguments: _,
-                span,
-            } => span,
-            Expressions::MacroCall {
-                name: _,
-                arguments: _,
-                span,
-            } => span,
-            Expressions::Reference { object: _, span } => span,
-            Expressions::Dereference { object: _, span } => span,
-            Expressions::Array {
-                values: _,
-                len: _,
-                span,
-            } => span,
-            Expressions::Tuple { values: _, span } => span,
-            Expressions::Slice {
-                object: _,
-                index: _,
-                span,
-            } => span,
-            Expressions::Struct {
-                name: _,
-                fields: _,
-                span,
-            } => span,
-            Expressions::Unary {
-                operand: _,
-                object: _,
-                span,
-            } => span,
-            Expressions::Scope { block: _, span } => span,
-            Expressions::Value(_, span) => span,
-
+            Expressions::Binary { span, .. } => *span,
+            Expressions::Boolean { span, .. } => *span,
+            Expressions::Bitwise { span, .. } => *span,
+            Expressions::Argument { span, .. } => *span,
+            Expressions::SubElement { span, .. } => *span,
+            Expressions::FnCall { span, .. } => *span,
+            Expressions::MacroCall { span, .. } => *span,
+            Expressions::Reference { span, .. } => *span,
+            Expressions::Dereference { span, .. } => *span,
+            Expressions::Array { span, .. } => *span,
+            Expressions::Tuple { span, .. } => *span,
+            Expressions::Slice { span, .. } => *span,
+            Expressions::Struct { span, .. } => *span,
+            Expressions::Unary { span, .. } => *span,
+            Expressions::Scope { span, .. } => *span,
+            Expressions::Value(_, span) => *span,
             Expressions::None => (0, 0),
         }
     }
 
     #[inline]
     pub fn span_expression(&self, expr: Expressions) -> (usize, usize) {
-        Self::get_span_expression(expr)
+        Self::get_span_expression(&expr)
     }
 }
 
@@ -225,7 +177,7 @@ impl Parser {
     }
 
     pub fn binary_expression(&mut self, node: Expressions) -> Expressions {
-        let node_span = Self::get_span_expression(node.clone());
+        let node_span = Self::get_span_expression(&node);
         let span_end;
 
         let current = self.current();
@@ -285,7 +237,7 @@ impl Parser {
     pub fn boolean_expression(&mut self, node: Expressions) -> Expressions {
         // FIXME: Expressions like `true || false` returns error "Undefined term found"
 
-        let node_span = Self::get_span_expression(node.clone());
+        let node_span = Self::get_span_expression(&node);
         let span_end;
 
         let current = self.current();
@@ -334,7 +286,7 @@ impl Parser {
     }
 
     pub fn bitwise_expression(&mut self, node: Expressions) -> Expressions {
-        let node_span = Self::get_span_expression(node.clone());
+        let node_span = Self::get_span_expression(&node);
         let span_end;
 
         let current = self.current();

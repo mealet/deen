@@ -201,6 +201,39 @@ pub enum Statements {
 }
 
 impl Parser {
+    #[inline]
+    pub fn get_span_statement(stmt: &Statements) -> (usize, usize) {
+        match stmt {
+            Statements::AssignStatement { span, .. } => *span,
+            Statements::BinaryAssignStatement { span, .. } => *span,
+            Statements::DerefAssignStatement { span, .. } => *span,
+            Statements::SliceAssignStatement { span, .. } => *span,
+            Statements::FieldAssignStatement { span, .. } => *span,
+            Statements::AnnotationStatement { span, .. } => *span,
+            Statements::FunctionDefineStatement { span, .. } => *span,
+            Statements::FunctionCallStatement { span, .. } => *span,
+            Statements::MacroCallStatement { span, .. } => *span,
+            Statements::StructDefineStatement { span, .. } => *span,
+            Statements::EnumDefineStatement { span, .. } => *span,
+            Statements::TypedefStatement { span, .. } => *span,
+            Statements::IfStatement { span, .. } => *span,
+            Statements::WhileStatement { span, .. } => *span,
+            Statements::ForStatement { span, .. } => *span,
+            Statements::ImportStatement { span, .. } => *span,
+            Statements::IncludeStatement { span, .. } => *span,
+            Statements::ExternStatement { span, .. } => *span,
+            Statements::ExternDeclareStatement { span, .. } => *span,
+            Statements::LinkCStatement { span, .. } => *span,
+            Statements::BreakStatements { span } => *span,
+            Statements::ReturnStatement { span, .. } => *span,
+            Statements::ScopeStatement { span, .. } => *span,
+            Statements::Expression(expr) => Self::get_span_expression(expr),
+            Statements::None => (0, 0), // или можно вернуть Option<(usize, usize)>
+        }
+    }
+}
+
+impl Parser {
     pub fn annotation_statement(&mut self) -> Statements {
         let span_start = self.current().span.0;
 
@@ -309,7 +342,7 @@ impl Parser {
         }
 
         let path = self.expression();
-        let span_end = Self::get_span_expression(path.clone()).1;
+        let span_end = Self::get_span_expression(&path).1;
 
         self.skip_eos();
 
@@ -1292,7 +1325,7 @@ impl Parser {
         }
 
         let path = self.expression();
-        let span_end = Self::get_span_expression(path.clone()).1;
+        let span_end = Self::get_span_expression(&path).1;
 
         if let Expressions::Value(Value::String(_), _) = path {
             Statements::LinkCStatement {
