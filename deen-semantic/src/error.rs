@@ -336,11 +336,11 @@ pub enum SemanticWarning {
         help("Consider assigning result to a variable")
     )]
     UnusedResult {
-        varname: String,
+        message: String,
 
         #[source_code]
         src: NamedSource<String>,
-        #[label("unused expression here")]
+        #[label("{message}")]
         span: SourceSpan
     },
 }
