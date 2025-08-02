@@ -579,7 +579,7 @@ impl Analyzer {
                 let unwrapped_object_type = self.unwrap_alias(&object_type).unwrap_or_else(|err| {
                     self.error(SemanticError::UnresolvedName {
                         exception: err,
-                        help: Some(format!("Verify provided type")),
+                        help: None,
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -620,7 +620,7 @@ impl Analyzer {
                                 self.unwrap_alias(datatype).unwrap_or_else(|err| {
                                     self.error(SemanticError::UnresolvedName {
                                         exception: err,
-                                        help: Some(format!("Verify provided type")),
+                                        help: None,
                                         src: self.source.clone(),
                                         span: error::position_to_span(*span)
                                     });
@@ -735,7 +735,7 @@ impl Analyzer {
                     .unwrap_or_else(|err| {
                         self.error(SemanticError::UnresolvedName {
                             exception: err,
-                            help: Some(format!("Verify provided type")),
+                            help: None,
                             src: self.source.clone(),
                             span: error::position_to_span(*span)
                         });
@@ -746,7 +746,7 @@ impl Analyzer {
                     .unwrap_or_else(|err| {
                         self.error(SemanticError::UnresolvedName {
                             exception: err,
-                            help: Some(format!("Verify provided type")),
+                            help: None,
                             src: self.source.clone(),
                             span: error::position_to_span(*span)
                         });
@@ -1014,7 +1014,7 @@ impl Analyzer {
                 if !functions.is_empty() {
                     self.error(SemanticError::DisabledFeature {
                         exception: format!("methods in enums are currently disabled"),
-                        help: Some(format!("Remove methods from enum")),
+                        help: None,
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -1251,7 +1251,12 @@ impl Analyzer {
                     Type::DynamicArray(typ) => binding_type = *typ,
                     Type::Alias(alias) => {
                         let alias_type = self.unwrap_alias(&iterator_type).unwrap_or_else(|err| {
-                            self.error(err, *span);
+                            self.error(SemanticError::UnresolvedName {
+                                exception: err,
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                             Type::Void
                         });
 
@@ -1261,6 +1266,8 @@ impl Analyzer {
 
                         match alias_type {
                             Type::Struct(_, functions) => {
+                                const IMPLEMENTATION_FORMAT: &str = "fn iterate(&self) (_, bool)";
+
                                 if let Some(Type::Function(args, return_type, _)) =
                                     functions.get("iterate")
                                 {
@@ -1283,35 +1290,42 @@ impl Analyzer {
                                     }
 
                                     if error_flag {
-                                        self.error(
-                                            "Implementation for iterator must be: fn iterate(&self) (_, bool)".to_string(),
-                                            *span
-                                        );
+                                        self.error(SemanticError::IllegalImplementation {
+                                            exception: format!("type `{alias}` has WRONG implementation for iteration"),
+                                            help: Some(format!("Use right implementation syntax: {IMPLEMENTATION_FORMAT}")),
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*span)
+                                        });
+
                                         return;
                                     }
                                 } else {
-                                    self.error(
-                                        format!("Structure `{alias}` has no implementation for: fn iterate(&self) (_, bool)"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::UnsupportedType {
+                                        exception: format!("structure `{alias}` has no implementation for iteration"),
+                                        help: Some(format!("Implement necessary method: {IMPLEMENTATION_FORMAT}")),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
                                 }
                             }
                             _ => {
-                                self.error(
-                                    format!(
-                                        "Type `{iterator_type}` is not supported for iteration"
-                                    ),
-                                    *span,
-                                );
+                                self.error(SemanticError::UnsupportedType {
+                                    exception: format!("type `{iterator_type}` isn't supported for iteration"),
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
                                 return;
                             }
                         }
                     }
                     _ => {
-                        self.error(
-                            format!("Type `{iterator_type}` is not supported for iteration"),
-                            *span,
-                        );
+                        self.error(SemanticError::UnsupportedType {
+                            exception: format!("type `{iterator_type}` isn't supported for iteration"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                         return;
                     }
                 };
@@ -1329,7 +1343,11 @@ impl Analyzer {
 
                 if let Some(unused) = self.scope.check_unused_variables() {
                     unused.iter().for_each(|var| {
-                        self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                        self.warning(SemanticWarning::UnusedVariable {
+                            varname: var.0.clone(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(var.1)
+                        });
                     });
                 }
 
@@ -1337,13 +1355,12 @@ impl Analyzer {
 
                 if block_type != Type::Void {
                     if block_type != self.scope.expected {
-                        self.error(
-                            format!(
-                                "Expected type `{}`, but found `{}`",
-                                self.scope.expected, block_type
-                            ),
-                            *span,
-                        );
+                        self.error(SemanticError::TypesMismatch {
+                            exception: format!("expected `{}`, but found `{}`", self.scope.expected, block_type),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                         return;
                     }
 
@@ -1351,10 +1368,12 @@ impl Analyzer {
                 }
             }
             Statements::ImportStatement { path: _, span } => {
-                self.error(
-                    String::from("Imports are currently disabled due unstability. @compiler"),
-                    *span,
-                );
+                self.error(SemanticError::DisabledFeature {
+                    exception: format!("imports are currently disabled"),
+                    help: None,
+                    src: self.source.clone(),
+                    span: error::position_to_span(*span)
+                });
 
                 // match path {
                 //     Expressions::Value(Value::String(path), _) => {
@@ -1509,13 +1528,25 @@ impl Analyzer {
                     };
 
                 if import_path.is_empty() {
-                    self.error(String::from("Empty include path provided"), *path_span);
+                    self.error(SemanticError::FormatError {
+                        exception: format!("empty include path provided"),
+                        help: Some(format!("Provide right path to your module")),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*path_span)
+                    });
+
                     return;
                 }
 
                 let included_path =
                     Self::expand_library_path(import_path, true).unwrap_or_else(|err| {
-                        self.error(format!("Unable to resolve provided path: {err}"), *span);
+                        self.error(SemanticError::FormatError {
+                            exception: format!("unable to resolve provided path: {err}"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*path_span)
+                        });
+
                         PathBuf::new()
                     });
 
@@ -1525,10 +1556,13 @@ impl Analyzer {
 
                 // Reading source code
                 let src = std::fs::read_to_string(&included_path).unwrap_or_else(|err| {
-                    self.error(
-                        format!("Unable to read source code. System error: {err}"),
-                        *path_span,
-                    );
+                    self.error(SemanticError::IoError {
+                        exception: format!("unable to read source code: {err}"),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*path_span)
+                    });
+
                     String::new()
                 });
 
@@ -1536,18 +1570,22 @@ impl Analyzer {
                 let fname = included_path
                     .file_name()
                     .unwrap_or_else(|| {
-                        self.error(
-                            String::from("Unable to resolve provided include"),
-                            *path_span,
-                        );
+                        self.error(SemanticError::IoError {
+                            exception: format!("unable to resolve provided path"),
+                            help: Some(format!("PathBuf returned None value on `file_name()`")),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*path_span)
+                        });
                         OsStr::new("")
                     })
                     .to_str()
                     .unwrap_or_else(|| {
-                        self.error(
-                            String::from("Unable to resolve provided include"),
-                            *path_span,
-                        );
+                        self.error(SemanticError::IoError {
+                            exception: format!("unable to resolve provided path"),
+                            help: Some(format!("OsStr returned None value on `to_str()`")),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*path_span)
+                        });
                         ""
                     });
 
@@ -1607,7 +1645,12 @@ impl Analyzer {
                         self.scope
                             .add_fn(func.0, func.1.datatype, true)
                             .unwrap_or_else(|err| {
-                                self.error(err, *span);
+                                self.error(SemanticError::UnresolvedName {
+                                    exception: err,
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
                             });
                     }
                 });
@@ -1617,7 +1660,12 @@ impl Analyzer {
                         self.scope
                             .add_struct(structure.0, structure.1.datatype, true)
                             .unwrap_or_else(|err| {
-                                self.error(err, *span);
+                                self.error(SemanticError::UnresolvedName {
+                                    exception: err,
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
                             });
                     }
                 });
@@ -1627,7 +1675,12 @@ impl Analyzer {
                         self.scope
                             .add_enum(enumeration.0, enumeration.1.datatype, true)
                             .unwrap_or_else(|err| {
-                                self.error(err, *span);
+                                self.error(SemanticError::UnresolvedName {
+                                    exception: err,
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
                             });
                     }
                 });
@@ -1650,10 +1703,12 @@ impl Analyzer {
                 span,
             } => {
                 if self.scope.get_var(identifier).is_some() {
-                    self.error(
-                        format!("Identifier `{identifier}` is already declared"),
-                        *span,
-                    )
+                    self.error(SemanticError::RedefinitionError {
+                        exception: format!("identifier `{identifier}` already taken"),
+                        help: Some(format!("Consider using another identifier, or rename taken")),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                 }
 
                 self.scope
@@ -1673,7 +1728,12 @@ impl Analyzer {
 
                 let formatted_path =
                     Self::expand_library_path(link_path, false).unwrap_or_else(|err| {
-                        self.error(format!("Unable to resolve linkage path: {err}"), *path_span);
+                        self.error(SemanticError::FormatError {
+                            exception: format!("unable to resolve linkage path: {err}"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*path_span)
+                        });
                         PathBuf::new()
                     });
 
@@ -1681,23 +1741,22 @@ impl Analyzer {
                     return;
                 };
                 if !formatted_path.exists() {
-                    self.error(
-                        format!(
-                            "Provided linkage file does not exists: `{}`",
-                            formatted_path.as_os_str().to_str().unwrap()
-                        ),
-                        *path_span,
-                    );
+                    self.error(SemanticError::IoError {
+                        exception: format!("provided linkage file doesn't exists: `{}`", formatted_path.as_os_str().to_str().unwrap_or("none")),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*path_span)
+                    });
+
                     return;
                 }
                 if !formatted_path.is_file() {
-                    self.error(
-                        format!(
-                            "Provided path is not file: `{}`",
-                            formatted_path.as_os_str().to_str().unwrap()
-                        ),
-                        *path_span,
-                    );
+                    self.error(SemanticError::IoError {
+                        exception: format!("provided path is not a file: `{}`", formatted_path.as_os_str().to_str().unwrap_or("none")),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*path_span)
+                    });
                     return;
                 }
 
@@ -1716,32 +1775,40 @@ impl Analyzer {
                 const SUPPORTED_EXTERN_TYPES: [&str; 1] = ["C"];
 
                 if !SUPPORTED_EXTERN_TYPES.contains(&extern_type.as_str()) {
-                    self.error(
-                        format!(
-                            "Unsupported extern type found. Currently supported are: \"{}\"",
-                            SUPPORTED_EXTERN_TYPES.join("\", ")
-                        ),
-                        *span,
-                    )
+                    self.error(SemanticError::UnsupportedType {
+                        exception: format!("unsupported extern type found"),
+                        help: Some(format!("Currently supported: \"{}\"", SUPPORTED_EXTERN_TYPES.join("\", "))),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                 }
 
                 if identifier == "main" {
-                    self.error(
-                        String::from("Function `main()` cannot be external declared"),
-                        *span,
-                    );
+                    self.error(SemanticError::MainFunctionError {
+                        exception: format!("function `main() cannot be external declared"),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                 }
                 if self.scope.get_fn(identifier).is_some() {
-                    self.error(
-                        format!("Function `{}()` is already declared", &identifier),
-                        *span,
-                    );
+                    self.error(SemanticError::RedefinitionError {
+                        exception: format!("function `{}()` is already declared", &identifier),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                     return;
                 }
 
                 if let Type::Alias(_) = return_type {
                     let _ = self.unwrap_alias(return_type).unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                         Type::Void
                     });
                 }
@@ -2175,7 +2242,12 @@ impl Analyzer {
 
                 let mut prev_type_display = head_type.clone();
                 let mut prev_type = self.unwrap_alias(&head_type).unwrap_or_else(|err| {
-                    self.error(err, *span);
+                    self.error(SemanticError::UnresolvedName {
+                        exception: err,
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                     Type::Void
                 });
                 let mut prev_expr = *head.clone();
@@ -2203,7 +2275,12 @@ impl Analyzer {
 
                                     prev_type_display = field_type.clone();
                                     prev_type = self.unwrap_alias(field_type).unwrap_or_else(|err| {
-                                        self.error(err, *field_span);
+                                        self.error(SemanticError::UnresolvedName {
+                                            exception: err,
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*span)
+                                        });
                                         Type::Void
                                     });
 
@@ -2248,7 +2325,12 @@ impl Analyzer {
                                     let typ = types[*idx as usize].clone();
                                     prev_type_display = typ.clone();
                                     prev_type = self.unwrap_alias(&typ).unwrap_or_else(|err| {
-                                        self.error(err, *idx_span);
+                                        self.error(SemanticError::UnresolvedName {
+                                            exception: err,
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*span)
+                                        });
                                         Type::Void
                                     });
 
@@ -2307,7 +2389,12 @@ impl Analyzer {
 
                                         prev_type_display = *datatype.clone();
                                         prev_type = self.unwrap_alias(datatype).unwrap_or_else(|err| {
-                                            self.error(err, *span);
+                                            self.error(SemanticError::UnresolvedName {
+                                                exception: err,
+                                                help: None,
+                                                src: self.source.clone(),
+                                                span: error::position_to_span(*span)
+                                            });
                                             Type::Void
                                         });
 
@@ -2324,12 +2411,22 @@ impl Analyzer {
                                         arguments.iter().enumerate().zip(args).for_each(|((index, expr), expected)| {
                                             let raw_expr_type = self.visit_expression(expr, Some(expected.clone()));
                                             let expr_type = self.unwrap_alias(&raw_expr_type).unwrap_or_else(|err| {
-                                                    self.error(err, *span);
-                                                    Type::Void
+                                                self.error(SemanticError::UnresolvedName {
+                                                    exception: err,
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
+                                                Type::Void
                                             });
                                             let raw_expected = expected;
                                             let expected = self.unwrap_alias(expected).unwrap_or_else(|err| {
-                                                self.error(err, *span);
+                                                self.error(SemanticError::UnresolvedName {
+                                                    exception: err,
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
                                                 Type::Void
                                             });
 
@@ -2353,7 +2450,12 @@ impl Analyzer {
                                     if let Some(Type::Function(args, datatype, is_var_args)) = import.functions.get(&name) {
                                         prev_type_display = *datatype.clone();
                                         prev_type = self.unwrap_alias(datatype).unwrap_or_else(|err| {
-                                            self.error(err, *span);
+                                            self.error(SemanticError::UnresolvedName {
+                                                exception: err,
+                                                help: None,
+                                                src: self.source.clone(),
+                                                span: error::position_to_span(*span)
+                                            });
                                             Type::Void
                                         });
 
@@ -2370,12 +2472,23 @@ impl Analyzer {
                                         arguments.iter().enumerate().zip(args).for_each(|((index, expr), expected)| {
                                             let raw_expr_type = self.visit_expression(expr, Some(expected.clone()));
                                             let expr_type = self.unwrap_alias(&raw_expr_type).unwrap_or_else(|err| {
-                                                    self.error(err, *span);
-                                                    Type::Void
+                                                self.error(SemanticError::UnresolvedName {
+                                                    exception: err,
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
+                                                Type::Void
                                             });
                                             let expected = self.unwrap_alias(expected).unwrap_or_else(|err| {
-                                                self.error(err, *span);
+                                                self.error(SemanticError::UnresolvedName {
+                                                    exception: err,
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
                                                 Type::Void
+
                                             });
 
                                             if expected == Type::Void || raw_expr_type == Type::Void { return };
@@ -2419,7 +2532,12 @@ impl Analyzer {
                                             let struct_field = struct_fields.get(field.0);
                                             if let Some(field_type) = struct_field {
                                                 let field_type = self.unwrap_alias(field_type).unwrap_or_else(|err| {
-                                                    self.error(err, *span);
+                                                    self.error(SemanticError::UnresolvedName {
+                                                        exception: err,
+                                                        help: None,
+                                                        src: self.source.clone(),
+                                                        span: error::position_to_span(*span)
+                                                    });
                                                     Type::Void
                                                 });
                                                 let provided_type = self.visit_expression(field.1, Some(field_type.clone()));
