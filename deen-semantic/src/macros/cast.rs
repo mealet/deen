@@ -1,5 +1,8 @@
 use super::MacroObject;
-use crate::{Analyzer, error::{self, SemanticError}};
+use crate::{
+    Analyzer,
+    error::{self, SemanticError},
+};
 use deen_parser::{expressions::Expressions, types::Type};
 
 /// **Converts expression to provided type**
@@ -16,14 +19,16 @@ impl MacroObject for CastMacro {
         const MINIMUM_ARGUMENTS_LEN: usize = 2;
 
         if arguments.len() < MINIMUM_ARGUMENTS_LEN {
-            analyzer.error(
-                SemanticError::ArgumentException {
-                    exception: format!("not enough arguments: expected {}, found {}", MINIMUM_ARGUMENTS_LEN, arguments.len()),
-                    help: None,
-                    src: analyzer.source.clone(),
-                    span: error::position_to_span(*span)
-                }
-            );
+            analyzer.error(SemanticError::ArgumentException {
+                exception: format!(
+                    "not enough arguments: expected {}, found {}",
+                    MINIMUM_ARGUMENTS_LEN,
+                    arguments.len()
+                ),
+                help: None,
+                src: analyzer.source.clone(),
+                span: error::position_to_span(*span),
+            });
         }
 
         if matches!(
@@ -42,10 +47,10 @@ impl MacroObject for CastMacro {
             })
         ) {
             analyzer.error(SemanticError::ArgumentException {
-                exception: format!("wrong arguments for casting found"),
-                help: Some(format!("Consider using right syntax: cast!(EXPRESSION, TYPE)")),
+                exception: "wrong arguments for casting found".to_string(),
+                help: Some("Consider using right syntax: cast!(EXPRESSION, TYPE)".to_string()),
                 src: analyzer.source.clone(),
-                span: error::position_to_span(*span)
+                span: error::position_to_span(*span),
             });
         }
 
@@ -56,11 +61,11 @@ impl MacroObject for CastMacro {
         analyzer
             .verify_cast(&from_type, &target_type)
             .unwrap_or_else(|err| {
-                analyzer.error(SemanticError::SemanticError {
+                analyzer.error(SemanticError::SemanticalError {
                     exception: err,
                     help: None,
                     src: analyzer.source.clone(),
-                    span: error::position_to_span(*span)
+                    span: error::position_to_span(*span),
                 });
             });
 

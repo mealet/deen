@@ -25,14 +25,11 @@ pub enum LexerError {
         #[source_code]
         src: NamedSource<String>,
         #[label("expected {const_type} constant")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Constant parser returned error: {parser_error}")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::lexer::constant_error),
-    )]
+    #[diagnostic(severity(Error), code(deen::lexer::constant_error))]
     ConstantParserError {
         const_type: String,
         parser_error: String,
@@ -40,37 +37,36 @@ pub enum LexerError {
         #[source_code]
         src: NamedSource<String>,
         #[label("constant type: {const_type}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Unknown character escape: {escape}")]
     #[diagnostic(
         severity(Error),
         code(deen::lexer::literal_error),
-        help("If you meant to write a literal backslash, consider using its double version: '\\\\'")
+        help(
+            "If you meant to write a literal backslash, consider using its double version: '\\\\'"
+        )
     )]
     UnknownCharacterEscape {
         escape: String,
-        
+
         #[source_code]
         src: NamedSource<String>,
         #[label("unknown character escape literal")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Unknown character found: '{character}'")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::lexer::unknown),
-    )]
+    #[diagnostic(severity(Error), code(deen::lexer::unknown))]
     UnknownCharacter {
         character: char,
 
         #[source_code]
         src: NamedSource<String>,
         #[label("unsupported character")]
-        span: SourceSpan
-    }
+        span: SourceSpan,
+    },
 }
 
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
@@ -85,7 +81,7 @@ pub enum LexerWarning {
         #[source_code]
         src: NamedSource<String>,
         #[label("extra zeros here")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Extra zeros in floating number")]
@@ -98,6 +94,6 @@ pub enum LexerWarning {
         #[source_code]
         src: NamedSource<String>,
         #[label("extra zeros at the end")]
-        span: SourceSpan
-    }
+        span: SourceSpan,
+    },
 }

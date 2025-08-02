@@ -220,13 +220,11 @@ impl Lexer {
                 match self.char {
                     'b' => {
                         if mode != ParseMode::Decimal || !value.is_empty() {
-                            self.error(
-                                LexerError::InvalidNumberConstant {
-                                    const_type: format!("{:?}", mode).to_lowercase(),
-                                    src: self.source.clone(),
-                                    span: error::position_to_span(span_start, self.position)
-                                }
-                            );
+                            self.error(LexerError::InvalidNumberConstant {
+                                const_type: format!("{mode:?}").to_lowercase(),
+                                src: self.source.clone(),
+                                span: error::position_to_span(span_start, self.position),
+                            });
 
                             return (0.to_string(), TokenType::Number);
                         }
@@ -237,13 +235,11 @@ impl Lexer {
                     }
                     'x' => {
                         if mode != ParseMode::Decimal || !value.is_empty() {
-                            self.error(
-                                LexerError::InvalidNumberConstant {
-                                    const_type: format!("{:?}", mode).to_lowercase(),
-                                    src: self.source.clone(),
-                                    span: error::position_to_span(span_start, self.position)
-                                }
-                            );
+                            self.error(LexerError::InvalidNumberConstant {
+                                const_type: format!("{mode:?}").to_lowercase(),
+                                src: self.source.clone(),
+                                span: error::position_to_span(span_start, self.position),
+                            });
 
                             return (0.to_string(), TokenType::Number);
                         }
@@ -258,12 +254,10 @@ impl Lexer {
                                 self.getc();
                             }
 
-                            self.warning(
-                                LexerWarning::ExtraZeros {
-                                    src: self.source.clone(),
-                                    span: error::position_to_span(span_start - 1, self.position)
-                                }
-                            );
+                            self.warning(LexerWarning::ExtraZeros {
+                                src: self.source.clone(),
+                                span: error::position_to_span(span_start - 1, self.position),
+                            });
 
                             continue;
                         }
@@ -276,12 +270,10 @@ impl Lexer {
                             }
 
                             if !self.char.is_ascii_digit() {
-                                self.warning(
-                                    LexerWarning::ExtraFloatZeros {
-                                        src: self.source.clone(),
-                                        span: (span_start - 1, self.position - span_start + 1).into()
-                                    }
-                                );
+                                self.warning(LexerWarning::ExtraFloatZeros {
+                                    src: self.source.clone(),
+                                    span: (span_start - 1, self.position - span_start + 1).into(),
+                                });
 
                                 continue;
                             }
@@ -294,12 +286,10 @@ impl Lexer {
                     }
                     _ => {
                         if value.is_empty() && self.char.is_ascii_digit() {
-                            self.warning(
-                                LexerWarning::ExtraZeros {
-                                    src: self.source.clone(),
-                                    span: error::position_to_span(span_start - 1, self.position)
-                                }
-                            );
+                            self.warning(LexerWarning::ExtraZeros {
+                                src: self.source.clone(),
+                                span: error::position_to_span(span_start - 1, self.position),
+                            });
                         }
 
                         value.push('0');
@@ -312,13 +302,11 @@ impl Lexer {
                 '_' => {}
                 '.' => {
                     if mode != ParseMode::Decimal {
-                        self.error(
-                            LexerError::InvalidNumberConstant {
-                                const_type: format!("{:?}", mode).to_lowercase(),
-                                src: self.source.clone(),
-                                span: error::position_to_span(span_start - 1, self.position + 1)
-                            }
-                        );
+                        self.error(LexerError::InvalidNumberConstant {
+                            const_type: format!("{mode:?}").to_lowercase(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(span_start - 1, self.position + 1),
+                        });
 
                         return (String::from("0"), TokenType::FloatNumber);
                     }
@@ -341,14 +329,12 @@ impl Lexer {
                 value
                     .parse::<i64>()
                     .unwrap_or_else(|err| {
-                        self.error(
-                            LexerError::ConstantParserError {
-                                const_type: format!("{:?}", mode).to_lowercase(),
-                                parser_error: err.to_string(),
-                                src: self.source.clone(),
-                                span: error::position_to_span(span_start, self.position)
-                            }
-                        );
+                        self.error(LexerError::ConstantParserError {
+                            const_type: format!("{mode:?}").to_lowercase(),
+                            parser_error: err.to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(span_start, self.position),
+                        });
 
                         0
                     })
@@ -358,14 +344,12 @@ impl Lexer {
             ParseMode::Binary => (
                 i64::from_str_radix(value.trim(), 2)
                     .unwrap_or_else(|err| {
-                        self.error(
-                            LexerError::ConstantParserError {
-                                const_type: format!("{:?}", mode).to_lowercase(),
-                                parser_error: err.to_string(),
-                                src: self.source.clone(),
-                                span: error::position_to_span(span_start, self.position)
-                            }
-                        );
+                        self.error(LexerError::ConstantParserError {
+                            const_type: format!("{mode:?}").to_lowercase(),
+                            parser_error: err.to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(span_start, self.position),
+                        });
                         0
                     })
                     .to_string(),
@@ -374,15 +358,12 @@ impl Lexer {
             ParseMode::Hexadecimal => (
                 i64::from_str_radix(value.trim(), 16)
                     .unwrap_or_else(|err| {
-                        self.error(
-                            LexerError::ConstantParserError {
-                                const_type: format!("{:?}", mode).to_lowercase(),
-                                parser_error: err.to_string(),
-                                src: self.source.clone(),
-                                span: error::position_to_span(span_start, self.position)
-                            }
-                        );
-
+                        self.error(LexerError::ConstantParserError {
+                            const_type: format!("{mode:?}").to_lowercase(),
+                            parser_error: err.to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(span_start, self.position),
+                        });
 
                         0
                     })
@@ -393,14 +374,12 @@ impl Lexer {
                 value
                     .parse::<f64>()
                     .unwrap_or_else(|err| {
-                        self.error(
-                            LexerError::ConstantParserError {
-                                const_type: format!("{:?}", mode).to_lowercase(),
-                                parser_error: err.to_string(),
-                                src: self.source.clone(),
-                                span: error::position_to_span(span_start, self.position)
-                            }
-                        );
+                        self.error(LexerError::ConstantParserError {
+                            const_type: format!("{mode:?}").to_lowercase(),
+                            parser_error: err.to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(span_start, self.position),
+                        });
                         0.0
                     })
                     .to_string(),
@@ -454,14 +433,12 @@ impl Lexer {
                                         captured_string.push(character_escape);
                                         self.getc();
                                     } else {
-                                        self.error(
-                                            LexerError::UnknownCharacterEscape {
-                                                escape: format!("\\{}", self.char),
+                                        self.error(LexerError::UnknownCharacterEscape {
+                                            escape: format!("\\{}", self.char),
 
-                                                src: self.source.clone(),
-                                                span: (self.position - 2, 2).into()
-                                            }
-                                        );
+                                            src: self.source.clone(),
+                                            span: (self.position - 2, 2).into(),
+                                        });
                                     }
 
                                     continue;
@@ -489,14 +466,15 @@ impl Lexer {
                                 self.getc();
                                 let character_escape = Self::character_escape(self.char)
                                     .unwrap_or_else(|| {
-                                        self.error(
-                                            LexerError::UnknownCharacterEscape {
-                                                escape: format!("\\{}", self.char),
+                                        self.error(LexerError::UnknownCharacterEscape {
+                                            escape: format!("\\{}", self.char),
 
-                                                src: self.source.clone(),
-                                                span: error::position_to_span(span_start, self.position)
-                                            }
-                                        );
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(
+                                                span_start,
+                                                self.position,
+                                            ),
+                                        });
                                         ' '
                                     });
 
@@ -506,14 +484,12 @@ impl Lexer {
                             self.getc();
 
                             if self.char != '\'' {
-                                self.error(
-                                    LexerError::UnknownCharacterEscape {
-                                        escape: format!("\\{}", self.char),
+                                self.error(LexerError::UnknownCharacterEscape {
+                                    escape: format!("\\{}", self.char),
 
-                                        src: self.source.clone(),
-                                        span: error::position_to_span(span_start, self.position)
-                                    }
-                                );
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(span_start, self.position),
+                                });
                                 self.getc();
                             }
 
@@ -730,13 +706,11 @@ impl Lexer {
                     }
                 }
                 _ => {
-                    self.error(
-                        LexerError::UnknownCharacter {
-                            character: self.char,
-                            src: self.source.clone(),
-                            span: (self.position - 1, 1).into()
-                        }
-                    );
+                    self.error(LexerError::UnknownCharacter {
+                        character: self.char,
+                        src: self.source.clone(),
+                        span: (self.position - 1, 1).into(),
+                    });
                     self.getc();
                 }
             }

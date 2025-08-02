@@ -15,22 +15,16 @@ pub enum SemanticError {
     ModuleParserError(#[from] deen_parser::error::ParserError),
 
     #[error("{message}")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::parser::global_error),
-    )]
+    #[diagnostic(severity(Error), code(deen::parser::global_error))]
     GlobalError {
         message: String,
         #[help]
         help: Option<String>,
-        src: NamedSource<String>
+        src: NamedSource<String>,
     },
 
     #[error("Argument exception found")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::argument_exception),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::argument_exception))]
     ArgumentException {
         exception: String,
         #[help]
@@ -38,14 +32,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("This feature is currently disabled by @compiler")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::disabled_feature),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::disabled_feature))]
     DisabledFeature {
         exception: String,
         #[help]
@@ -53,14 +44,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("String format error catched")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::format_error),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::format_error))]
     FormatError {
         exception: String,
         #[help]
@@ -68,7 +56,7 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Illegal method implementation found")]
@@ -84,14 +72,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("IO caused exception")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::io_error),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::io_error))]
     IoError {
         exception: String,
         #[help]
@@ -99,14 +84,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("`main` function limitations violation")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::main_error),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::main_error))]
     MainFunctionError {
         exception: String,
         #[help]
@@ -114,14 +96,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Required fields are missing")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::missing_fields),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::missing_fields))]
     MissingFields {
         exception: String,
         #[help]
@@ -129,14 +108,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Operator usage caused exception")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::operator_exception),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::operator_exception))]
     OperatorException {
         exception: String,
         #[help]
@@ -144,14 +120,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Value is out of allowed range")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::range_overflow),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::range_overflow))]
     RangeOverflow {
         exception: String,
         #[help]
@@ -159,14 +132,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Redefinition of reserved identifier found")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::redefinition_error),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::redefinition_error))]
     RedefinitionError {
         exception: String,
         #[help]
@@ -174,29 +144,23 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Main semantics rules violation")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::semantic_error),
-    )]
-    SemanticError {
+    #[diagnostic(severity(Error), code(deen::semantics::semantic_error))]
+    SemanticalError {
         exception: String,
         #[help]
         help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Expression's types mismatched")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::types_mismatch),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::types_mismatch))]
     TypesMismatch {
         exception: String,
         #[help]
@@ -204,14 +168,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Unable to resolve provided name")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::unresolved_name),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::unresolved_name))]
     UnresolvedName {
         exception: String,
         #[help]
@@ -219,14 +180,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Expression is not supported in this context")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::unsupported_expression),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::unsupported_expression))]
     UnsupportedExpression {
         exception: String,
         #[help]
@@ -234,14 +192,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Type is not supported here")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::unsupported_type),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::unsupported_type))]
     UnsupportedType {
         exception: String,
         #[help]
@@ -249,14 +204,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Unknown object catched")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::unknown_object),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::unknown_object))]
     UnknownObject {
         exception: String,
         #[help]
@@ -264,14 +216,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Visibility rules are being violated")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::visibility_error),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::visibility_error))]
     VisibilityError {
         exception: String,
         #[help]
@@ -279,14 +228,11 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Value compilation caused error")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::semantics::value_error),
-    )]
+    #[diagnostic(severity(Error), code(deen::semantics::value_error))]
     ValueError {
         exception: String,
         #[help]
@@ -294,22 +240,18 @@ pub enum SemanticError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 }
 
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 pub enum SemanticWarning {
     #[error("Lexical Analyzer warning")]
-    #[diagnostic(
-        severity(Warning)
-    )]
+    #[diagnostic(severity(Warning))]
     ModuleLexerWarning(#[from] deen_lexer::error::LexerWarning),
 
     #[error("Syntax Analyzer warning")]
-    #[diagnostic(
-        severity(Warning)
-    )]
+    #[diagnostic(severity(Warning))]
     ModuleParserWarning(#[from] deen_parser::error::ParserWarning),
 
     #[error("Unused variable `{varname}` found")]
@@ -324,7 +266,7 @@ pub enum SemanticWarning {
         #[source_code]
         src: NamedSource<String>,
         #[label("variable is defined here")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Unused expression result found")]
@@ -339,6 +281,6 @@ pub enum SemanticWarning {
         #[source_code]
         src: NamedSource<String>,
         #[label("{message}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 }

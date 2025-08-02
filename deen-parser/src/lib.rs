@@ -172,14 +172,12 @@ impl Parser {
             "void" => Type::Void,
 
             _ => {
-                self.error(
-                    ParserError::DatatypeException {
-                        exception: format!("unable to parse datatype"),
-                        help: format!("Check provided datatype for corectness"),
-                        src: self.source.clone(),
-                        span: error::position_to_span(span)
-                    }
-                );
+                self.error(ParserError::DatatypeException {
+                    exception: "unable to parse datatype".to_string(),
+                    help: "Check provided datatype for corectness".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span(span),
+                });
 
                 Type::Void
             }
@@ -213,8 +211,8 @@ impl Parser {
                 if !self.expect(TokenType::Number) {
                     self.error(
                         ParserError::DatatypeException {
-                            exception: format!("array size must be integer constant"),
-                            help: format!("Consider replacing expression with another which will return integer value"),
+                            exception: "array size must be integer constant".to_string(),
+                            help: "Consider replacing expression with another which will return integer value".to_string(),
                             src: self.source.clone(),
                             span: error::position_to_span(self.current().span)
                         }
@@ -227,14 +225,12 @@ impl Parser {
 
                 let _ = self.next();
                 if !self.expect(TokenType::RBrack) {
-                    self.error(
-                        ParserError::UnclosedExpression {
-                            exception: format!("unclosed brackets in array"),
-                            help: format!("Consider closing array with brackets"),
-                            src: self.source.clone(),
-                            span: error::position_to_span(self.current().span)
-                        }
-                    );
+                    self.error(ParserError::UnclosedExpression {
+                        exception: "unclosed brackets in array".to_string(),
+                        help: "Consider closing array with brackets".to_string(),
+                        src: self.source.clone(),
+                        span: error::position_to_span(self.current().span),
+                    });
 
                     return Type::Void;
                 }
@@ -270,14 +266,12 @@ impl Parser {
             _ => {
                 let _ = self.next();
 
-                self.error(
-                    ParserError::DatatypeException {
-                        exception: format!("unknown type found"),
-                        help: format!("Check provided type and fix it"),
-                        src: self.source.clone(),
-                        span: error::position_to_span((current.span.0 - 1, current.span.1 - 1))
-                    }
-                );
+                self.error(ParserError::DatatypeException {
+                    exception: "unknown type found".to_string(),
+                    help: "Check provided type and fix it".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span((current.span.0 - 1, current.span.1 - 1)),
+                });
 
                 Type::Void
             }
@@ -524,14 +518,12 @@ impl Parser {
             }
 
             _ => {
-                self.error(
-                    ParserError::UnknownExpression {
-                        exception: format!("undefined term"),
-                        help: format!("Verify provided expression and its syntax"),
-                        src: self.source.clone(),
-                        span: error::position_to_span((current.span.0, current.span.1))
-                    }
-                );
+                self.error(ParserError::UnknownExpression {
+                    exception: "undefined term".to_string(),
+                    help: "Verify provided expression and its syntax".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span((current.span.0, current.span.1)),
+                });
 
                 Expressions::None
             }
@@ -558,14 +550,12 @@ impl Parser {
                 let slice_index = self.expression();
 
                 if !self.expect(TokenType::RBrack) {
-                    self.error(
-                        ParserError::UnclosedExpression {
-                            exception: format!("unclosed brackets in expression found"),
-                            help: format!("Consider closing brackets in expression"),
-                            src: self.source.clone(),
-                            span: error::position_to_span(span)
-                        }
-                    );
+                    self.error(ParserError::UnclosedExpression {
+                        exception: "unclosed brackets in expression found".to_string(),
+                        help: "Consider closing brackets in expression".to_string(),
+                        src: self.source.clone(),
+                        span: error::position_to_span(span),
+                    });
 
                     return Expressions::None;
                 }
@@ -602,14 +592,12 @@ impl Parser {
                 "_link_c" => self.link_c_statement(),
                 "if" => self.if_statement(),
                 "else" => {
-                    self.error(
-                        ParserError::UnknownExpression {
-                            exception: format!("unexpected `else` usage outside construction"),
-                            help: format!("Consider placing keyword in `if/else` construction"),
-                            src: self.source.clone(),
-                            span: error::position_to_span(current.span)
-                        }
-                    );
+                    self.error(ParserError::UnknownExpression {
+                        exception: "unexpected `else` usage outside construction".to_string(),
+                        help: "Consider placing keyword in `if/else` construction".to_string(),
+                        src: self.source.clone(),
+                        span: error::position_to_span(current.span),
+                    });
 
                     Statements::None
                 }
@@ -671,14 +659,13 @@ impl Parser {
                         },
 
                         _ => {
-                            self.error(
-                                ParserError::VisibilityError {
-                                    exception: format!("visibility is not followed by provided item"),
-                                    help: format!("Remove public changer keyword"),
-                                    src: self.source.clone(),
-                                    span: error::position_to_span(current.span)
-                                }
-                            );
+                            self.error(ParserError::VisibilityError {
+                                exception: "visibility is not followed by provided item"
+                                    .to_string(),
+                                help: "Remove public changer keyword".to_string(),
+                                src: self.source.clone(),
+                                span: error::position_to_span(current.span),
+                            });
 
                             Statements::None
                         }
@@ -779,28 +766,27 @@ impl Parser {
                                 span,
                             },
                             _ => {
-                                self.error(
-                                    ParserError::UnsupportedExpression {
-                                        exception: format!("unsupported for dereference statement kind"),
-                                        help: format!("If you didn't want to dereference, delete the operator"),
-                                        src: self.source.clone(),
-                                        span: error::position_to_span((span_start, span_end))
-                                    }
-                                );
+                                self.error(ParserError::UnsupportedExpression {
+                                    exception: "unsupported for dereference statement kind"
+                                        .to_string(),
+                                    help: "If you didn't want to dereference, delete the operator"
+                                        .to_string(),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span((span_start, span_end)),
+                                });
 
                                 Statements::None
                             }
                         }
                     }
                     _ => {
-                        self.error(
-                            ParserError::UnsupportedExpression {
-                                exception: format!("unsupported for dereference statement kind"),
-                                help: format!("If you didn't want to dereference, delete the operator"),
-                                src: self.source.clone(),
-                                span: error::position_to_span(self.current().span)
-                            }
-                        );
+                        self.error(ParserError::UnsupportedExpression {
+                            exception: "unsupported for dereference statement kind".to_string(),
+                            help: "If you didn't want to dereference, delete the operator"
+                                .to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(self.current().span),
+                        });
 
                         Statements::None
                     }
@@ -844,14 +830,16 @@ impl Parser {
                                 let _ = self.next();
 
                                 if !self.expect(TokenType::Equal) {
-                                    self.error(
-                                        ParserError::UnknownExpression {
-                                            exception: format!("unexpected binary expression after subelement"),
-                                            help: format!("Consider adding `=` after subelement"),
-                                            src: self.source.clone(),
-                                            span: error::position_to_span((current.span.0, self.current().span.1))
-                                        }
-                                    );
+                                    self.error(ParserError::UnknownExpression {
+                                        exception: "unexpected binary expression after subelement"
+                                            .to_string(),
+                                        help: "Consider adding `=` after subelement".to_string(),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span((
+                                            current.span.0,
+                                            self.current().span.1,
+                                        )),
+                                    });
 
                                     return Statements::None;
                                 }
@@ -877,14 +865,13 @@ impl Parser {
                                 let span_end = self.current().span.1;
                                 self.position += 1;
 
-                                self.error(
-                                    ParserError::UnknownExpression {
-                                        exception: format!("unknown subelement in statement found"),
-                                        help: format!("Remove subelement expression if it's not necessary"),
-                                        src: self.source.clone(),
-                                        span: error::position_to_span((current.span.0, span_end))
-                                    }
-                                );
+                                self.error(ParserError::UnknownExpression {
+                                    exception: "unknown subelement in statement found".to_string(),
+                                    help: "Remove subelement expression if it's not necessary"
+                                        .to_string(),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span((current.span.0, span_end)),
+                                });
 
                                 Statements::None
                             }
@@ -908,15 +895,16 @@ impl Parser {
                             let (op1, op2) = (next.value, self.current().value);
 
                             if op1 != op2 {
-                                self.error(
-                                    ParserError::UnknownExpression {
-                                        exception: format!("unknown variation of increment/decrement found"),
-                                        help: format!("Consider using right increment/decrement syntax: a++ / a--"),
-                                        src: self.source.clone(),
-                                        span: error::position_to_span((span_start, span_end))
-                                    }
-                                );
-                                
+                                self.error(ParserError::UnknownExpression {
+                                    exception: "unknown variation of increment/decrement found"
+                                        .to_string(),
+                                    help:
+                                        "Consider using right increment/decrement syntax: a++ / a--"
+                                            .to_string(),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span((span_start, span_end)),
+                                });
+
                                 return Statements::None;
                             }
 
@@ -937,14 +925,16 @@ impl Parser {
                             }
                         }
                         _ => {
-                            self.error(
-                                ParserError::UnknownExpression {
-                                    exception: format!("unknown binary operation in statement found"),
-                                    help: format!("Maybe you wanted to add assign operator?"),
-                                    src: self.source.clone(),
-                                    span: error::position_to_span((current.span.0, self.current().span.1))
-                                }
-                            );
+                            self.error(ParserError::UnknownExpression {
+                                exception: "unknown binary operation in statement found"
+                                    .to_string(),
+                                help: "Maybe you wanted to add assign operator?".to_string(),
+                                src: self.source.clone(),
+                                span: error::position_to_span((
+                                    current.span.0,
+                                    self.current().span.1,
+                                )),
+                            });
 
                             Statements::None
                         }
@@ -954,14 +944,12 @@ impl Parser {
                         current.span,
                     )),
                     _ => {
-                        self.error(
-                            ParserError::UnknownExpression {
-                                exception: format!("unknown expression found after identifier"),
-                                help: format!(""),
-                                src: self.source.clone(),
-                                span: error::position_to_span((current.span.0, next.span.1))
-                            }
-                        );
+                        self.error(ParserError::UnknownExpression {
+                            exception: "unknown expression found after identifier".to_string(),
+                            help: String::new(),
+                            src: self.source.clone(),
+                            span: error::position_to_span((current.span.0, next.span.1)),
+                        });
 
                         Statements::None
                     }

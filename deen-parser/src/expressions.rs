@@ -9,7 +9,11 @@
 
 use crate::{
     BINARY_OPERATORS, BITWISE_OPERATORS, BOOLEAN_OPERATORS, PRIORITY_BINARY_OPERATORS,
-    PRIORITY_BOOLEAN_OPERATORS, Parser, statements::Statements, types::Type, value::Value, error::{self, ParserError}
+    PRIORITY_BOOLEAN_OPERATORS, Parser,
+    error::{self, ParserError},
+    statements::Statements,
+    types::Type,
+    value::Value,
 };
 use deen_lexer::token_type::TokenType;
 use std::collections::HashMap;
@@ -320,14 +324,12 @@ impl Parser {
             }
             TokenType::LParen => {}
             _ => {
-                self.error(
-                    ParserError::UnknownExpression {
-                        exception: format!("unknown call expression syntax"),
-                        help: format!("Consider using right syntax: `identifier(value, ...)"),
-                        src: self.source.clone(),
-                        span: error::position_to_span((span.0, self.current().span.1))
-                    }
-                );
+                self.error(ParserError::UnknownExpression {
+                    exception: "unknown call expression syntax".to_string(),
+                    help: "Consider using right syntax: `identifier(value, ...)".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span((span.0, self.current().span.1)),
+                });
 
                 return Expressions::None;
             }
@@ -375,14 +377,15 @@ impl Parser {
         let index = Box::new(self.expression());
 
         if self.current().token_type != TokenType::RBrack {
-            self.error(
-                ParserError::UnclosedExpression {
-                    exception: format!("unclosed slice index"),
-                    help: format!("Close slice index with brackets"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((self.span_expression(expr).0, self.current().span.1))
-                }
-            );
+            self.error(ParserError::UnclosedExpression {
+                exception: "unclosed slice index".to_string(),
+                help: "Close slice index with brackets".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((
+                    self.span_expression(expr).0,
+                    self.current().span.1,
+                )),
+            });
 
             return Expressions::None;
         }
@@ -403,14 +406,12 @@ impl Parser {
         }
 
         if !self.expect(TokenType::LBrace) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected curly brackets for structure initialization"),
-                    help: format!("Use syntax: `identifier {{ .field = value, ... }}`"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected curly brackets for structure initialization".to_string(),
+                help: "Use syntax: `identifier { .field = value, ... }`".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
 
             self.skip_statement();
             return Expressions::None;
@@ -421,14 +422,12 @@ impl Parser {
 
         while !self.expect(TokenType::RBrace) {
             if !self.expect(TokenType::Dot) {
-                self.error(
-                    ParserError::SyntaxError {
-                        exception: format!("wrong field initialization syntax"),
-                        help: format!("Use syntax: `identifier {{ .field = value, ... }}`"),
-                        src: self.source.clone(),
-                        span: error::position_to_span(self.current().span)
-                    }
-                );
+                self.error(ParserError::SyntaxError {
+                    exception: "wrong field initialization syntax".to_string(),
+                    help: "Use syntax: `identifier { .field = value, ... }`".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span(self.current().span),
+                });
 
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)
@@ -441,14 +440,12 @@ impl Parser {
 
             let _ = self.next();
             if !self.expect(TokenType::Identifier) {
-                self.error(
-                    ParserError::SyntaxError {
-                        exception: format!("wrong field initialization syntax"),
-                        help: format!("Use syntax: `identifier {{ .field = value, ... }}`"),
-                        src: self.source.clone(),
-                        span: error::position_to_span(self.current().span)
-                    }
-                );
+                self.error(ParserError::SyntaxError {
+                    exception: "wrong field initialization syntax".to_string(),
+                    help: "Use syntax: `identifier { .field = value, ... }`".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span(self.current().span),
+                });
 
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)
@@ -463,14 +460,12 @@ impl Parser {
             let _ = self.next();
 
             if !self.expect(TokenType::Equal) {
-                self.error(
-                    ParserError::SyntaxError {
-                        exception: format!("wrong field initialization syntax"),
-                        help: format!("Use syntax: `identifier {{ .field = value, ... }}`"),
-                        src: self.source.clone(),
-                        span: error::position_to_span(self.current().span)
-                    }
-                );
+                self.error(ParserError::SyntaxError {
+                    exception: "wrong field initialization syntax".to_string(),
+                    help: "Use syntax: `identifier { .field = value, ... }`".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span(self.current().span),
+                });
 
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)
@@ -485,15 +480,12 @@ impl Parser {
             let value = self.expression();
 
             if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
-                self.error(
-                    ParserError::SyntaxError {
-                        exception: format!("values must be separated by commas"),
-                        help: format!("Separate fields with commas"),
-                        src: self.source.clone(),
-                        span: error::position_to_span(self.current().span)
-                    }
-                );
-
+                self.error(ParserError::SyntaxError {
+                    exception: "values must be separated by commas".to_string(),
+                    help: "Separate fields with commas".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span(self.current().span),
+                });
 
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)

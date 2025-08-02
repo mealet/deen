@@ -1,5 +1,8 @@
 use super::MacroObject;
-use crate::{Analyzer, error::{self, SemanticError}};
+use crate::{
+    Analyzer,
+    error::{self, SemanticError},
+};
 use deen_parser::{expressions::Expressions, types::Type, value::Value};
 
 /// **Formats literal and args into single string**
@@ -18,14 +21,16 @@ impl MacroObject for FormatMacro {
         let return_type: Type = Type::Pointer(Box::new(Type::Char));
 
         if arguments.len() < MINIMUM_ARGUMENTS_LEN {
-            analyzer.error(
-                SemanticError::ArgumentException {
-                    exception: format!("not enough arguments: expected {}, found {}", MINIMUM_ARGUMENTS_LEN, arguments.len()),
-                    help: None,
-                    src: analyzer.source.clone(),
-                    span: error::position_to_span(*span)
-                }
-            );
+            analyzer.error(SemanticError::ArgumentException {
+                exception: format!(
+                    "not enough arguments: expected {}, found {}",
+                    MINIMUM_ARGUMENTS_LEN,
+                    arguments.len()
+                ),
+                help: None,
+                src: analyzer.source.clone(),
+                span: error::position_to_span(*span),
+            });
         }
 
         if let Some(Expressions::Value(Value::String(literal), literal_span)) = arguments.first() {
@@ -40,14 +45,15 @@ impl MacroObject for FormatMacro {
 
                     match next {
                         Some('}') => bindings.push(Type::Void),
-                        _ => analyzer.error(
-                            SemanticError::FormatError {
-                                exception: format!("unknown binding in literal found"),
-                                help: Some(format!("Consider using right bindings syntax with curly brackets")),
-                                src: analyzer.source.clone(),
-                                span: error::position_to_span(*literal_span)
-                            }
-                        ),
+                        _ => analyzer.error(SemanticError::FormatError {
+                            exception: "unknown binding in literal found".to_string(),
+                            help: Some(
+                                "Consider using right bindings syntax with curly brackets"
+                                    .to_string(),
+                            ),
+                            src: analyzer.source.clone(),
+                            span: error::position_to_span(*literal_span),
+                        }),
                     }
                 }
 
@@ -56,10 +62,14 @@ impl MacroObject for FormatMacro {
 
             if arguments.len() != bindings.len() + 1 {
                 analyzer.error(SemanticError::ArgumentException {
-                    exception: format!("expected {} arguments, but found {}", bindings.len() + 1, arguments.len()),
+                    exception: format!(
+                        "expected {} arguments, but found {}",
+                        bindings.len() + 1,
+                        arguments.len()
+                    ),
                     help: None,
                     src: analyzer.source.clone(),
-                    span: error::position_to_span(*span)
+                    span: error::position_to_span(*span),
                 });
                 return return_type;
             }
@@ -90,7 +100,7 @@ impl MacroObject for FormatMacro {
                                     exception: format!("type `{expr_type}` has wrong implementation for display"),
                                     help: Some(format!("Consider using right format: {DISPLAY_IMPLEMENTATION_FORMAT}")),
                                     src: analyzer.source.clone(),
-                                    span: error::position_to_span(deen_parser::Parser::get_span_expression(&expr))
+                                    span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
                                 }
                             );
                         }
@@ -100,7 +110,7 @@ impl MacroObject for FormatMacro {
                                 exception: format!("type `{expr_type}` has no implementation for display"),
                                 help: Some(format!("Consider implementing necessary method: {DISPLAY_IMPLEMENTATION_FORMAT}")),
                                 src: analyzer.source.clone(),
-                                span: error::position_to_span(deen_parser::Parser::get_span_expression(&expr))
+                                span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
                             }
                         );
                     }
@@ -118,7 +128,7 @@ impl MacroObject for FormatMacro {
                                         exception: format!("type `{expr_type}` has wrong implementation for display"),
                                         help: Some(format!("Consider using right format: {DISPLAY_IMPLEMENTATION_FORMAT}")),
                                         src: analyzer.source.clone(),
-                                        span: error::position_to_span(deen_parser::Parser::get_span_expression(&expr))
+                                        span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
                                     }
                                 );
                             }
@@ -128,7 +138,7 @@ impl MacroObject for FormatMacro {
                                 exception: format!("type `{expr_type}` has no implementation for display"),
                                 help: Some(format!("Consider implementing necessary method: {DISPLAY_IMPLEMENTATION_FORMAT}")),
                                 src: analyzer.source.clone(),
-                                span: error::position_to_span(deen_parser::Parser::get_span_expression(&expr))
+                                span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
                             }
                         );
                         }
@@ -137,7 +147,7 @@ impl MacroObject for FormatMacro {
                             exception: format!("no displayable type `{expr_type}` found"),
                             help: None,
                             src: analyzer.source.clone(),
-                            span: error::position_to_span(deen_parser::Parser::get_span_expression(&expr))
+                            span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
                         });
                     }
                 }
@@ -147,7 +157,7 @@ impl MacroObject for FormatMacro {
                         exception: format!("type `{expr_type}` is not supported for display"),
                         help: None,
                         src: analyzer.source.clone(),
-                        span: error::position_to_span(deen_parser::Parser::get_span_expression(&expr))
+                        span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
                     });
                 }
             }

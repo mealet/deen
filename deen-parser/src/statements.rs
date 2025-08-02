@@ -6,7 +6,13 @@
 //! Statement may have internal components named [`Expressions`]. <br/>
 //! Read: <https://en.wikipedia.org/wiki/Statement_(computer_science)>
 
-use crate::{END_STATEMENT, Parser, expressions::Expressions, types::Type, value::Value, error::{self, ParserError}};
+use crate::{
+    END_STATEMENT, Parser,
+    error::{self, ParserError},
+    expressions::Expressions,
+    types::Type,
+    value::Value,
+};
 use deen_lexer::token_type::TokenType;
 use indexmap::IndexMap;
 
@@ -242,14 +248,12 @@ impl Parser {
         }
 
         if !self.expect(TokenType::Identifier) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("identifier expected after `let` keyword"),
-                    help: format!("Add identifier after `let` keyword"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "identifier expected after `let` keyword".to_string(),
+                help: "Add identifier after `let` keyword".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
 
             self.skip_statement();
             return Statements::None;
@@ -289,14 +293,13 @@ impl Parser {
                 }
             }
             _ => {
-                self.error(
-                    ParserError::SyntaxError {
-                        exception: format!("expected `=` or `;` after variable declaration"),
-                        help: format!("Consider adding assign operator or semicolon after identifier"),
-                        src: self.source.clone(),
-                        span: error::position_to_span((span_start, self.current().span.1))
-                    }
-                );
+                self.error(ParserError::SyntaxError {
+                    exception: "expected `=` or `;` after variable declaration".to_string(),
+                    help: "Consider adding assign operator or semicolon after identifier"
+                        .to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span((span_start, self.current().span.1)),
+                });
 
                 Statements::None
             }
@@ -322,14 +325,12 @@ impl Parser {
                 span: (span_start, span_end),
             }
         } else {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("unknown import syntax found"),
-                    help: format!("Provide string with module path after `import` keyword"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, span_end))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "unknown import syntax found".to_string(),
+                help: "Provide string with module path after `import` keyword".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, span_end)),
+            });
 
             Statements::None
         }
@@ -352,14 +353,12 @@ impl Parser {
                 span: (span_start, span_end),
             }
         } else {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("unknown include syntax found"),
-                    help: format!("Provide string with module path after `import` keyword"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, span_end))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "unknown include syntax found".to_string(),
+                help: "Provide string with module path after `import` keyword".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, span_end)),
+            });
 
             Statements::None
         }
@@ -375,14 +374,12 @@ impl Parser {
 
         if self.current().token_type != TokenType::LBrace {
             self.position -= 1;
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected new block after condition"),
-                    help: format!("Consider opening new statements block"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected new block after condition".to_string(),
+                help: "Consider opening new statements block".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
 
             self.skip_statement();
             return Statements::None;
@@ -394,14 +391,12 @@ impl Parser {
 
         while self.current().token_type != TokenType::RBrace {
             if self.current().token_type == TokenType::EOF {
-                self.error(
-                    ParserError::UnclosedExpression {
-                        exception: format!("statements block end not found"),
-                        help: format!("Consider adding block end after statements: `}}`"),
-                        src: self.source.clone(),
-                        span: error::position_to_span((span_block_start, self.current().span.1))
-                    }
-                );
+                self.error(ParserError::UnclosedExpression {
+                    exception: "statements block end not found".to_string(),
+                    help: "Consider adding block end after statements: `}`".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span((span_block_start, self.current().span.1)),
+                });
 
                 return Statements::None;
             }
@@ -433,14 +428,16 @@ impl Parser {
                 match self.current().token_type {
                     TokenType::Keyword => {
                         if self.current().value != *"if" {
-                            self.error(
-                                ParserError::UnknownExpression {
-                                    exception: format!("unexpected keyword found after `else`"),
-                                    help: format!("Consider opening new block, or using `if else` bundle"),
-                                    src: self.source.clone(),
-                                    span: error::position_to_span((else_span_start, self.current().span.1))
-                                }
-                            );
+                            self.error(ParserError::UnknownExpression {
+                                exception: "unexpected keyword found after `else`".to_string(),
+                                help: "Consider opening new block, or using `if else` bundle"
+                                    .to_string(),
+                                src: self.source.clone(),
+                                span: error::position_to_span((
+                                    else_span_start,
+                                    self.current().span.1,
+                                )),
+                            });
 
                             return Statements::None;
                         }
@@ -456,14 +453,12 @@ impl Parser {
                     }
                     TokenType::LBrace => {}
                     _ => {
-                        self.error(
-                            ParserError::SyntaxError {
-                                exception: format!("new block expected after `else` keyword"),
-                                help: format!("Open new statements block with curly brackets"),
-                                src: self.source.clone(),
-                                span: error::position_to_span((else_span_start, self.current().span.1))
-                            }
-                        );
+                        self.error(ParserError::SyntaxError {
+                            exception: "new block expected after `else` keyword".to_string(),
+                            help: "Open new statements block with curly brackets".to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span((else_span_start, self.current().span.1)),
+                        });
 
                         return Statements::None;
                     }
@@ -476,14 +471,12 @@ impl Parser {
 
                 while self.current().token_type != TokenType::RBrace {
                     if self.current().token_type == TokenType::EOF {
-                        self.error(
-                            ParserError::UnclosedExpression {
-                                exception: format!("statements block end not found"),
-                                help: format!("Consider adding block end after statements: `}}`"),
-                                src: self.source.clone(),
-                                span: error::position_to_span((else_span_start, self.current().span.1))
-                            }
-                        );
+                        self.error(ParserError::UnclosedExpression {
+                            exception: "statements block end not found".to_string(),
+                            help: "Consider adding block end after statements: `}`".to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span((else_span_start, self.current().span.1)),
+                        });
 
                         return Statements::None;
                     }
@@ -527,14 +520,12 @@ impl Parser {
         let condition = self.expression();
 
         if self.current().token_type != TokenType::LBrace {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected new block after condition"),
-                    help: format!("Consider opening new block after condition"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected new block after condition".to_string(),
+                help: "Consider opening new block after condition".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
 
             return Statements::None;
         }
@@ -545,14 +536,12 @@ impl Parser {
 
         while !self.expect(TokenType::RBrace) {
             if self.current().token_type == TokenType::EOF {
-                self.error(
-                    ParserError::UnclosedExpression {
-                        exception: format!("statements block end not found"),
-                        help: format!("Consider adding block end after statements: `}}`"),
-                        src: self.source.clone(),
-                        span: error::position_to_span((span_block_start, self.current().span.1))
-                    }
-                );
+                self.error(ParserError::UnclosedExpression {
+                    exception: "statements block end not found".to_string(),
+                    help: "Consider adding block end after statements: `}`".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span((span_block_start, self.current().span.1)),
+                });
 
                 return Statements::None;
             }
@@ -582,14 +571,12 @@ impl Parser {
         let _ = self.next();
 
         if !self.expect(TokenType::Equal) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected binding for iterator in loop"),
-                    help: format!("Use right syntax: `for BINDING = ITERATOR {{}}`"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected binding for iterator in loop".to_string(),
+                help: "Use right syntax: `for BINDING = ITERATOR {}`".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
 
             let _ = self.next();
             return Statements::None;
@@ -599,14 +586,12 @@ impl Parser {
         let iterator = self.expression();
 
         if self.current().token_type != TokenType::LBrace {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected new block after condition"),
-                    help: format!("Consider opening new block after condition"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected new block after condition".to_string(),
+                help: "Consider opening new block after condition".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
 
             return Statements::None;
         }
@@ -617,14 +602,12 @@ impl Parser {
 
         while !self.expect(TokenType::RBrace) {
             if self.current().token_type == TokenType::EOF {
-                self.error(
-                    ParserError::UnclosedExpression {
-                        exception: format!("statements block end not found"),
-                        help: format!("Consider adding block end after statements: `}}`"),
-                        src: self.source.clone(),
-                        span: error::position_to_span((span_block_start, self.current().span.1))
-                    }
-                );
+                self.error(ParserError::UnclosedExpression {
+                    exception: "statements block end not found".to_string(),
+                    help: "Consider adding block end after statements: `}`".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span((span_block_start, self.current().span.1)),
+                });
 
                 return Statements::None;
             }
@@ -683,14 +666,12 @@ impl Parser {
                         }
                     }
 
-                    self.error(
-                        ParserError::DeclarationError {
-                            exception: format!("unexpected argument declaration found"),
-                            help: format!("Use right arguments syntax: `identifier: type`"),
-                            src: self.source.clone(),
-                            span: error::position_to_span(self.span_expression(arg.clone()))
-                        }
-                    );
+                    self.error(ParserError::DeclarationError {
+                        exception: "unexpected argument declaration found".to_string(),
+                        help: "Use right arguments syntax: `identifier: type`".to_string(),
+                        src: self.source.clone(),
+                        span: error::position_to_span(self.span_expression(arg.clone())),
+                    });
 
                     (String::new(), Type::Void)
                 }
@@ -703,14 +684,12 @@ impl Parser {
         }
 
         if !self.expect(TokenType::LBrace) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected new block after function declaration"),
-                    help: format!("Open new statements block with curly brackets"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected new block after function declaration".to_string(),
+                help: "Open new statements block with curly brackets".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
 
             return Statements::None;
         }
@@ -723,14 +702,12 @@ impl Parser {
 
         while !self.expect(TokenType::RBrace) {
             if self.current().token_type == TokenType::EOF {
-                self.error(
-                    ParserError::UnclosedExpression {
-                        exception: format!("statements block end not found"),
-                        help: format!("Consider adding block end after statements: `}}`"),
-                        src: self.source.clone(),
-                        span: error::position_to_span((span_block_start, self.current().span.1))
-                    }
-                );
+                self.error(ParserError::UnclosedExpression {
+                    exception: "statements block end not found".to_string(),
+                    help: "Consider adding block end after statements: `}`".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span((span_block_start, self.current().span.1)),
+                });
 
                 return Statements::None;
             }
@@ -837,28 +814,24 @@ impl Parser {
         let brackets_span_end = self.current().span.1;
 
         if !self.expect(TokenType::RBrack) {
-            self.error(
-                ParserError::UnclosedExpression {
-                    exception: format!("unclosed brackets in slice"),
-                    help: format!("Close slice index with brackets"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((brackets_span_start, brackets_span_end))
-                }
-            );
+            self.error(ParserError::UnclosedExpression {
+                exception: "unclosed brackets in slice".to_string(),
+                help: "Close slice index with brackets".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((brackets_span_start, brackets_span_end)),
+            });
 
             return Statements::None;
         }
 
         let _ = self.next();
         if !self.expect(TokenType::Equal) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected assign operator after slice"),
-                    help: format!("Add assign operator after brackets"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span.0, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected assign operator after slice".to_string(),
+                help: "Add assign operator after brackets".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span.0, self.current().span.1)),
+            });
 
             self.skip_statement();
             return Statements::None;
@@ -885,14 +858,12 @@ impl Parser {
             }
             TokenType::LParen => {}
             _ => {
-                self.error(
-                    ParserError::UnknownExpression {
-                        exception: format!("unknown call statement syntax"),
-                        help: format!("Consider using right syntax: `identifier(value, ...)"),
-                        src: self.source.clone(),
-                        span: error::position_to_span((span.0, self.current().span.1))
-                    }
-                );
+                self.error(ParserError::UnknownExpression {
+                    exception: "unknown call statement syntax".to_string(),
+                    help: "Consider using right syntax: `identifier(value, ...)".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span((span.0, self.current().span.1)),
+                });
 
                 return Statements::None;
             }
@@ -942,14 +913,12 @@ impl Parser {
         }
 
         if !self.expect(TokenType::Identifier) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("structure identifier not found"),
-                    help: format!("Add identifier after `struct` keyword"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "structure identifier not found".to_string(),
+                help: "Add identifier after `struct` keyword".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
 
             return Statements::None;
         }
@@ -958,14 +927,12 @@ impl Parser {
         let _ = self.next();
 
         if !self.expect(TokenType::LBrace) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected new block after identifier"),
-                    help: format!("Consider opening new statements block with curly brackets"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected new block after identifier".to_string(),
+                help: "Consider opening new statements block with curly brackets".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
 
             return Statements::None;
         }
@@ -982,14 +949,12 @@ impl Parser {
                 TokenType::RBrace => break,
                 TokenType::Keyword => {
                     if self.current().value != "fn" {
-                        self.error(
-                            ParserError::DeclarationError {
-                                exception: format!("unknown keyword in declaration found"),
-                                help: format!(""),
-                                src: self.source.clone(),
-                                span: error::position_to_span(self.current().span)
-                            }
-                        );
+                        self.error(ParserError::DeclarationError {
+                            exception: "unknown keyword in declaration found".to_string(),
+                            help: String::new(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(self.current().span),
+                        });
 
                         return Statements::None;
                     }
@@ -1019,14 +984,12 @@ impl Parser {
                 }
                 TokenType::Identifier => {
                     if method_mode && !mode_reported {
-                        self.error(
-                            ParserError::DeclarationError {
-                                exception: format!("fields after methods are not allowed"),
-                                help: format!("Move fields before methods"),
-                                src: self.source.clone(),
-                                span: error::position_to_span(self.current().span)
-                            }
-                        );
+                        self.error(ParserError::DeclarationError {
+                            exception: "fields after methods are not allowed".to_string(),
+                            help: "Move fields before methods".to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(self.current().span),
+                        });
 
                         mode_reported = true;
                     }
@@ -1036,14 +999,12 @@ impl Parser {
                     let _ = self.next();
 
                     if !self.expect(TokenType::DoubleDots) {
-                        self.error(
-                            ParserError::DeclarationError {
-                                exception: format!("unknown field declaration syntax"),
-                                help: format!("Follow this syntax: `field: type`"),
-                                src: self.source.clone(),
-                                span: error::position_to_span((span.0, self.current().span.1))
-                            }
-                        );
+                        self.error(ParserError::DeclarationError {
+                            exception: "unknown field declaration syntax".to_string(),
+                            help: "Follow this syntax: `field: type`".to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span((span.0, self.current().span.1)),
+                        });
 
                         return Statements::None;
                     }
@@ -1056,14 +1017,12 @@ impl Parser {
                     self.position += 1;
 
                     if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
-                        self.error(
-                            ParserError::SyntaxError {
-                                exception: format!("expected comma"),
-                                help: format!("Separate fields and methods with commas"),
-                                src: self.source.clone(),
-                                span: error::position_to_span((extra_span.1, extra_span.1))
-                            }
-                        );
+                        self.error(ParserError::SyntaxError {
+                            exception: "expected comma".to_string(),
+                            help: "Separate fields and methods with commas".to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span((extra_span.1, extra_span.1)),
+                        });
                     }
 
                     if self.expect(TokenType::Comma) {
@@ -1071,39 +1030,33 @@ impl Parser {
                     }
 
                     if fields.contains_key(&name) {
-                        self.error(
-                            ParserError::DeclarationError {
-                                exception: format!("field `{name}` defined multiple times"),
-                                help: format!("Remove field duplicate"),
-                                src: self.source.clone(),
-                                span: error::position_to_span(span)
-                            }
-                        );
+                        self.error(ParserError::DeclarationError {
+                            exception: format!("field `{name}` defined multiple times"),
+                            help: "Remove field duplicate".to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(span),
+                        });
                     }
 
                     fields.insert(name, field_type);
                 }
                 TokenType::Semicolon => {
-                    self.error(
-                        ParserError::SyntaxError {
-                            exception: format!("use commas instead for separation"),
-                            help: format!("Replace semicolons with commas"),
-                            src: self.source.clone(),
-                            span: error::position_to_span(self.current().span)
-                        }
-                    );
+                    self.error(ParserError::SyntaxError {
+                        exception: "use commas instead for separation".to_string(),
+                        help: "Replace semicolons with commas".to_string(),
+                        src: self.source.clone(),
+                        span: error::position_to_span(self.current().span),
+                    });
 
                     let _ = self.next();
                 }
                 _ => {
-                    self.error(
-                        ParserError::UnknownExpression {
-                            exception: format!("unknown expression at the struct declaration"),
-                            help: format!(""),
-                            src: self.source.clone(),
-                            span: error::position_to_span(self.current().span)
-                        }
-                    );
+                    self.error(ParserError::UnknownExpression {
+                        exception: "unknown expression at the struct declaration".to_string(),
+                        help: String::new(),
+                        src: self.source.clone(),
+                        span: error::position_to_span(self.current().span),
+                    });
 
                     return Statements::None;
                 }
@@ -1131,14 +1084,12 @@ impl Parser {
         }
 
         if !self.expect(TokenType::Identifier) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("identifier expected for enumeration name"),
-                    help: format!("Add identifier after `enum` keyword"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "identifier expected for enumeration name".to_string(),
+                help: "Add identifier after `enum` keyword".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
 
             return Statements::None;
         }
@@ -1147,14 +1098,12 @@ impl Parser {
         let _ = self.next();
 
         if !self.expect(TokenType::LBrace) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected new block after identifier"),
-                    help: format!("Open new statements block after identifier"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, self.current().span.1))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected new block after identifier".to_string(),
+                help: "Open new statements block after identifier".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
 
             return Statements::None;
         }
@@ -1168,14 +1117,12 @@ impl Parser {
                 TokenType::RBrace => break,
                 TokenType::Keyword => {
                     if self.current().value != "fn" {
-                        self.error(
-                            ParserError::DeclarationError {
-                                exception: format!("unknown keyword in declaration found"),
-                                help: format!(""),
-                                src: self.source.clone(),
-                                span: error::position_to_span(self.current().span)
-                            }
-                        );
+                        self.error(ParserError::DeclarationError {
+                            exception: "unknown keyword in declaration found".to_string(),
+                            help: String::new(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(self.current().span),
+                        });
 
                         return Statements::None;
                     }
@@ -1207,15 +1154,12 @@ impl Parser {
                     let _ = self.next();
 
                     if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
-
-                        self.error(
-                            ParserError::SyntaxError {
-                                exception: format!("expected comma"),
-                                help: format!("Separate fields and methods with commas"),
-                                src: self.source.clone(),
-                                span: error::position_to_span((extra_span.1, extra_span.1))
-                            }
-                        );
+                        self.error(ParserError::SyntaxError {
+                            exception: "expected comma".to_string(),
+                            help: "Separate fields and methods with commas".to_string(),
+                            src: self.source.clone(),
+                            span: error::position_to_span((extra_span.1, extra_span.1)),
+                        });
                     }
 
                     if self.expect(TokenType::Comma) {
@@ -1225,15 +1169,12 @@ impl Parser {
                     fields.push(name);
                 }
                 _ => {
-
-                    self.error(
-                        ParserError::UnknownExpression {
-                            exception: format!("unknown expression at the struct declaration"),
-                            help: format!(""),
-                            src: self.source.clone(),
-                            span: error::position_to_span(self.current().span)
-                        }
-                    );
+                    self.error(ParserError::UnknownExpression {
+                        exception: "unknown expression at the struct declaration".to_string(),
+                        help: String::new(),
+                        src: self.source.clone(),
+                        span: error::position_to_span(self.current().span),
+                    });
 
                     return Statements::None;
                 }
@@ -1261,14 +1202,12 @@ impl Parser {
         }
 
         if !self.expect(TokenType::Identifier) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected alias for typedef"),
-                    help: format!("Use right `typedef` syntax: \"typedef ALIAS TYPE\""),
-                    src: self.source.clone(),
-                    span: error::position_to_span(self.current().span)
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected alias for typedef".to_string(),
+                help: "Use right `typedef` syntax: \"typedef ALIAS TYPE\"".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span(self.current().span),
+            });
         };
 
         let alias = self.current().value;
@@ -1292,14 +1231,13 @@ impl Parser {
         }
 
         if !self.expect(TokenType::Identifier) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected identifier for extern-declare"),
-                    help: format!("Use right `extern declare` syntax: \"__extern_declare IDENTIFIER TYPE\""),
-                    src: self.source.clone(),
-                    span: error::position_to_span(self.current().span)
-                }
-            );           
+            self.error(ParserError::SyntaxError {
+                exception: "expected identifier for extern-declare".to_string(),
+                help: "Use right `extern declare` syntax: \"__extern_declare IDENTIFIER TYPE\""
+                    .to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span(self.current().span),
+            });
         }
 
         let identifier = self.current().value;
@@ -1333,14 +1271,12 @@ impl Parser {
                 span: (span_start, span_end),
             }
         } else {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected string path"),
-                    help: format!("Consider using string constant after keyword"),
-                    src: self.source.clone(),
-                    span: error::position_to_span((span_start, span_end))
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected string path".to_string(),
+                help: "Consider using string constant after keyword".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, span_end)),
+            });
 
             Statements::LinkCStatement {
                 path,
@@ -1356,14 +1292,12 @@ impl Parser {
         }
 
         if !self.expect(TokenType::String) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected extern type"),
-                    help: format!("Provide string constant with extern type"),
-                    src: self.source.clone(),
-                    span: error::position_to_span(self.current().span)
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected extern type".to_string(),
+                help: "Provide string constant with extern type".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span(self.current().span),
+            });
         }
 
         let extern_type = self.current().value;
@@ -1375,14 +1309,12 @@ impl Parser {
         }
 
         if !self.expect(TokenType::Keyword) && self.current().value != "fn" {
-            self.error(
-                ParserError::UnsupportedExpression {
-                    exception: format!("unsupported extern statement found"),
-                    help: format!("Extern statement support only functions declarations"),
-                    src: self.source.clone(),
-                    span: error::position_to_span(self.current().span)
-                }
-            );
+            self.error(ParserError::UnsupportedExpression {
+                exception: "unsupported extern statement found".to_string(),
+                help: "Extern statement support only functions declarations".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span(self.current().span),
+            });
 
             self.skip_statement();
         }
@@ -1391,28 +1323,24 @@ impl Parser {
         let identifier = if self.expect(TokenType::Identifier) {
             self.current().value
         } else {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("function identifier expected"),
-                    help: format!("Add identifier after `fn` keyword"),
-                    src: self.source.clone(),
-                    span: error::position_to_span(self.current().span)
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "function identifier expected".to_string(),
+                help: "Add identifier after `fn` keyword".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span(self.current().span),
+            });
 
             "undefined".to_string()
         };
 
         let _ = self.next();
         if !self.expect(TokenType::LParen) {
-            self.error(
-                ParserError::SyntaxError {
-                    exception: format!("expected arguments types block"),
-                    help: format!("Use syntax: `extern fn IDENTIFIER ( TYPE, ... ) TYPE`"),
-                    src: self.source.clone(),
-                    span: error::position_to_span(self.current().span)
-                }
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected arguments types block".to_string(),
+                help: "Use syntax: `extern fn IDENTIFIER ( TYPE, ... ) TYPE`".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span(self.current().span),
+            });
         }
 
         let mut arguments = Vec::new();
@@ -1429,14 +1357,12 @@ impl Parser {
                 } else {
                     self.position -= 1;
 
-                    self.error(
-                        ParserError::DeclarationError {
-                            exception: format!("unknown argument declaration syntax"),
-                            help: format!(""),
-                            src: self.source.clone(),
-                            span: error::position_to_span(self.current().span)
-                        }
-                    );
+                    self.error(ParserError::DeclarationError {
+                        exception: "unknown argument declaration syntax".to_string(),
+                        help: String::new(),
+                        src: self.source.clone(),
+                        span: error::position_to_span(self.current().span),
+                    });
 
                     break;
                 }

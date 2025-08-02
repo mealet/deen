@@ -23,15 +23,11 @@ pub enum ParserError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Keyword exception found")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::parser::keyword_exception),
-        help("{help}")
-    )]
+    #[diagnostic(severity(Error), code(deen::parser::keyword_exception), help("{help}"))]
     KeywordException {
         exception: String,
         help: String,
@@ -39,7 +35,7 @@ pub enum ParserError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Unclosed expression found")]
@@ -55,7 +51,7 @@ pub enum ParserError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Unknown expression found")]
@@ -71,7 +67,7 @@ pub enum ParserError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Unsupported expression found")]
@@ -87,15 +83,11 @@ pub enum ParserError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Changing the visibility of an object is not allowed")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::parser::visibility_error),
-        help("{help}")
-    )]
+    #[diagnostic(severity(Error), code(deen::parser::visibility_error), help("{help}"))]
     VisibilityError {
         exception: String,
         help: String,
@@ -103,15 +95,11 @@ pub enum ParserError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Syntax error")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::parser::syntax_error),
-        help("{help}")
-    )]
+    #[diagnostic(severity(Error), code(deen::parser::syntax_error), help("{help}"))]
     SyntaxError {
         exception: String,
         help: String,
@@ -119,15 +107,11 @@ pub enum ParserError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 
     #[error("Wrong declaration syntax")]
-    #[diagnostic(
-        severity(Error),
-        code(deen::parser::declaration_error),
-        help("{help}")
-    )]
+    #[diagnostic(severity(Error), code(deen::parser::declaration_error), help("{help}"))]
     DeclarationError {
         exception: String,
         help: String,
@@ -135,7 +119,7 @@ pub enum ParserError {
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
-        span: SourceSpan
+        span: SourceSpan,
     },
 }
 
