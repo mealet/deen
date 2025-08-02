@@ -1300,7 +1300,7 @@ impl Analyzer {
                                         return;
                                     }
                                 } else {
-                                    self.error(SemanticError::UnsupportedType {
+                                    self.error(SemanticError::IllegalImplementation {
                                         exception: format!("structure `{alias}` has no implementation for iteration"),
                                         help: Some(format!("Implement necessary method: {IMPLEMENTATION_FORMAT}")),
                                         src: self.source.clone(),
@@ -1824,13 +1824,23 @@ impl Analyzer {
                         *public,
                     )
                     .unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                     });
             }
 
             Statements::BreakStatements { span } => {
                 if !self.scope.is_loop() {
-                    self.error(String::from("Used `break` keyword outside loop"), *span);
+                    self.error(SemanticError::SemanticError {
+                        exception: format!("use of `break` keyword outside loop"),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                 }
             }
             Statements::ReturnStatement { value, span: _ } => {
@@ -1863,7 +1873,11 @@ impl Analyzer {
 
                 if let Some(unused) = self.scope.check_unused_variables() {
                     unused.iter().for_each(|var| {
-                        self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                        self.warning(SemanticWarning::UnusedVariable {
+                            varname: var.0.clone(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(var.1)
+                        });
                     });
                 }
 
@@ -1873,10 +1887,11 @@ impl Analyzer {
             Statements::Expression(expr) => {
                 let expr_type = self.visit_expression(expr, None);
                 if expr_type != Type::Void {
-                    self.warning(
-                        String::from("Unused expression result found"),
-                        Parser::get_span_expression(&expr),
-                    );
+                    self.warning(SemanticWarning::UnusedResult {
+                        message: format!("unused result with type `{expr_type}`"),
+                        src: self.source.clone(),
+                        span: error::position_to_span(Parser::get_span_expression(&expr))
+                    });
                 }
             }
             Statements::None => unreachable!(),
@@ -1920,10 +1935,12 @@ impl Analyzer {
 
                     (Type::Pointer(_), r) if Self::is_integer(&r) => {
                         if operand != "+" && operand != "-" {
-                            self.error(
-                                "Unexpected binary operator for pointer found".to_string(),
-                                *span,
-                            );
+                            self.error(SemanticError::OperatorException {
+                                exception: format!("unsupported binary operator for pointer"),
+                                help: Some(format!("Pointers arithemics supports only: `+` / `-`")),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                         }
 
                         left
@@ -1931,10 +1948,12 @@ impl Analyzer {
 
                     (Type::Pointer(_), Type::Pointer(_)) => {
                         if operand != "+" && operand != "-" {
-                            self.error(
-                                "Unexpected binary operator for pointer found".to_string(),
-                                *span,
-                            );
+                            self.error(SemanticError::OperatorException {
+                                exception: format!("unsupported binary operator for pointer"),
+                                help: Some(format!("Pointers arithemics supports only: `+` / `-`")),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                         }
 
                         Type::USIZE
@@ -1945,10 +1964,12 @@ impl Analyzer {
                             format!("fn binary(&self, other: *{left}, operand: *char) {left}");
 
                         let struct_type = self.scope.get_struct(&left).unwrap_or_else(|| {
-                            self.error(
-                                format!("Type `{}` isn't avaible for binary operations", &left),
-                                *span,
-                            );
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!("type `{}` isn't avaible for binary operations", &left),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                             Type::Void
                         });
 
@@ -1957,12 +1978,12 @@ impl Analyzer {
                         }
 
                         if left != right {
-                            self.error(
-                                format!(
-                                    "Cannot apply binary \"{operand}\" to different types `{left}` and `{right}`"
-                                ),
-                                *span,
-                            );
+                            self.error(SemanticError::OperatorException {
+                                exception: format!("cannot apply binary \"{operand}\" to `{left}` and `{right}`"),
+                                help: Some(format!("Consider using compatible types")),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                             return Type::Alias(left);
                         }
 
@@ -1977,22 +1998,22 @@ impl Analyzer {
                                     ]
                                     && *datatype.clone() == Type::Alias(left.clone()))
                                 {
-                                    self.error(
-                                        format!(
-                                            "Type `{left}` has wrong implementation for binary: {implementation_format}"
-                                        ),
-                                        *span,
-                                    );
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!("type `{left}` has wrong implementation for binary operations"),
+                                        help: Some(format!("Consider using right format: {implementation_format}")),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
                                 }
 
                                 *datatype.clone()
                             } else {
-                                self.error(
-                                    format!(
-                                        "Type `{left}` has no implementation for binary operations: {implementation_format}"
-                                    ),
-                                    *span,
-                                );
+                                self.error(SemanticError::IllegalImplementation {
+                                    exception: format!("type `{left}` has no implementation for binary operations"),
+                                    help: Some(format!("Implement necessary method: {implementation_format}")),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
                                 expected.unwrap_or(Type::Alias(left))
                             }
                         } else {
@@ -2001,10 +2022,12 @@ impl Analyzer {
                     }
 
                     _ => {
-                        self.error(
-                            format!("Cannot apply binary \"{operand}\" to `{left}` and `{right}`"),
-                            *span,
-                        );
+                        self.error(SemanticError::OperatorException {
+                            exception: format!("cannot apply binary \"{operand}\" to `{left}` and `{right}`"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                         expected.unwrap_or(left)
                     }
                 }
@@ -2028,11 +2051,15 @@ impl Analyzer {
                     (Type::Bool, "!") => obj,
 
                     (Type::Alias(alias), _) => {
+                        let implementation_format = format!("fn unary(&self, operand: *char) {alias}");
+
                         let struct_type = self.scope.get_struct(alias).unwrap_or_else(|| {
-                            self.error(
-                                format!("Type `{}` isn't avaible for unary operations", &alias),
-                                *span,
-                            );
+                            self.error(SemanticError::OperatorException {
+                                exception: format!("type `{}` isn't avaible for unary operations", &alias),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                             Type::Void
                         });
 
@@ -2050,18 +2077,22 @@ impl Analyzer {
                                     ]
                                     && *datatype.clone() == Type::Alias(alias.clone()))
                                 {
-                                    self.error(
-                                        format!("Type `{alias}` has wrong implementation for unary: fn unary(&self, operand: *char) {alias}"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!("type `{alias}` has wrong implementation for unary operations"),
+                                        help: Some(format!("Consider using right format: {implementation_format}")),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
                                 }
 
                                 *datatype.clone()
                             } else {
-                                self.error(
-                                    format!("Type `{alias}` has wrong implementation for unary: fn unary(&self, operand: *char) {alias}"),
-                                    *span
-                                );
+                                self.error(SemanticError::IllegalImplementation {
+                                    exception: format!("type `{alias}` has wrong implementation for unary operations"),
+                                    help: Some(format!("Consider using right format: {implementation_format}")),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
                                 Type::Alias(alias.clone())
                             }
                         } else {
@@ -2070,10 +2101,12 @@ impl Analyzer {
                     }
 
                     _ => {
-                        self.error(
-                            format!("Cannot apply unary \"{operand}\" to `{obj}`"),
-                            *span,
-                        );
+                        self.error(SemanticError::OperatorException {
+                            exception: format!("cannot apply unary \"{operand}\" to `{obj}`"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                         obj
                     }
                 }
@@ -2095,12 +2128,12 @@ impl Analyzer {
                             || (matches!(r, Type::Pointer(_)) && l == Type::Null) =>
                     {
                         if !matches!(operand.as_str(), "==" | "!=") {
-                            self.error(
-                                String::from(
-                                    "Null boolean checker only allows operators: `==`, `!=`",
-                                ),
-                                *span,
-                            );
+                            self.error(SemanticError::OperatorException {
+                                exception: format!("null checker only supports: `==` / `!=`"),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                         }
 
                         Type::Bool
@@ -2123,6 +2156,8 @@ impl Analyzer {
                     }
 
                     (Type::Alias(left), Type::Alias(right)) => {
+                        let implementation_format = format!("fn compare(&self, other: *{left}) i32");
+
                         if self.scope.get_enum(&left).is_some()
                             && self.scope.get_enum(&right).is_some()
                             && left == right
@@ -2131,10 +2166,12 @@ impl Analyzer {
                         }
 
                         let struct_type = self.scope.get_struct(&left).unwrap_or_else(|| {
-                            self.error(
-                                format!("Type `{}` isn't avaible for boolean operations", &left),
-                                *span,
-                            );
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!("type `{}` isn't avaible for boolean operations", &left),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                             Type::Void
                         });
 
@@ -2143,12 +2180,12 @@ impl Analyzer {
                         }
 
                         if left != right {
-                            self.error(
-                                format!(
-                                    "Cannot apply boolean \"{operand}\" to different types `{left}` and `{right}`"
-                                ),
-                                *span,
-                            );
+                            self.error(SemanticError::OperatorException {
+                                exception: format!("cannot apply boolean \"{operand}\" to `{left}` and `{right}`"),
+                                help: Some(format!("Consider using compatible types")),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                             return Type::Bool;
                         }
 
@@ -2163,18 +2200,23 @@ impl Analyzer {
                                     ]
                                     && *datatype.clone() == Type::I32)
                                 {
-                                    self.error(
-                                        format!("Type `{left}` has wrong implementation for comparison: fn compare(&self, other: *{left}) i32"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!("type `{left}` has wrong implementation for comparison"),
+                                        help: Some(format!("Consider using right format: {implementation_format}")),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
                                 }
 
                                 Type::Bool
                             } else {
-                                self.error(
-                                    format!("Type `{left}` has wrong implementation for comparison: fn compare(&self, other: *{left}) i32"),
-                                    *span
-                                );
+                                self.error(SemanticError::IllegalImplementation {
+                                    exception: format!("type `{left}` has no implementation for comparison"),
+                                    help: Some(format!("Consider implementing necessary method: {implementation_format}")),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
+
                                 Type::Bool
                             }
                         } else {
@@ -2183,10 +2225,12 @@ impl Analyzer {
                     }
 
                     _ => {
-                        self.error(
-                            format!("Cannot apply boolean \"{operand}\" to `{left}` and `{right}`"),
-                            *span,
-                        );
+                        self.error(SemanticError::OperatorException {
+                            exception: format!("cannot apply boolean \"{operand}\" to `{left}` and `{right}`"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                         Type::Bool
                     }
                 }
@@ -2201,18 +2245,22 @@ impl Analyzer {
                 let right = self.visit_expression(rhs, Some(Type::U8));
 
                 if !Self::is_integer(&left) || !Self::is_integer(&right) {
-                    self.error(
-                        format!(
-                            "Cannot apply bitwise operations to `{}` and `{}`",
-                            &left, &right
-                        ),
-                        *span,
-                    );
+                    self.error(SemanticError::OperatorException {
+                        exception: format!("cannot apply bitwise operations to `{}` and `{}`", &left, &right),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                     return expected.unwrap_or(left);
                 };
 
                 if [">>", "<<"].contains(&operand.as_ref()) && !Self::is_unsigned_integer(&right) {
-                    self.error("Shift index must be unsigned integer".to_string(), *span);
+                    self.error(SemanticError::TypesMismatch {
+                        exception: format!("shift index must be unsigned integer"),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                     return expected.unwrap_or(left);
                 }
 
@@ -2225,10 +2273,12 @@ impl Analyzer {
 
             Expressions::Argument { name, r#type, span } => {
                 if name != "@deen_type" {
-                    self.error(
-                        String::from("Argument expressions isn't supported in global code"),
-                        *span,
-                    );
+                    self.error(SemanticError::ArgumentException {
+                        exception: format!("arguments are not allowed in global code"),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                 }
 
                 r#type.clone()
@@ -2266,10 +2316,13 @@ impl Analyzer {
                             match prev_type.clone() {
                                 Type::Struct(fields, _) => {
                                     let field_type = fields.get(&field.clone()).unwrap_or_else(|| {
-                                        self.error(
-                                            format!("Type `{prev_type_display}` has no field named `{field}`"),
-                                            *field_span
-                                        );
+                                        self.error(SemanticError::UnknownObject {
+                                            exception: format!("type `{prev_type_display}` has no fields named `{field}`"),
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*field_span)
+                                        });
+
                                         &Type::Void
                                     });
 
@@ -2295,19 +2348,23 @@ impl Analyzer {
                                 Type::Enum(fields, _) => {
                                     let opt = fields.iter().find(|&x| x == field);
                                     if opt.is_none() {
-                                        self.error(
-                                            format!("Type `{prev_type_display}` has no choice named `{field}`"),
-                                            *field_span
-                                        );
+                                        self.error(SemanticError::UnknownObject {
+                                            exception: format!("type `{prev_type_display}` has no option named `{field}`"),
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*field_span)
+                                        });
                                     }
 
                                     prev_expr = Expressions::SubElement { head: Box::new(prev_expr.clone()), subelements: vec![], span: *field_span }
                                 },
                                 _ => {
-                                    self.error(
-                                        format!("Type `{prev_type_display}` has no accessible fields"),
-                                        *field_span
-                                    );
+                                    self.error(SemanticError::UnsupportedType {
+                                        exception: format!("type `{prev_type_display}` has no accessible fields"),
+                                        help: None,
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*field_span)
+                                    });
                                 }
                             };
                         }
@@ -2315,10 +2372,12 @@ impl Analyzer {
                             match prev_type.clone() {
                                 Type::Tuple(types) => {
                                     if idx >= &(types.len() as i64) {
-                                        self.error(
-                                            format!("Type `{}` has {} fields, but index is {}", prev_type_display, types.len(), idx),
-                                            *idx_span
-                                        );
+                                        self.error(SemanticError::RangeOverflow {
+                                            exception: format!("type `{}` has {} fields, but index is {}", prev_type_display, types.len(), idx),
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*idx_span)
+                                        });
                                         return;
                                     }
 
@@ -2342,10 +2401,12 @@ impl Analyzer {
                                     prev_expr = sub.clone();
                                 },
                                 _ => {
-                                    self.error(
-                                        format!("Type `{prev_type_display}` has no numbered fields"),
-                                        *idx_span
-                                    )
+                                    self.error(SemanticError::UnknownObject {
+                                        exception: format!("type `{prev_type_display}` has no numbered fields"),
+                                        help: None,
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*idx_span)
+                                    });
                                 }
                             }
                         }
@@ -2353,10 +2414,12 @@ impl Analyzer {
                             match prev_type.clone() {
                                 Type::Struct(_, functions) | Type::Enum(_, functions) => {
                                     let function_type = functions.get(name).unwrap_or_else(|| {
-                                        self.error(
-                                            format!("Type `{prev_type_display}` has no function named `{name}`"),
-                                            *span
-                                        );
+                                        self.error(SemanticError::UnresolvedName {
+                                            exception: format!("type `{prev_type_display}` has no function `{name}`"),
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*span)
+                                        });
                                         &Type::Void
                                     });
 
@@ -2400,10 +2463,12 @@ impl Analyzer {
 
                                         if arguments.len() != args.len() {
                                             if *is_var_args && arguments.len() >= args.len() {} else {
-                                                self.error(
-                                                    format!("Function `{}` has {} arguments, but found {}", name, args.len(), arguments.len()),
-                                                    *span
-                                                );
+                                                self.error(SemanticError::ArgumentException {
+                                                    exception: format!("function `{}` has {} arguments, but found {}", name, args.len(), arguments.len()),
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
                                                 return;
                                             }
                                         }
@@ -2435,10 +2500,12 @@ impl Analyzer {
                                                 if *ptr_type.clone() == *raw_expected { return };
                                             }
                                             if expr_type != expected {
-                                                self.error(
-                                                    format!("Argument #{} has type `{}`, but found `{}`", index + 1, raw_expected, raw_expr_type),
-                                                    Parser::get_span_expression(&expr)
-                                                );
+                                                self.error(SemanticError::TypesMismatch {
+                                                    exception: format!("argument #{} has type `{}`, but found `{}`", index + 1, raw_expected, raw_expr_type),
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(Parser::get_span_expression(&expr))
+                                                });
                                             }
                                         });
                                     };
@@ -2461,10 +2528,12 @@ impl Analyzer {
 
                                         if arguments.len() != args.len() {
                                             if *is_var_args && arguments.len() >= args.len() {} else {
-                                                self.error(
-                                                    format!("Function `{}()` has {} arguments, but found {}", name, args.len(), arguments.len()),
-                                                    *span
-                                                );
+                                                self.error(SemanticError::ArgumentException {
+                                                    exception: format!("function `{}()` has {} arguments, but found {}", name, args.len(), arguments.len()),
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
                                                 return;
                                             }
                                         }
