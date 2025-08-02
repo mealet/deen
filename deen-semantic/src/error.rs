@@ -281,6 +281,21 @@ pub enum SemanticError {
         #[label("{exception}")]
         span: SourceSpan
     },
+
+    #[error("Value compilation caused error")]
+    #[diagnostic(
+        severity(Error),
+        code(deen::semantics::value_error),
+    )]
+    ValueError {
+        exception: String,
+        #[help]
+        help: Option<String>,
+        #[source_code]
+        src: NamedSource<String>,
+        #[label("{exception}")]
+        span: SourceSpan
+    },
 }
 
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
