@@ -8,7 +8,7 @@ CLIPPY_COMMAND = clippy
 # Compile example and run
 SRC_FILE = source.dn
 OUTPUT_FILE = out
-DEEN_ARGS = --no-warns
+DEEN_ARGS =
 CODE_EDITOR = nvim
 
 # Compile to binary/llvm

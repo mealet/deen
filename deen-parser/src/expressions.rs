@@ -9,7 +9,11 @@
 
 use crate::{
     BINARY_OPERATORS, BITWISE_OPERATORS, BOOLEAN_OPERATORS, PRIORITY_BINARY_OPERATORS,
-    PRIORITY_BOOLEAN_OPERATORS, Parser, statements::Statements, types::Type, value::Value,
+    PRIORITY_BOOLEAN_OPERATORS, Parser,
+    error::{self, ParserError},
+    statements::Statements,
+    types::Type,
+    value::Value,
 };
 use deen_lexer::token_type::TokenType;
 use std::collections::HashMap;
@@ -118,79 +122,31 @@ pub enum Expressions {
 
 impl Parser {
     #[inline]
-    pub fn get_span_expression(expr: Expressions) -> (usize, usize) {
+    pub fn get_span_expression(expr: &Expressions) -> (usize, usize) {
         match expr {
-            Expressions::Binary {
-                operand: _,
-                lhs: _,
-                rhs: _,
-                span,
-            } => span,
-            Expressions::Boolean {
-                operand: _,
-                lhs: _,
-                rhs: _,
-                span,
-            } => span,
-            Expressions::Bitwise {
-                operand: _,
-                lhs: _,
-                rhs: _,
-                span,
-            } => span,
-            Expressions::Argument {
-                name: _,
-                r#type: _,
-                span,
-            } => span,
-            Expressions::SubElement {
-                head: _,
-                subelements: _,
-                span,
-            } => span,
-            Expressions::FnCall {
-                name: _,
-                arguments: _,
-                span,
-            } => span,
-            Expressions::MacroCall {
-                name: _,
-                arguments: _,
-                span,
-            } => span,
-            Expressions::Reference { object: _, span } => span,
-            Expressions::Dereference { object: _, span } => span,
-            Expressions::Array {
-                values: _,
-                len: _,
-                span,
-            } => span,
-            Expressions::Tuple { values: _, span } => span,
-            Expressions::Slice {
-                object: _,
-                index: _,
-                span,
-            } => span,
-            Expressions::Struct {
-                name: _,
-                fields: _,
-                span,
-            } => span,
-            Expressions::Unary {
-                operand: _,
-                object: _,
-                span,
-            } => span,
-            Expressions::Scope { block: _, span } => span,
-            Expressions::Value(_, span) => span,
-
+            Expressions::Binary { span, .. } => *span,
+            Expressions::Boolean { span, .. } => *span,
+            Expressions::Bitwise { span, .. } => *span,
+            Expressions::Argument { span, .. } => *span,
+            Expressions::SubElement { span, .. } => *span,
+            Expressions::FnCall { span, .. } => *span,
+            Expressions::MacroCall { span, .. } => *span,
+            Expressions::Reference { span, .. } => *span,
+            Expressions::Dereference { span, .. } => *span,
+            Expressions::Array { span, .. } => *span,
+            Expressions::Tuple { span, .. } => *span,
+            Expressions::Slice { span, .. } => *span,
+            Expressions::Struct { span, .. } => *span,
+            Expressions::Unary { span, .. } => *span,
+            Expressions::Scope { span, .. } => *span,
+            Expressions::Value(_, span) => *span,
             Expressions::None => (0, 0),
         }
     }
 
     #[inline]
     pub fn span_expression(&self, expr: Expressions) -> (usize, usize) {
-        Self::get_span_expression(expr)
+        Self::get_span_expression(&expr)
     }
 }
 
@@ -225,7 +181,7 @@ impl Parser {
     }
 
     pub fn binary_expression(&mut self, node: Expressions) -> Expressions {
-        let node_span = Self::get_span_expression(node.clone());
+        let node_span = Self::get_span_expression(&node);
         let span_end;
 
         let current = self.current();
@@ -285,7 +241,7 @@ impl Parser {
     pub fn boolean_expression(&mut self, node: Expressions) -> Expressions {
         // FIXME: Expressions like `true || false` returns error "Undefined term found"
 
-        let node_span = Self::get_span_expression(node.clone());
+        let node_span = Self::get_span_expression(&node);
         let span_end;
 
         let current = self.current();
@@ -334,7 +290,7 @@ impl Parser {
     }
 
     pub fn bitwise_expression(&mut self, node: Expressions) -> Expressions {
-        let node_span = Self::get_span_expression(node.clone());
+        let node_span = Self::get_span_expression(&node);
         let span_end;
 
         let current = self.current();
@@ -368,10 +324,13 @@ impl Parser {
             }
             TokenType::LParen => {}
             _ => {
-                self.error(
-                    String::from("Unexpected variation of function call"),
-                    (span.0, self.current().span.1),
-                );
+                self.error(ParserError::UnknownExpression {
+                    exception: "unknown call expression syntax".to_string(),
+                    help: "Consider using right syntax: `identifier(value, ...)".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span((span.0, self.current().span.1)),
+                });
+
                 return Expressions::None;
             }
         };
@@ -418,10 +377,16 @@ impl Parser {
         let index = Box::new(self.expression());
 
         if self.current().token_type != TokenType::RBrack {
-            self.error(
-                String::from("Index end not found"),
-                (self.span_expression(expr).0, self.current().span.1),
-            );
+            self.error(ParserError::UnclosedExpression {
+                exception: "unclosed slice index".to_string(),
+                help: "Close slice index with brackets".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((
+                    self.span_expression(expr).0,
+                    self.current().span.1,
+                )),
+            });
+
             return Expressions::None;
         }
 
@@ -441,10 +406,13 @@ impl Parser {
         }
 
         if !self.expect(TokenType::LBrace) {
-            self.error(
-                String::from("Expected `{` after structure initialization"),
-                (span_start, self.current().span.1),
-            );
+            self.error(ParserError::SyntaxError {
+                exception: "expected curly brackets for structure initialization".to_string(),
+                help: "Use syntax: `identifier { .field = value, ... }`".to_string(),
+                src: self.source.clone(),
+                span: error::position_to_span((span_start, self.current().span.1)),
+            });
+
             self.skip_statement();
             return Expressions::None;
         };
@@ -454,10 +422,13 @@ impl Parser {
 
         while !self.expect(TokenType::RBrace) {
             if !self.expect(TokenType::Dot) {
-                self.error(
-                    String::from("Unexpected field initialization found. Use `.field = value`"),
-                    (span_start, self.current().span.1),
-                );
+                self.error(ParserError::SyntaxError {
+                    exception: "wrong field initialization syntax".to_string(),
+                    help: "Use syntax: `identifier { .field = value, ... }`".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span(self.current().span),
+                });
+
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)
                     && !self.expect(TokenType::EOF)
@@ -469,10 +440,13 @@ impl Parser {
 
             let _ = self.next();
             if !self.expect(TokenType::Identifier) {
-                self.error(
-                    String::from("Expected field identifier for initialization"),
-                    (span_start, self.current().span.1),
-                );
+                self.error(ParserError::SyntaxError {
+                    exception: "wrong field initialization syntax".to_string(),
+                    help: "Use syntax: `identifier { .field = value, ... }`".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span(self.current().span),
+                });
+
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)
                     && !self.expect(TokenType::EOF)
@@ -486,10 +460,13 @@ impl Parser {
             let _ = self.next();
 
             if !self.expect(TokenType::Equal) {
-                self.error(
-                    String::from("Fields must have assignation"),
-                    (span_start, self.current().span.1),
-                );
+                self.error(ParserError::SyntaxError {
+                    exception: "wrong field initialization syntax".to_string(),
+                    help: "Use syntax: `identifier { .field = value, ... }`".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span(self.current().span),
+                });
+
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)
                     && !self.expect(TokenType::EOF)
@@ -503,10 +480,13 @@ impl Parser {
             let value = self.expression();
 
             if !self.expect(TokenType::Comma) && !self.expect(TokenType::RBrace) {
-                self.error(
-                    String::from("Values must be separated by commas"),
-                    (span_start, self.current().span.1),
-                );
+                self.error(ParserError::SyntaxError {
+                    exception: "values must be separated by commas".to_string(),
+                    help: "Separate fields with commas".to_string(),
+                    src: self.source.clone(),
+                    span: error::position_to_span(self.current().span),
+                });
+
                 while !self.expect(TokenType::RBrace)
                     && !self.expect(TokenType::Semicolon)
                     && !self.expect(TokenType::EOF)

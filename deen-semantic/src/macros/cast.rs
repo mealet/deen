@@ -1,5 +1,8 @@
 use super::MacroObject;
-use crate::Analyzer;
+use crate::{
+    Analyzer,
+    error::{self, SemanticError},
+};
 use deen_parser::{expressions::Expressions, types::Type};
 
 /// **Converts expression to provided type**
@@ -16,14 +19,16 @@ impl MacroObject for CastMacro {
         const MINIMUM_ARGUMENTS_LEN: usize = 2;
 
         if arguments.len() < MINIMUM_ARGUMENTS_LEN {
-            analyzer.error(
-                format!(
-                    "Not enough arguments: expected {}, found {}",
+            analyzer.error(SemanticError::ArgumentException {
+                exception: format!(
+                    "not enough arguments: expected {}, found {}",
                     MINIMUM_ARGUMENTS_LEN,
                     arguments.len()
                 ),
-                *span,
-            );
+                help: None,
+                src: analyzer.source.clone(),
+                span: error::position_to_span(*span),
+            });
         }
 
         if matches!(
@@ -41,10 +46,12 @@ impl MacroObject for CastMacro {
                 span: _
             })
         ) {
-            analyzer.error(
-                "Wrong macro call! Usage: cast!(EXPRESSION, TYPE)".to_string(),
-                *span,
-            );
+            analyzer.error(SemanticError::ArgumentException {
+                exception: "wrong arguments for casting found".to_string(),
+                help: Some("Consider using right syntax: cast!(EXPRESSION, TYPE)".to_string()),
+                src: analyzer.source.clone(),
+                span: error::position_to_span(*span),
+            });
         }
 
         let (from_type, target_type) = (
@@ -54,7 +61,12 @@ impl MacroObject for CastMacro {
         analyzer
             .verify_cast(&from_type, &target_type)
             .unwrap_or_else(|err| {
-                analyzer.error(err, *span);
+                analyzer.error(SemanticError::SemanticalError {
+                    exception: err,
+                    help: None,
+                    src: analyzer.source.clone(),
+                    span: error::position_to_span(*span),
+                });
             });
 
         target_type

@@ -149,10 +149,10 @@ impl Analyzer {
         ast.iter().for_each(|stmt| self.visit_statement(stmt));
 
         if self.scope.get_fn("main").is_none() && self.scope.is_main {
-            let err = SemanticError {
-                message: String::from("Program has no entry `main` function"),
+            let err = SemanticError::GlobalError {
+                message: "Program has no entry `main` function".to_string(),
+                help: Some("Consider creating main function: `fn main()) {}`".to_string()),
                 src: self.source.clone(),
-                span: 0.into(),
             };
 
             self.errors.reverse();
@@ -162,7 +162,11 @@ impl Analyzer {
 
         if let Some(unused) = self.scope.check_unused_variables() {
             unused.iter().for_each(|var| {
-                self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                self.warning(SemanticWarning::UnusedVariable {
+                    varname: var.0.clone(),
+                    src: self.source.clone(),
+                    span: error::position_to_span(var.1),
+                });
             });
         }
 
@@ -173,25 +177,13 @@ impl Analyzer {
         Ok((self.symtable.clone(), self.warnings.clone()))
     }
 
-    fn error(&mut self, message: String, span: (usize, usize)) {
-        let span = (span.0, if span.1 <= span.0 { 1 } else { span.1 - span.0 });
-
-        self.errors.push(error::SemanticError {
-            message,
-            span: span.into(),
-            src: self.source.clone(),
-        });
+    fn error(&mut self, error: SemanticError) {
+        self.errors.push(error);
     }
 
     #[allow(unused)]
-    fn warning(&mut self, message: String, span: (usize, usize)) {
-        let span = (span.0, if span.1 <= span.0 { 1 } else { span.1 - span.0 });
-
-        self.warnings.push(error::SemanticWarning {
-            message,
-            span: span.into(),
-            src: self.source.clone(),
-        })
+    fn warning(&mut self, warning: SemanticWarning) {
+        self.warnings.push(warning)
     }
 }
 
@@ -246,15 +238,19 @@ impl Analyzer {
                 } => {}
                 Statements::LinkCStatement { path: _, span: _ } => {}
                 _ => {
-                    if let Some(err) = self.errors.last() {
-                        if err.span == (255, 0).into() {
-                            return;
-                        };
-                    }
-                    self.error(
-                        String::from("This item is not allowed in global scope!"),
-                        (0, 0),
-                    );
+                    // if let Some(err) = self.errors.last() {
+                    //     if err.span == (255, 0).into() {
+                    //         return;
+                    //     };
+                    // }
+
+                    self.error(SemanticError::SemanticalError {
+                        exception: "This item is not allowed in global scope".to_string(),
+                        help: Some("Consider removing this item from global scope".to_string()),
+                        src: self.source.clone(),
+                        span: error::position_to_span(Parser::get_span_statement(statement)),
+                    });
+
                     return;
                 }
             }
@@ -272,26 +268,40 @@ impl Analyzer {
                             self.visit_expression(value, Some(variable.datatype.clone()));
 
                         if variable.datatype != value_type {
-                            self.error(
-                                format!(
-                                    "Variable has type `{}`, but found `{}`",
+                            self.error(SemanticError::TypesMismatch {
+                                exception: format!(
+                                    "variable has type `{}`, but found `{}`",
                                     variable.datatype, value_type
                                 ),
-                                *span,
-                            );
+                                help: Some(
+                                    "Consider changing value, or variable datatype".to_string(),
+                                ),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
+
                             return;
                         }
 
                         self.scope
                             .set_init_var(identifier, true)
-                            .unwrap_or_else(|err| {
-                                self.error(err, *span);
+                            .unwrap_or_else(|_| {
+                                self.error(SemanticError::UnresolvedName {
+                                    exception: format!(
+                                        "variable `{identifier}` is not defined here"
+                                    ),
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span),
+                                });
                             });
                     } else {
-                        self.error(
-                            format!("Variable \"{identifier}\" is not defined here"),
-                            *span,
-                        );
+                        self.error(SemanticError::UnresolvedName {
+                            exception: format!("variable \"{identifier}\" is not defined here"),
+                            help: Some("Verify provided identifier".to_string()),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                     }
                 }
             }
@@ -325,12 +335,16 @@ impl Analyzer {
                         let value_type = self.visit_expression(value, Some(*ptr_type.clone()));
 
                         if value_type != *ptr_type {
-                            self.error(
-                                format!(
-                                    "Pointer expected type `{ptr_type}`, but found `{value_type}`"
+                            self.error(SemanticError::TypesMismatch {
+                                exception: format!(
+                                    "pointer has type `{ptr_type}`, but found `{value_type}`"
                                 ),
-                                *span,
-                            );
+                                help: Some(
+                                    "Consider changing provided value, or pointer type".to_string(),
+                                ),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                         }
                     }
 
@@ -338,7 +352,13 @@ impl Analyzer {
                         const IMPLEMENTATION_FORMAT: &str = "fn deref_assign(&self, value: _)";
 
                         let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
-                            self.error(format!("Type `{alias}` cannot be deref-assigned"), *span);
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!("type `{alias}` cannot be derefence-assigned"),
+                                help: Some("Verify provided type, or change it".to_string()),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
+
                             Type::Void
                         });
 
@@ -355,10 +375,13 @@ impl Analyzer {
                                     && args.get(1).unwrap_or(&Type::Undefined) != &Type::Undefined
                                     && *datatype.clone() == Type::Void)
                                 {
-                                    self.error(
-                                        format!("Type `{alias}` has WRONG implementation for deref-assign: {IMPLEMENTATION_FORMAT}"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!("type `{alias}` has WRONG implementation for deref-assign"),
+                                        help: Some(format!("Consider using right format: {IMPLEMENTATION_FORMAT}")),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
+
                                     return;
                                 }
 
@@ -368,17 +391,25 @@ impl Analyzer {
 
                                 if *expected_value != value_type {
                                     self.error(
-                                        format!("Deref-assign of type `{alias}` expected type `{expected_value}`, but found `{value_type}`"),
-                                        *span
+                                        SemanticError::TypesMismatch {
+                                            exception: format!("expected type `{expected_value}`, but found `{value_type}`"),
+                                            help: Some("Consider changing value, or implementation format".to_string()),
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*span)
+                                        }
                                     );
                                 }
                             } else {
-                                self.error(
-                                    format!(
-                                        "Type `{alias}` has no implementation for deref-assign: {IMPLEMENTATION_FORMAT}"
+                                self.error(SemanticError::IllegalImplementation {
+                                    exception: format!(
+                                        "type `{alias}` has no implementation for deref-assign"
                                     ),
-                                    *span,
-                                );
+                                    help: Some(
+                                        "Consider implementing necessary method".to_string(),
+                                    ),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span),
+                                });
                             }
                         } else {
                             unreachable!()
@@ -386,7 +417,12 @@ impl Analyzer {
                     }
 
                     _ => {
-                        self.error(format!("Type `{instance}` cannot be deref-assigned"), *span);
+                        self.error(SemanticError::UnsupportedType {
+                            exception: format!("type `{instance}` cannot be deref-assigned"),
+                            help: Some("no help".to_string()),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                     }
                 }
             }
@@ -406,52 +442,69 @@ impl Analyzer {
                         let index_type = self.visit_expression(index, Some(Type::USIZE));
 
                         if index_type != Type::USIZE {
-                            self.error(
-                                format!(
-                                    "Expected index with type `usize`, but found `{index_type}`"
+                            self.error(SemanticError::TypesMismatch {
+                                exception: format!(
+                                    "expected index with `usize` type, but found `{index_type}`"
                                 ),
-                                *span,
-                            );
+                                help: Some(
+                                    "You can cast integer types to `usize`: cast!(VALUE, usize))"
+                                        .to_string(),
+                                ),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                         }
 
                         let value_type = self.visit_expression(value, Some(*typ.clone()));
 
                         if value_type != *typ {
-                            self.error(
-                                format!("Array has type `{typ}`, but found `{value_type}`"),
-                                *span,
-                            );
+                            self.error(SemanticError::TypesMismatch {
+                                exception: format!(
+                                    "array's elements has type `{typ}`, but found `{value_type}`"
+                                ),
+                                help: Some("Consider changing provided value".to_string()),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                         }
                     }
-                    Type::DynamicArray(typ) => {
-                        let index_type = self.visit_expression(index, Some(Type::USIZE));
+                    Type::DynamicArray(_) => {
+                        // TODO: Remove dynamic array type
 
-                        if index_type != Type::USIZE {
-                            self.error(
-                                format!(
-                                    "Expected index with type `usize`, but found `{index_type}`"
-                                ),
-                                *span,
-                            );
-                        }
+                        unreachable!()
 
-                        let value_type = self.visit_expression(value, Some(*typ.clone()));
-
-                        if value_type != *typ {
-                            self.error(
-                                format!("Array has type `{typ}`, but found `{value_type}`"),
-                                *span,
-                            );
-                        }
+                        // let index_type = self.visit_expression(index, Some(Type::USIZE));
+                        //
+                        // if index_type != Type::USIZE {
+                        //     self.error(
+                        //         format!(
+                        //             "Expected index with type `usize`, but found `{index_type}`"
+                        //         ),
+                        //         *span,
+                        //     );
+                        // }
+                        //
+                        // let value_type = self.visit_expression(value, Some(*typ.clone()));
+                        //
+                        // if value_type != *typ {
+                        //     self.error(
+                        //         format!("Array has type `{typ}`, but found `{value_type}`"),
+                        //         *span,
+                        //     );
+                        // }
                     }
                     Type::Pointer(ptr_type) => {
                         let value_type = self.visit_expression(value, Some(*ptr_type.clone()));
 
                         if value_type != *ptr_type {
-                            self.error(
-                                format!("Pointer has type `{ptr_type}`, but found `{value_type}`"),
-                                *span,
-                            );
+                            self.error(SemanticError::TypesMismatch {
+                                exception: format!(
+                                    "pointer has type `{ptr_type}`, but found `{value_type}"
+                                ),
+                                help: Some("Consider changing value, or pointer type".to_string()),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                         }
                     }
                     Type::Alias(alias) => {
@@ -459,7 +512,13 @@ impl Analyzer {
                             "fn slice_assign(&self, index: usize, value: _)";
 
                         let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
-                            self.error(format!("Type `{alias}` cannot be slice-assigned"), *span);
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!("type `{alias}` cannot be slice-assigned"),
+                                help: Some("Consider changing provided type".to_string()),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
+
                             Type::Void
                         });
 
@@ -477,28 +536,37 @@ impl Analyzer {
                                     && args.get(2).unwrap_or(&Type::Undefined) != &Type::Undefined
                                     && *datatype.clone() == Type::Void)
                                 {
-                                    self.error(
-                                        format!("Type `{alias}` has WRONG implementation for slice-assign: {IMPLEMENTATION_FORMAT}"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!("type `{alias}` has wrong implementation for slice-assign"),
+                                        help: Some(format!("Consider using right format: {IMPLEMENTATION_FORMAT}")),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    })
                                 }
                             } else {
-                                self.error(
-                                    format!(
-                                        "Type `{alias}` has no implementation for slice-assign: {IMPLEMENTATION_FORMAT}"
-                                    ),
-                                    *span,
-                                );
+                                self.error(SemanticError::IllegalImplementation {
+                                    exception: format!("type `{alias}` has no implementation for slice-assign"),
+                                    help: Some(format!("Consider implementing necessary method: {IMPLEMENTATION_FORMAT}")),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
                             }
                         } else {
-                            self.error(format!("Type `{alias}` cannot be slice-assigned"), *span);
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!("type `{alias}` cannot be slice-assigned"),
+                                help: Some("Consider using another supported type".to_string()),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                         }
                     }
                     _ => {
-                        self.error(
-                            format!("Unable to apply slicing to `{instance}` type"),
-                            *span,
-                        );
+                        self.error(SemanticError::UnsupportedType {
+                            exception: format!("type `{instance}` cannot be slice-assigned"),
+                            help: Some("Consider using another supported type".to_string()),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                     }
                 }
             }
@@ -514,16 +582,25 @@ impl Analyzer {
                 } = object
                 {
                 } else {
-                    self.error(
-                        String::from("Field assign statement must have subelement expression"),
-                        *span,
-                    );
+                    self.error(SemanticError::UnsupportedExpression {
+                        exception: "field assign is supported only for subelement expression"
+                            .to_string(),
+                        help: Some("Verify provided expression".to_string()),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
+
                     return;
                 }
 
                 let object_type = self.visit_expression(object, None);
                 let unwrapped_object_type = self.unwrap_alias(&object_type).unwrap_or_else(|err| {
-                    self.error(err, *span);
+                    self.error(SemanticError::UnresolvedName {
+                        exception: err,
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     Type::Void
                 });
 
@@ -533,10 +610,16 @@ impl Analyzer {
 
                 let value_type = self.visit_expression(value, Some(unwrapped_object_type.clone()));
                 if object_type != value_type {
-                    self.error(
-                        format!("Field has type `{object_type}`, but found `{value_type}`"),
-                        *span,
-                    );
+                    self.error(SemanticError::TypesMismatch {
+                        exception: format!(
+                            "field has type `{object_type}`, but found `{value_type}`"
+                        ),
+                        help: Some(
+                            "Consider using another value, or changing field type".to_string(),
+                        ),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                 }
             }
 
@@ -551,13 +634,18 @@ impl Analyzer {
 
                 match (datatype, value) {
                     (Some(datatype), Some(value)) => {
-                        let value_span = deen_parser::Parser::get_span_expression(value.clone());
+                        let value_span = Parser::get_span_expression(value);
                         let value_type = self.visit_expression(value, Some(datatype.clone()));
 
                         if &value_type != datatype {
                             let unwrapped_datatype =
                                 self.unwrap_alias(datatype).unwrap_or_else(|err| {
-                                    self.error(err, *span);
+                                    self.error(SemanticError::UnresolvedName {
+                                        exception: err,
+                                        help: None,
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span),
+                                    });
                                     Type::Void
                                 });
 
@@ -568,24 +656,20 @@ impl Analyzer {
                                     if Self::integer_order(&value_type)
                                         > Self::integer_order(&unwrapped_datatype)
                                     {
-                                        self.error(
-                                            format!(
-                                                "Expected integer type `{}`, but found `{}`",
-                                                display_type.unwrap(),
-                                                value_type
-                                            ),
-                                            value_span,
-                                        );
+                                        self.error(SemanticError::TypesMismatch {
+                                            exception: format!("expected integer type `{}`, but found `{}`", display_type.unwrap(), value_type),
+                                            help: Some("Consider using value with smaller range, or change explicit type".to_string()),
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(value_span)
+                                        });
                                     }
                                 } else {
-                                    self.error(
-                                        format!(
-                                            "Expected type `{}` but found `{}`",
-                                            display_type.unwrap(),
-                                            value_type
-                                        ),
-                                        value_span,
-                                    );
+                                    self.error(SemanticError::TypesMismatch {
+                                        exception: format!("expected type `{}`, but found `{}`", display_type.unwrap(), value_type),
+                                        help: Some("Consider using another value type, or change explicit type".to_string()),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(value_span)
+                                    });
                                 }
                             }
                         }
@@ -603,7 +687,14 @@ impl Analyzer {
                             .add_var(identifier.clone(), value_type, true, *span);
                     }
                     (None, None) => {
-                        self.error(format!("Variable `{identifier}` has unknown type"), *span);
+                        self.error(SemanticError::UnknownObject {
+                            exception: format!("variable `{identifier}` has unknown_type"),
+                            help: Some(
+                                "Provide explicit or implicit type for annotation".to_string(),
+                            ),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                     }
                 }
             }
@@ -617,18 +708,27 @@ impl Analyzer {
                 header_span,
             } => {
                 if !self.scope.is_main && name == "main" {
-                    self.error(
-                        String::from("Function `main()` is not allowed not in main module"),
-                        *span,
-                    );
+                    self.error(SemanticError::MainFunctionError {
+                        exception: "`main()` function is not allowed in non-global scope"
+                            .to_string(),
+                        help: Some("Move it to the global scope".to_string()),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     return;
                 }
 
                 if self.scope.get_fn(name).is_some() {
-                    self.error(
-                        format!("Function `{}` already declared!", name.replace("@!", "")),
-                        *header_span,
-                    );
+                    self.error(SemanticError::RedefinitionError {
+                        exception: format!(
+                            "function `{}` already declared",
+                            name.replace("@!", "")
+                        ),
+                        help: Some("Consider using another function name".to_string()),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*header_span),
+                    });
+
                     return;
                 }
 
@@ -661,41 +761,62 @@ impl Analyzer {
                 let exp = self
                     .unwrap_alias(&self.scope.expected)
                     .unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         Type::Void
                     });
                 let ret = self
                     .unwrap_alias(&self.scope.returned)
                     .unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         Type::Void
                     });
 
                 if exp != ret && ret != Type::Undefined {
-                    self.error(
-                        format!(
-                            "Function `{}` returns type `{}`, but found `{}`",
+                    self.error(SemanticError::TypesMismatch {
+                        exception: format!(
+                            "function `{}` returns type `{}`, but found `{}`",
                             name.replace("@!", ""),
                             datatype,
                             ret
                         ),
-                        *header_span,
-                    );
+                        help: Some(
+                            "Consider verifying returned value, or change function signature"
+                                .to_string(),
+                        ),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*header_span),
+                    });
                 }
 
                 if let Some(unused) = self.scope.check_unused_variables() {
                     unused.iter().for_each(|var| {
-                        self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                        self.warning(SemanticWarning::UnusedVariable {
+                            varname: var.0.clone(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(var.1),
+                        });
                     });
                 }
 
                 self.scope = *self.scope.parent.clone().unwrap();
 
                 if *public && name == "main" {
-                    self.error(
-                        String::from("Function `main()` is not allowed to be public"),
-                        *header_span,
-                    );
+                    self.error(SemanticError::VisibilityError {
+                        exception: "`main()` function is not allowed to be public".to_string(),
+                        help: Some("Consider removing `pub` keyword".to_string()),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*header_span),
+                    });
                 }
             }
             Statements::FunctionCallStatement {
@@ -704,7 +825,12 @@ impl Analyzer {
                 span,
             } => {
                 let func = self.scope.get_fn(name).unwrap_or_else(|| {
-                    self.error(format!("Function `{name}` is not defined here"), *span);
+                    self.error(SemanticError::UnresolvedName {
+                        exception: format!("function `{name}` is not defined here"),
+                        help: Some("Verify provided function name".to_string()),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     Type::Void
                 });
 
@@ -726,15 +852,17 @@ impl Analyzer {
                     if call_args.len() != func_args.len() {
                         if is_var_args && call_args.len() >= func_args.len() {
                         } else {
-                            self.error(
-                                format!(
-                                    "Function `{}` has {} arguments, but found {}",
+                            self.error(SemanticError::ArgumentException {
+                                exception: format!(
+                                    "function `{}` has {} arguments, but found {}",
                                     name,
                                     func_args.len(),
                                     call_args.len()
                                 ),
-                                *span,
-                            );
+                                help: Some("Verify provided call arguments".to_string()),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             return;
                         }
                     }
@@ -757,21 +885,29 @@ impl Analyzer {
                                 && expected != Type::Void
                                 && *provided != Type::Null
                             {
-                                self.error(
-                                    format!(
-                                        "Argument #{} must be `{}`, but found `{}`",
+                                self.error(SemanticError::ArgumentException {
+                                    exception: format!(
+                                        "argument #{} must be `{}`, but found `{}`",
                                         ind + 1,
                                         expected,
                                         provided
                                     ),
-                                    Parser::get_span_expression(arguments[ind].clone()),
-                                );
+                                    help: Some("Consider verifying provided argument".to_string()),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(Parser::get_span_expression(
+                                        &arguments[ind],
+                                    )),
+                                });
                             }
                         },
                     );
 
                     if *func_type != Type::Void {
-                        self.warning(format!("Unused `{func_type}` result from function"), *span);
+                        self.warning(SemanticWarning::UnusedResult {
+                            message: format!("unused `{func_type}` result from function"),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                     }
                 } else {
                     unreachable!()
@@ -806,7 +942,12 @@ impl Analyzer {
                     )
                     .is_some()
                 {
-                    self.error(format!("Structure `{name}` already declared"), *span);
+                    self.error(SemanticError::RedefinitionError {
+                        exception: format!("structure `{name}` already declared"),
+                        help: Some("Consider changing structure name".to_string()),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     return;
                 }
 
@@ -919,10 +1060,12 @@ impl Analyzer {
 
                 // WARN: Methods in enums are currently disabled
                 if !functions.is_empty() {
-                    self.error(
-                        String::from("Methods in enums are currently disabled! @compiler"),
-                        *span,
-                    );
+                    self.error(SemanticError::DisabledFeature {
+                        exception: "methods in enums are currently disabled".to_string(),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                 }
 
                 // functions.iter().for_each(|func| {
@@ -945,12 +1088,23 @@ impl Analyzer {
                 self.scope
                     .add_enum(name.clone(), enum_type.clone(), *public)
                     .unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                     });
+
                 self.scope
                     .add_typedef(name.clone(), enum_type.clone())
                     .unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                     })
             }
             Statements::TypedefStatement {
@@ -961,7 +1115,12 @@ impl Analyzer {
                 self.scope
                     .add_typedef(alias.clone(), datatype.clone())
                     .unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                     });
             }
 
@@ -974,10 +1133,12 @@ impl Analyzer {
                 let condition_type = self.visit_expression(condition, None);
 
                 if condition_type != Type::Bool {
-                    self.error(
-                        format!("Expected `bool` type in expression, but found `{condition_type}`"),
-                        *span,
-                    );
+                    self.error(SemanticError::TypesMismatch {
+                        exception: format!("expected `bool` type, but found `{condition_type}`"),
+                        help: Some("Consider returning `bool` type in expression".to_string()),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     return;
                 }
 
@@ -994,7 +1155,11 @@ impl Analyzer {
 
                 if let Some(unused) = self.scope.check_unused_variables() {
                     unused.iter().for_each(|var| {
-                        self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                        self.warning(SemanticWarning::UnusedVariable {
+                            varname: var.0.clone(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(var.1),
+                        });
                     });
                 }
 
@@ -1004,13 +1169,15 @@ impl Analyzer {
                     && then_block_type != Type::Void
                     && then_block_type != Type::Undefined
                 {
-                    self.error(
-                        format!(
-                            "Expected type `{}` for scope, but found `{}`",
+                    self.error(SemanticError::TypesMismatch {
+                        exception: format!(
+                            "scope expected `{}`, but found `{}`",
                             self.scope.expected, then_block_type
                         ),
-                        *span,
-                    );
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     return;
                 }
 
@@ -1032,7 +1199,11 @@ impl Analyzer {
 
                     if let Some(unused) = self.scope.check_unused_variables() {
                         unused.iter().for_each(|var| {
-                            self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                            self.warning(SemanticWarning::UnusedVariable {
+                                varname: var.0.clone(),
+                                src: self.source.clone(),
+                                span: error::position_to_span(var.1),
+                            });
                         });
                     }
 
@@ -1042,12 +1213,12 @@ impl Analyzer {
                         && (then_block_type != Type::Undefined
                             && else_block_type != Type::Undefined)
                     {
-                        self.error(
-                            format!(
-                                "Scopes has incompatible types: `{then_block_type}` and `{else_block_type}`"
-                            ),
-                            *span,
-                        );
+                        self.error(SemanticError::TypesMismatch {
+                            exception: format!("scopes has incompatible types: `{then_block_type}` and `{else_block_type}`"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                     }
                 }
             }
@@ -1059,10 +1230,14 @@ impl Analyzer {
                 let condition_type = self.visit_expression(condition, None);
 
                 if condition_type != Type::Bool {
-                    self.error(
-                        format!("Expected `bool` type in expression, but found `{condition_type}`"),
-                        *span,
-                    );
+                    self.error(SemanticError::TypesMismatch {
+                        exception: format!(
+                            "expected `bool` in expression, but found `{condition_type}`"
+                        ),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     return;
                 }
 
@@ -1078,7 +1253,11 @@ impl Analyzer {
 
                 if let Some(unused) = self.scope.check_unused_variables() {
                     unused.iter().for_each(|var| {
-                        self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                        self.warning(SemanticWarning::UnusedVariable {
+                            varname: var.0.clone(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(var.1),
+                        });
                     });
                 }
 
@@ -1086,13 +1265,15 @@ impl Analyzer {
 
                 if block_type != Type::Void {
                     if block_type != self.scope.expected {
-                        self.error(
-                            format!(
-                                "Expected type `{}`, but found `{}`",
+                        self.error(SemanticError::TypesMismatch {
+                            exception: format!(
+                                "expected `{}`, but found `{}`",
                                 self.scope.expected, block_type
                             ),
-                            *span,
-                        );
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         return;
                     }
 
@@ -1126,7 +1307,12 @@ impl Analyzer {
                     Type::DynamicArray(typ) => binding_type = *typ,
                     Type::Alias(alias) => {
                         let alias_type = self.unwrap_alias(&iterator_type).unwrap_or_else(|err| {
-                            self.error(err, *span);
+                            self.error(SemanticError::UnresolvedName {
+                                exception: err,
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             Type::Void
                         });
 
@@ -1136,6 +1322,8 @@ impl Analyzer {
 
                         match alias_type {
                             Type::Struct(_, functions) => {
+                                const IMPLEMENTATION_FORMAT: &str = "fn iterate(&self) (_, bool)";
+
                                 if let Some(Type::Function(args, return_type, _)) =
                                     functions.get("iterate")
                                 {
@@ -1158,35 +1346,46 @@ impl Analyzer {
                                     }
 
                                     if error_flag {
-                                        self.error(
-                                            "Implementation for iterator must be: fn iterate(&self) (_, bool)".to_string(),
-                                            *span
-                                        );
+                                        self.error(SemanticError::IllegalImplementation {
+                                            exception: format!("type `{alias}` has WRONG implementation for iteration"),
+                                            help: Some(format!("Use right implementation syntax: {IMPLEMENTATION_FORMAT}")),
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*span)
+                                        });
+
                                         return;
                                     }
                                 } else {
-                                    self.error(
-                                        format!("Structure `{alias}` has no implementation for: fn iterate(&self) (_, bool)"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!("structure `{alias}` has no implementation for iteration"),
+                                        help: Some(format!("Implement necessary method: {IMPLEMENTATION_FORMAT}")),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
                                 }
                             }
                             _ => {
-                                self.error(
-                                    format!(
-                                        "Type `{iterator_type}` is not supported for iteration"
+                                self.error(SemanticError::UnsupportedType {
+                                    exception: format!(
+                                        "type `{iterator_type}` isn't supported for iteration"
                                     ),
-                                    *span,
-                                );
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span),
+                                });
                                 return;
                             }
                         }
                     }
                     _ => {
-                        self.error(
-                            format!("Type `{iterator_type}` is not supported for iteration"),
-                            *span,
-                        );
+                        self.error(SemanticError::UnsupportedType {
+                            exception: format!(
+                                "type `{iterator_type}` isn't supported for iteration"
+                            ),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         return;
                     }
                 };
@@ -1204,7 +1403,11 @@ impl Analyzer {
 
                 if let Some(unused) = self.scope.check_unused_variables() {
                     unused.iter().for_each(|var| {
-                        self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                        self.warning(SemanticWarning::UnusedVariable {
+                            varname: var.0.clone(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(var.1),
+                        });
                     });
                 }
 
@@ -1212,13 +1415,15 @@ impl Analyzer {
 
                 if block_type != Type::Void {
                     if block_type != self.scope.expected {
-                        self.error(
-                            format!(
-                                "Expected type `{}`, but found `{}`",
+                        self.error(SemanticError::TypesMismatch {
+                            exception: format!(
+                                "expected `{}`, but found `{}`",
                                 self.scope.expected, block_type
                             ),
-                            *span,
-                        );
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         return;
                     }
 
@@ -1226,10 +1431,12 @@ impl Analyzer {
                 }
             }
             Statements::ImportStatement { path: _, span } => {
-                self.error(
-                    String::from("Imports are currently disabled due unstability. @compiler"),
-                    *span,
-                );
+                self.error(SemanticError::DisabledFeature {
+                    exception: "imports are currently disabled".to_string(),
+                    help: None,
+                    src: self.source.clone(),
+                    span: error::position_to_span(*span),
+                });
 
                 // match path {
                 //     Expressions::Value(Value::String(path), _) => {
@@ -1384,13 +1591,25 @@ impl Analyzer {
                     };
 
                 if import_path.is_empty() {
-                    self.error(String::from("Empty include path provided"), *path_span);
+                    self.error(SemanticError::FormatError {
+                        exception: "empty include path provided".to_string(),
+                        help: Some("Provide right path to your module".to_string()),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*path_span),
+                    });
+
                     return;
                 }
 
                 let included_path =
                     Self::expand_library_path(import_path, true).unwrap_or_else(|err| {
-                        self.error(format!("Unable to resolve provided path: {err}"), *span);
+                        self.error(SemanticError::FormatError {
+                            exception: format!("unable to resolve provided path: {err}"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*path_span),
+                        });
+
                         PathBuf::new()
                     });
 
@@ -1400,10 +1619,13 @@ impl Analyzer {
 
                 // Reading source code
                 let src = std::fs::read_to_string(&included_path).unwrap_or_else(|err| {
-                    self.error(
-                        format!("Unable to read source code. System error: {err}"),
-                        *path_span,
-                    );
+                    self.error(SemanticError::IoError {
+                        exception: format!("unable to read source code: {err}"),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*path_span),
+                    });
+
                     String::new()
                 });
 
@@ -1411,18 +1633,22 @@ impl Analyzer {
                 let fname = included_path
                     .file_name()
                     .unwrap_or_else(|| {
-                        self.error(
-                            String::from("Unable to resolve provided include"),
-                            *path_span,
-                        );
+                        self.error(SemanticError::IoError {
+                            exception: "unable to resolve provided path".to_string(),
+                            help: Some("PathBuf returned None value on `file_name()`".to_string()),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*path_span),
+                        });
                         OsStr::new("")
                     })
                     .to_str()
                     .unwrap_or_else(|| {
-                        self.error(
-                            String::from("Unable to resolve provided include"),
-                            *path_span,
-                        );
+                        self.error(SemanticError::IoError {
+                            exception: "unable to resolve provided path".to_string(),
+                            help: Some("OsStr returned None value on `to_str()`".to_string()),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*path_span),
+                        });
                         ""
                     });
 
@@ -1456,7 +1682,7 @@ impl Analyzer {
                 };
 
                 // Syntax Analyzer
-                let mut parser = deen_parser::Parser::new(tokens, &src, fname);
+                let mut parser = Parser::new(tokens, &src, fname);
                 let (ast, _) = match parser.parse() {
                     Ok(ast) => ast,
                     Err((errors, _)) => {
@@ -1482,7 +1708,12 @@ impl Analyzer {
                         self.scope
                             .add_fn(func.0, func.1.datatype, true)
                             .unwrap_or_else(|err| {
-                                self.error(err, *span);
+                                self.error(SemanticError::UnresolvedName {
+                                    exception: err,
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span),
+                                });
                             });
                     }
                 });
@@ -1492,7 +1723,12 @@ impl Analyzer {
                         self.scope
                             .add_struct(structure.0, structure.1.datatype, true)
                             .unwrap_or_else(|err| {
-                                self.error(err, *span);
+                                self.error(SemanticError::UnresolvedName {
+                                    exception: err,
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span),
+                                });
                             });
                     }
                 });
@@ -1502,7 +1738,12 @@ impl Analyzer {
                         self.scope
                             .add_enum(enumeration.0, enumeration.1.datatype, true)
                             .unwrap_or_else(|err| {
-                                self.error(err, *span);
+                                self.error(SemanticError::UnresolvedName {
+                                    exception: err,
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span),
+                                });
                             });
                     }
                 });
@@ -1525,10 +1766,14 @@ impl Analyzer {
                 span,
             } => {
                 if self.scope.get_var(identifier).is_some() {
-                    self.error(
-                        format!("Identifier `{identifier}` is already declared"),
-                        *span,
-                    )
+                    self.error(SemanticError::RedefinitionError {
+                        exception: format!("identifier `{identifier}` already taken"),
+                        help: Some(
+                            "Consider using another identifier, or rename taken".to_string(),
+                        ),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                 }
 
                 self.scope
@@ -1548,7 +1793,12 @@ impl Analyzer {
 
                 let formatted_path =
                     Self::expand_library_path(link_path, false).unwrap_or_else(|err| {
-                        self.error(format!("Unable to resolve linkage path: {err}"), *path_span);
+                        self.error(SemanticError::FormatError {
+                            exception: format!("unable to resolve linkage path: {err}"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*path_span),
+                        });
                         PathBuf::new()
                     });
 
@@ -1556,23 +1806,28 @@ impl Analyzer {
                     return;
                 };
                 if !formatted_path.exists() {
-                    self.error(
-                        format!(
-                            "Provided linkage file does not exists: `{}`",
-                            formatted_path.as_os_str().to_str().unwrap()
+                    self.error(SemanticError::IoError {
+                        exception: format!(
+                            "provided linkage file doesn't exists: `{}`",
+                            formatted_path.as_os_str().to_str().unwrap_or("none")
                         ),
-                        *path_span,
-                    );
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*path_span),
+                    });
+
                     return;
                 }
                 if !formatted_path.is_file() {
-                    self.error(
-                        format!(
-                            "Provided path is not file: `{}`",
-                            formatted_path.as_os_str().to_str().unwrap()
+                    self.error(SemanticError::IoError {
+                        exception: format!(
+                            "provided path is not a file: `{}`",
+                            formatted_path.as_os_str().to_str().unwrap_or("none")
                         ),
-                        *path_span,
-                    );
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*path_span),
+                    });
                     return;
                 }
 
@@ -1591,32 +1846,43 @@ impl Analyzer {
                 const SUPPORTED_EXTERN_TYPES: [&str; 1] = ["C"];
 
                 if !SUPPORTED_EXTERN_TYPES.contains(&extern_type.as_str()) {
-                    self.error(
-                        format!(
-                            "Unsupported extern type found. Currently supported are: \"{}\"",
+                    self.error(SemanticError::UnsupportedType {
+                        exception: "unsupported extern type found".to_string(),
+                        help: Some(format!(
+                            "Currently supported: \"{}\"",
                             SUPPORTED_EXTERN_TYPES.join("\", ")
-                        ),
-                        *span,
-                    )
+                        )),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                 }
 
                 if identifier == "main" {
-                    self.error(
-                        String::from("Function `main()` cannot be external declared"),
-                        *span,
-                    );
+                    self.error(SemanticError::MainFunctionError {
+                        exception: "function `main() cannot be external declared".to_string(),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                 }
                 if self.scope.get_fn(identifier).is_some() {
-                    self.error(
-                        format!("Function `{}()` is already declared", &identifier),
-                        *span,
-                    );
+                    self.error(SemanticError::RedefinitionError {
+                        exception: format!("function `{}()` is already declared", &identifier),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     return;
                 }
 
                 if let Type::Alias(_) = return_type {
                     let _ = self.unwrap_alias(return_type).unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         Type::Void
                     });
                 }
@@ -1632,13 +1898,23 @@ impl Analyzer {
                         *public,
                     )
                     .unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                     });
             }
 
             Statements::BreakStatements { span } => {
                 if !self.scope.is_loop() {
-                    self.error(String::from("Used `break` keyword outside loop"), *span);
+                    self.error(SemanticError::SemanticalError {
+                        exception: "use of `break` keyword outside loop".to_string(),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                 }
             }
             Statements::ReturnStatement { value, span: _ } => {
@@ -1671,7 +1947,11 @@ impl Analyzer {
 
                 if let Some(unused) = self.scope.check_unused_variables() {
                     unused.iter().for_each(|var| {
-                        self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                        self.warning(SemanticWarning::UnusedVariable {
+                            varname: var.0.clone(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(var.1),
+                        });
                     });
                 }
 
@@ -1681,10 +1961,11 @@ impl Analyzer {
             Statements::Expression(expr) => {
                 let expr_type = self.visit_expression(expr, None);
                 if expr_type != Type::Void {
-                    self.warning(
-                        String::from("Unused expression result found"),
-                        deen_parser::Parser::get_span_expression(expr.clone()),
-                    );
+                    self.warning(SemanticWarning::UnusedResult {
+                        message: format!("unused result with type `{expr_type}`"),
+                        src: self.source.clone(),
+                        span: error::position_to_span(Parser::get_span_expression(expr)),
+                    });
                 }
             }
             Statements::None => unreachable!(),
@@ -1728,10 +2009,14 @@ impl Analyzer {
 
                     (Type::Pointer(_), r) if Self::is_integer(&r) => {
                         if operand != "+" && operand != "-" {
-                            self.error(
-                                "Unexpected binary operator for pointer found".to_string(),
-                                *span,
-                            );
+                            self.error(SemanticError::OperatorException {
+                                exception: "unsupported binary operator for pointer".to_string(),
+                                help: Some(
+                                    "Pointers arithemics supports only: `+` / `-`".to_string(),
+                                ),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                         }
 
                         left
@@ -1739,10 +2024,14 @@ impl Analyzer {
 
                     (Type::Pointer(_), Type::Pointer(_)) => {
                         if operand != "+" && operand != "-" {
-                            self.error(
-                                "Unexpected binary operator for pointer found".to_string(),
-                                *span,
-                            );
+                            self.error(SemanticError::OperatorException {
+                                exception: "unsupported binary operator for pointer".to_string(),
+                                help: Some(
+                                    "Pointers arithemics supports only: `+` / `-`".to_string(),
+                                ),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                         }
 
                         Type::USIZE
@@ -1753,10 +2042,15 @@ impl Analyzer {
                             format!("fn binary(&self, other: *{left}, operand: *char) {left}");
 
                         let struct_type = self.scope.get_struct(&left).unwrap_or_else(|| {
-                            self.error(
-                                format!("Type `{}` isn't avaible for binary operations", &left),
-                                *span,
-                            );
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!(
+                                    "type `{}` isn't avaible for binary operations",
+                                    &left
+                                ),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             Type::Void
                         });
 
@@ -1765,12 +2059,14 @@ impl Analyzer {
                         }
 
                         if left != right {
-                            self.error(
-                                format!(
-                                    "Cannot apply binary \"{operand}\" to different types `{left}` and `{right}`"
+                            self.error(SemanticError::OperatorException {
+                                exception: format!(
+                                    "cannot apply binary \"{operand}\" to `{left}` and `{right}`"
                                 ),
-                                *span,
-                            );
+                                help: Some("Consider using compatible types".to_string()),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             return Type::Alias(left);
                         }
 
@@ -1785,22 +2081,26 @@ impl Analyzer {
                                     ]
                                     && *datatype.clone() == Type::Alias(left.clone()))
                                 {
-                                    self.error(
-                                        format!(
-                                            "Type `{left}` has wrong implementation for binary: {implementation_format}"
-                                        ),
-                                        *span,
-                                    );
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!("type `{left}` has wrong implementation for binary operations"),
+                                        help: Some(format!("Consider using right format: {implementation_format}")),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
                                 }
 
                                 *datatype.clone()
                             } else {
-                                self.error(
-                                    format!(
-                                        "Type `{left}` has no implementation for binary operations: {implementation_format}"
+                                self.error(SemanticError::IllegalImplementation {
+                                    exception: format!(
+                                        "type `{left}` has no implementation for binary operations"
                                     ),
-                                    *span,
-                                );
+                                    help: Some(format!(
+                                        "Implement necessary method: {implementation_format}"
+                                    )),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span),
+                                });
                                 expected.unwrap_or(Type::Alias(left))
                             }
                         } else {
@@ -1809,10 +2109,14 @@ impl Analyzer {
                     }
 
                     _ => {
-                        self.error(
-                            format!("Cannot apply binary \"{operand}\" to `{left}` and `{right}`"),
-                            *span,
-                        );
+                        self.error(SemanticError::OperatorException {
+                            exception: format!(
+                                "cannot apply binary \"{operand}\" to `{left}` and `{right}`"
+                            ),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         expected.unwrap_or(left)
                     }
                 }
@@ -1836,11 +2140,19 @@ impl Analyzer {
                     (Type::Bool, "!") => obj,
 
                     (Type::Alias(alias), _) => {
+                        let implementation_format =
+                            format!("fn unary(&self, operand: *char) {alias}");
+
                         let struct_type = self.scope.get_struct(alias).unwrap_or_else(|| {
-                            self.error(
-                                format!("Type `{}` isn't avaible for unary operations", &alias),
-                                *span,
-                            );
+                            self.error(SemanticError::OperatorException {
+                                exception: format!(
+                                    "type `{}` isn't avaible for unary operations",
+                                    &alias
+                                ),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             Type::Void
                         });
 
@@ -1858,18 +2170,22 @@ impl Analyzer {
                                     ]
                                     && *datatype.clone() == Type::Alias(alias.clone()))
                                 {
-                                    self.error(
-                                        format!("Type `{alias}` has wrong implementation for unary: fn unary(&self, operand: *char) {alias}"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!("type `{alias}` has wrong implementation for unary operations"),
+                                        help: Some(format!("Consider using right format: {implementation_format}")),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
                                 }
 
                                 *datatype.clone()
                             } else {
-                                self.error(
-                                    format!("Type `{alias}` has wrong implementation for unary: fn unary(&self, operand: *char) {alias}"),
-                                    *span
-                                );
+                                self.error(SemanticError::IllegalImplementation {
+                                    exception: format!("type `{alias}` has wrong implementation for unary operations"),
+                                    help: Some(format!("Consider using right format: {implementation_format}")),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
                                 Type::Alias(alias.clone())
                             }
                         } else {
@@ -1878,10 +2194,12 @@ impl Analyzer {
                     }
 
                     _ => {
-                        self.error(
-                            format!("Cannot apply unary \"{operand}\" to `{obj}`"),
-                            *span,
-                        );
+                        self.error(SemanticError::OperatorException {
+                            exception: format!("cannot apply unary \"{operand}\" to `{obj}`"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         obj
                     }
                 }
@@ -1903,12 +2221,12 @@ impl Analyzer {
                             || (matches!(r, Type::Pointer(_)) && l == Type::Null) =>
                     {
                         if !matches!(operand.as_str(), "==" | "!=") {
-                            self.error(
-                                String::from(
-                                    "Null boolean checker only allows operators: `==`, `!=`",
-                                ),
-                                *span,
-                            );
+                            self.error(SemanticError::OperatorException {
+                                exception: "null checker only supports: `==` / `!=`".to_string(),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                         }
 
                         Type::Bool
@@ -1931,6 +2249,9 @@ impl Analyzer {
                     }
 
                     (Type::Alias(left), Type::Alias(right)) => {
+                        let implementation_format =
+                            format!("fn compare(&self, other: *{left}) i32");
+
                         if self.scope.get_enum(&left).is_some()
                             && self.scope.get_enum(&right).is_some()
                             && left == right
@@ -1939,10 +2260,15 @@ impl Analyzer {
                         }
 
                         let struct_type = self.scope.get_struct(&left).unwrap_or_else(|| {
-                            self.error(
-                                format!("Type `{}` isn't avaible for boolean operations", &left),
-                                *span,
-                            );
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!(
+                                    "type `{}` isn't avaible for boolean operations",
+                                    &left
+                                ),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             Type::Void
                         });
 
@@ -1951,12 +2277,14 @@ impl Analyzer {
                         }
 
                         if left != right {
-                            self.error(
-                                format!(
-                                    "Cannot apply boolean \"{operand}\" to different types `{left}` and `{right}`"
+                            self.error(SemanticError::OperatorException {
+                                exception: format!(
+                                    "cannot apply boolean \"{operand}\" to `{left}` and `{right}`"
                                 ),
-                                *span,
-                            );
+                                help: Some("Consider using compatible types".to_string()),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             return Type::Bool;
                         }
 
@@ -1971,18 +2299,27 @@ impl Analyzer {
                                     ]
                                     && *datatype.clone() == Type::I32)
                                 {
-                                    self.error(
-                                        format!("Type `{left}` has wrong implementation for comparison: fn compare(&self, other: *{left}) i32"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!(
+                                            "type `{left}` has wrong implementation for comparison"
+                                        ),
+                                        help: Some(format!(
+                                            "Consider using right format: {implementation_format}"
+                                        )),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span),
+                                    });
                                 }
 
                                 Type::Bool
                             } else {
-                                self.error(
-                                    format!("Type `{left}` has wrong implementation for comparison: fn compare(&self, other: *{left}) i32"),
-                                    *span
-                                );
+                                self.error(SemanticError::IllegalImplementation {
+                                    exception: format!("type `{left}` has no implementation for comparison"),
+                                    help: Some(format!("Consider implementing necessary method: {implementation_format}")),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
+
                                 Type::Bool
                             }
                         } else {
@@ -1991,10 +2328,14 @@ impl Analyzer {
                     }
 
                     _ => {
-                        self.error(
-                            format!("Cannot apply boolean \"{operand}\" to `{left}` and `{right}`"),
-                            *span,
-                        );
+                        self.error(SemanticError::OperatorException {
+                            exception: format!(
+                                "cannot apply boolean \"{operand}\" to `{left}` and `{right}`"
+                            ),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         Type::Bool
                     }
                 }
@@ -2009,18 +2350,25 @@ impl Analyzer {
                 let right = self.visit_expression(rhs, Some(Type::U8));
 
                 if !Self::is_integer(&left) || !Self::is_integer(&right) {
-                    self.error(
-                        format!(
-                            "Cannot apply bitwise operations to `{}` and `{}`",
+                    self.error(SemanticError::OperatorException {
+                        exception: format!(
+                            "cannot apply bitwise operations to `{}` and `{}`",
                             &left, &right
                         ),
-                        *span,
-                    );
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     return expected.unwrap_or(left);
                 };
 
                 if [">>", "<<"].contains(&operand.as_ref()) && !Self::is_unsigned_integer(&right) {
-                    self.error("Shift index must be unsigned integer".to_string(), *span);
+                    self.error(SemanticError::TypesMismatch {
+                        exception: "shift index must be unsigned integer".to_string(),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     return expected.unwrap_or(left);
                 }
 
@@ -2033,10 +2381,12 @@ impl Analyzer {
 
             Expressions::Argument { name, r#type, span } => {
                 if name != "@deen_type" {
-                    self.error(
-                        String::from("Argument expressions isn't supported in global code"),
-                        *span,
-                    );
+                    self.error(SemanticError::ArgumentException {
+                        exception: "arguments are not allowed in global code".to_string(),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                 }
 
                 r#type.clone()
@@ -2050,7 +2400,12 @@ impl Analyzer {
 
                 let mut prev_type_display = head_type.clone();
                 let mut prev_type = self.unwrap_alias(&head_type).unwrap_or_else(|err| {
-                    self.error(err, *span);
+                    self.error(SemanticError::UnresolvedName {
+                        exception: err,
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     Type::Void
                 });
                 let mut prev_expr = *head.clone();
@@ -2069,16 +2424,24 @@ impl Analyzer {
                             match prev_type.clone() {
                                 Type::Struct(fields, _) => {
                                     let field_type = fields.get(&field.clone()).unwrap_or_else(|| {
-                                        self.error(
-                                            format!("Type `{prev_type_display}` has no field named `{field}`"),
-                                            *field_span
-                                        );
+                                        self.error(SemanticError::UnknownObject {
+                                            exception: format!("type `{prev_type_display}` has no fields named `{field}`"),
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*field_span)
+                                        });
+
                                         &Type::Void
                                     });
 
                                     prev_type_display = field_type.clone();
                                     prev_type = self.unwrap_alias(field_type).unwrap_or_else(|err| {
-                                        self.error(err, *field_span);
+                                        self.error(SemanticError::UnresolvedName {
+                                            exception: err,
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*span)
+                                        });
                                         Type::Void
                                     });
 
@@ -2093,19 +2456,23 @@ impl Analyzer {
                                 Type::Enum(fields, _) => {
                                     let opt = fields.iter().find(|&x| x == field);
                                     if opt.is_none() {
-                                        self.error(
-                                            format!("Type `{prev_type_display}` has no choice named `{field}`"),
-                                            *field_span
-                                        );
+                                        self.error(SemanticError::UnknownObject {
+                                            exception: format!("type `{prev_type_display}` has no option named `{field}`"),
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*field_span)
+                                        });
                                     }
 
                                     prev_expr = Expressions::SubElement { head: Box::new(prev_expr.clone()), subelements: vec![], span: *field_span }
                                 },
                                 _ => {
-                                    self.error(
-                                        format!("Type `{prev_type_display}` has no accessible fields"),
-                                        *field_span
-                                    );
+                                    self.error(SemanticError::UnsupportedType {
+                                        exception: format!("type `{prev_type_display}` has no accessible fields"),
+                                        help: None,
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*field_span)
+                                    });
                                 }
                             };
                         }
@@ -2113,17 +2480,24 @@ impl Analyzer {
                             match prev_type.clone() {
                                 Type::Tuple(types) => {
                                     if idx >= &(types.len() as i64) {
-                                        self.error(
-                                            format!("Type `{}` has {} fields, but index is {}", prev_type_display, types.len(), idx),
-                                            *idx_span
-                                        );
+                                        self.error(SemanticError::RangeOverflow {
+                                            exception: format!("type `{}` has {} fields, but index is {}", prev_type_display, types.len(), idx),
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*idx_span)
+                                        });
                                         return;
                                     }
 
                                     let typ = types[*idx as usize].clone();
                                     prev_type_display = typ.clone();
                                     prev_type = self.unwrap_alias(&typ).unwrap_or_else(|err| {
-                                        self.error(err, *idx_span);
+                                        self.error(SemanticError::UnresolvedName {
+                                            exception: err,
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*span)
+                                        });
                                         Type::Void
                                     });
 
@@ -2135,10 +2509,12 @@ impl Analyzer {
                                     prev_expr = sub.clone();
                                 },
                                 _ => {
-                                    self.error(
-                                        format!("Type `{prev_type_display}` has no numbered fields"),
-                                        *idx_span
-                                    )
+                                    self.error(SemanticError::UnknownObject {
+                                        exception: format!("type `{prev_type_display}` has no numbered fields"),
+                                        help: None,
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*idx_span)
+                                    });
                                 }
                             }
                         }
@@ -2146,10 +2522,12 @@ impl Analyzer {
                             match prev_type.clone() {
                                 Type::Struct(_, functions) | Type::Enum(_, functions) => {
                                     let function_type = functions.get(name).unwrap_or_else(|| {
-                                        self.error(
-                                            format!("Type `{prev_type_display}` has no function named `{name}`"),
-                                            *span
-                                        );
+                                        self.error(SemanticError::UnresolvedName {
+                                            exception: format!("type `{prev_type_display}` has no function `{name}`"),
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*span)
+                                        });
                                         &Type::Void
                                     });
 
@@ -2172,7 +2550,7 @@ impl Analyzer {
                                                 let self_arg = if is_pointed_struct {
                                                     prev_expr.clone()
                                                 } else {
-                                                    Expressions::Reference { object: Box::new(prev_expr.clone()), span: (deen_parser::Parser::get_span_expression(prev_expr.clone())) }
+                                                    Expressions::Reference { object: Box::new(prev_expr.clone()), span: (Parser::get_span_expression(&prev_expr)) }
                                                 };
 
                                                 arguments.push(self_arg);
@@ -2182,16 +2560,23 @@ impl Analyzer {
 
                                         prev_type_display = *datatype.clone();
                                         prev_type = self.unwrap_alias(datatype).unwrap_or_else(|err| {
-                                            self.error(err, *span);
+                                            self.error(SemanticError::UnresolvedName {
+                                                exception: err,
+                                                help: None,
+                                                src: self.source.clone(),
+                                                span: error::position_to_span(*span)
+                                            });
                                             Type::Void
                                         });
 
                                         if arguments.len() != args.len() {
                                             if *is_var_args && arguments.len() >= args.len() {} else {
-                                                self.error(
-                                                    format!("Function `{}` has {} arguments, but found {}", name, args.len(), arguments.len()),
-                                                    *span
-                                                );
+                                                self.error(SemanticError::ArgumentException {
+                                                    exception: format!("function `{}` has {} arguments, but found {}", name, args.len(), arguments.len()),
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
                                                 return;
                                             }
                                         }
@@ -2199,12 +2584,22 @@ impl Analyzer {
                                         arguments.iter().enumerate().zip(args).for_each(|((index, expr), expected)| {
                                             let raw_expr_type = self.visit_expression(expr, Some(expected.clone()));
                                             let expr_type = self.unwrap_alias(&raw_expr_type).unwrap_or_else(|err| {
-                                                    self.error(err, *span);
-                                                    Type::Void
+                                                self.error(SemanticError::UnresolvedName {
+                                                    exception: err,
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
+                                                Type::Void
                                             });
                                             let raw_expected = expected;
                                             let expected = self.unwrap_alias(expected).unwrap_or_else(|err| {
-                                                self.error(err, *span);
+                                                self.error(SemanticError::UnresolvedName {
+                                                    exception: err,
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
                                                 Type::Void
                                             });
 
@@ -2213,10 +2608,12 @@ impl Analyzer {
                                                 if *ptr_type.clone() == *raw_expected { return };
                                             }
                                             if expr_type != expected {
-                                                self.error(
-                                                    format!("Argument #{} has type `{}`, but found `{}`", index + 1, raw_expected, raw_expr_type),
-                                                    deen_parser::Parser::get_span_expression(expr.clone())
-                                                );
+                                                self.error(SemanticError::TypesMismatch {
+                                                    exception: format!("argument #{} has type `{}`, but found `{}`", index + 1, raw_expected, raw_expr_type),
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(Parser::get_span_expression(expr))
+                                                });
                                             }
                                         });
                                     };
@@ -2228,16 +2625,23 @@ impl Analyzer {
                                     if let Some(Type::Function(args, datatype, is_var_args)) = import.functions.get(&name) {
                                         prev_type_display = *datatype.clone();
                                         prev_type = self.unwrap_alias(datatype).unwrap_or_else(|err| {
-                                            self.error(err, *span);
+                                            self.error(SemanticError::UnresolvedName {
+                                                exception: err,
+                                                help: None,
+                                                src: self.source.clone(),
+                                                span: error::position_to_span(*span)
+                                            });
                                             Type::Void
                                         });
 
                                         if arguments.len() != args.len() {
                                             if *is_var_args && arguments.len() >= args.len() {} else {
-                                                self.error(
-                                                    format!("Function `{}()` has {} arguments, but found {}", name, args.len(), arguments.len()),
-                                                    *span
-                                                );
+                                                self.error(SemanticError::ArgumentException {
+                                                    exception: format!("function `{}()` has {} arguments, but found {}", name, args.len(), arguments.len()),
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
                                                 return;
                                             }
                                         }
@@ -2245,35 +2649,51 @@ impl Analyzer {
                                         arguments.iter().enumerate().zip(args).for_each(|((index, expr), expected)| {
                                             let raw_expr_type = self.visit_expression(expr, Some(expected.clone()));
                                             let expr_type = self.unwrap_alias(&raw_expr_type).unwrap_or_else(|err| {
-                                                    self.error(err, *span);
-                                                    Type::Void
+                                                self.error(SemanticError::UnresolvedName {
+                                                    exception: err,
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
+                                                Type::Void
                                             });
                                             let expected = self.unwrap_alias(expected).unwrap_or_else(|err| {
-                                                self.error(err, *span);
+                                                self.error(SemanticError::UnresolvedName {
+                                                    exception: err,
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
                                                 Type::Void
+
                                             });
 
                                             if expected == Type::Void || raw_expr_type == Type::Void { return };
                                             if expr_type != expected {
-                                                self.error(
-                                                    format!("Argument #{} has type `{}`, but found `{}`", index + 1, expected, expr_type),
-                                                    deen_parser::Parser::get_span_expression(expr.clone())
-                                                );
+                                                self.error(SemanticError::TypesMismatch {
+                                                    exception: format!("argument #{} has type `{}`, but found `{}`", index + 1, expected, expr_type),
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(Parser::get_span_expression(expr))
+                                                });
                                             }
                                         });
                                     } else {
-                                        self.error(
-                                            format!("Import `{imp}` has no functions named `{name}()`"),
-                                            *span
-                                        );
+                                        unreachable!()
+                                        // self.error(
+                                        //     format!("Import `{imp}` has no functions named `{name}()`"),
+                                        //     *span
+                                        // );
                                     };
                                 }
                                 // Type::Enum(_, functions) => {},
                                 _ => {
-                                    self.error(
-                                        format!("Type `{prev_type}` isn't supported for function calls"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::UnsupportedType {
+                                        exception: format!("type `{prev_type}` isn't supported for method calls"),
+                                        help: None,
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
                                 }
                             }
                         },
@@ -2294,24 +2714,33 @@ impl Analyzer {
                                             let struct_field = struct_fields.get(field.0);
                                             if let Some(field_type) = struct_field {
                                                 let field_type = self.unwrap_alias(field_type).unwrap_or_else(|err| {
-                                                    self.error(err, *span);
+                                                    self.error(SemanticError::UnresolvedName {
+                                                        exception: err,
+                                                        help: None,
+                                                        src: self.source.clone(),
+                                                        span: error::position_to_span(*span)
+                                                    });
                                                     Type::Void
                                                 });
                                                 let provided_type = self.visit_expression(field.1, Some(field_type.clone()));
 
                                                 if field_type != provided_type && field_type != Type::Void {
-                                                    self.error(
-                                                        format!("Field `{}` expected to be type `{}`, but found `{}`", field.0, field_type, provided_type),
-                                                        *span
-                                                    );
+                                                    self.error(SemanticError::TypesMismatch {
+                                                        exception: format!("field `{}` expected to be `{}`, but found `{}`", field.0, field_type, provided_type),
+                                                        help: None,
+                                                        src: self.source.clone(),
+                                                        span: error::position_to_span(*span)
+                                                    });
                                                 }
 
                                                 let _ = assigned_fields.insert(field.0, true);
                                             } else {
-                                                self.error(
-                                                    format!("Field `{}` doesn't exist in struct `{}`", field.0, name),
-                                                    *span
-                                                );
+                                                self.error(SemanticError::UnresolvedName {
+                                                    exception: format!("field `{}` doesn't exists in `{}`", field.0, name),
+                                                    help: None,
+                                                    src: self.source.clone(),
+                                                    span: error::position_to_span(*span)
+                                                });
                                             }
                                         });
 
@@ -2329,18 +2758,22 @@ impl Analyzer {
                                     }
                                 }
                                 _ => {
-                                    self.error(
-                                        String::from("Unsupported structure init found"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::UnsupportedExpression {
+                                        exception: "unsupported structure initialization found".to_string(),
+                                        help: None,
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
                                 }
                             }
                         }
                         _ => {
-                            self.error(
-                                String::from("Unsupported subelement expression found"),
-                                *span
-                            );
+                            self.error(SemanticError::UnsupportedExpression {
+                                exception: "unsupported subelement expression".to_string(),
+                                help: Some("You can open issue on Github Repository to fix that".to_string()),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span)
+                            });
                         }
                     }
                 });
@@ -2354,7 +2787,12 @@ impl Analyzer {
                 span,
             } => {
                 let func = self.scope.get_fn(name).unwrap_or_else(|| {
-                    self.error(format!("Function `{name}` is not defined here"), *span);
+                    self.error(SemanticError::UnresolvedName {
+                        exception: format!("function `{name}` is not defined here"),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     Type::Void
                 });
                 if func == Type::Void {
@@ -2370,15 +2808,17 @@ impl Analyzer {
                     if call_args.len() != func_args.len() {
                         if is_var_args && call_args.len() >= func_args.len() {
                         } else {
-                            self.error(
-                                format!(
-                                    "Function `{}` has {} arguments, but found {}",
+                            self.error(SemanticError::ArgumentException {
+                                exception: format!(
+                                    "function `{}` has {} arguments, but found {}",
                                     &name,
                                     func_args.len(),
                                     call_args.len()
                                 ),
-                                *span,
-                            );
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             return *func_type;
                         }
                     }
@@ -2397,15 +2837,19 @@ impl Analyzer {
                             };
 
                             if &expected != provided && !is_void_ptr {
-                                self.error(
-                                    format!(
-                                        "Argument #{} must be `{}`, but found `{}`",
+                                self.error(SemanticError::ArgumentException {
+                                    exception: format!(
+                                        "argument #{} must be `{}`, but found `{}`",
                                         ind + 1,
                                         expected,
                                         provided
                                     ),
-                                    Parser::get_span_expression(arguments[ind].clone()),
-                                );
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(Parser::get_span_expression(
+                                        &arguments[ind].clone(),
+                                    )),
+                                });
                             }
                         },
                     );
@@ -2455,7 +2899,12 @@ impl Analyzer {
                         const IMPLEMENTATION_FORMAT: &str = "fn deref(&self) _";
 
                         let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
-                            self.error(format!("Type `{alias}` cannot be dereferenced"), *span);
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!("type `{alias}` cannot be dereferenced"),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             Type::Void
                         });
 
@@ -2467,29 +2916,41 @@ impl Analyzer {
                             if let Some(Type::Function(args, datatype, _)) = functions.get("deref")
                             {
                                 if *args != vec![Type::Alias(alias.clone())] {
-                                    self.error(
-                                        format!("Type `{alias}` has WRONG implementation for dereference: {IMPLEMENTATION_FORMAT}"),
-                                        *span
-                                    );
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!("type `{alias}` has wrong implementation for dereference"),
+                                        help: Some(format!("Consider using right format: {IMPLEMENTATION_FORMAT}")),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
                                 }
                                 *datatype.clone()
                             } else {
-                                self.error(
-                                    format!(
-                                        "Type `{alias}` has no implementation for dereference: {IMPLEMENTATION_FORMAT}"
-                                    ),
-                                    *span,
-                                );
+                                self.error(SemanticError::IllegalImplementation {
+                                    exception: format!("type `{alias}` has no implementation for dereference"),
+                                    help: Some(format!("Consider implementing necessary method: {IMPLEMENTATION_FORMAT}")),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
                                 expected.unwrap_or(Type::Alias(alias))
                             }
                         } else {
-                            self.error(format!("Type `{alias}` cannot be dereferenced"), *span);
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!("type `{alias}` cannot be dereferenced"),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             expected.unwrap_or(struct_type)
                         }
                     }
 
                     _ => {
-                        self.error(format!("Type {obj} cannot be dereferenced!"), *span);
+                        self.error(SemanticError::UnsupportedType {
+                            exception: format!("type `{obj}` cannot be dereferenced"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         expected.unwrap_or(obj)
                     }
                 }
@@ -2497,7 +2958,12 @@ impl Analyzer {
 
             Expressions::Array { values, len, span } => {
                 if *len < 1 {
-                    self.error("Empty array is not allowed".to_string(), *span);
+                    self.error(SemanticError::UnknownObject {
+                        exception: "empty array is unknown".to_string(),
+                        help: Some("Add some elements in array to make it type-known".to_string()),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     return Type::Void;
                 }
 
@@ -2506,10 +2972,14 @@ impl Analyzer {
                 values.iter().for_each(|val| {
                     let val_type = self.visit_expression(val, None);
                     if val_type != arr_type {
-                        self.error(
-                            format!("Array has type {arr_type}, but element has {val_type}"),
-                            Parser::get_span_expression(val.clone()),
-                        );
+                        self.error(SemanticError::TypesMismatch {
+                            exception: format!(
+                                "array has type `{arr_type}`, but value is `{val_type}`"
+                            ),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(Parser::get_span_expression(val)),
+                        });
                     }
                 });
 
@@ -2517,7 +2987,12 @@ impl Analyzer {
             }
             Expressions::Tuple { values, span } => {
                 if values.is_empty() {
-                    self.error("Empty tuples is not allowed".to_string(), *span);
+                    self.error(SemanticError::UnknownObject {
+                        exception: "empty tuple is unknown".to_string(),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     return expected.unwrap_or(Type::Void);
                 }
 
@@ -2545,19 +3020,30 @@ impl Analyzer {
                     Type::Tuple(types) => {
                         if let Expressions::Value(Value::Integer(ind), _) = **object {
                             if ind < 0 {
-                                self.error(
-                                    "Tuple index must be unsigned".to_string(),
-                                    Parser::get_span_expression(*index.clone()),
-                                );
+                                self.error(SemanticError::TypesMismatch {
+                                    exception: "tuple index must be unsigned".to_string(),
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(Parser::get_span_expression(
+                                        index,
+                                    )),
+                                });
+
                                 return expected.unwrap_or(Type::Void);
                             }
 
                             types[ind as usize].clone()
                         } else {
-                            self.error(
-                                "Tuple index must be a known constant".to_string(),
-                                Parser::get_span_expression(*index.clone()),
-                            );
+                            self.error(SemanticError::UnknownObject {
+                                exception: "tuple index must be a known constant".to_string(),
+                                help: Some(
+                                    "Replace provided index with unsigned integer constant"
+                                        .to_string(),
+                                ),
+                                src: self.source.clone(),
+                                span: error::position_to_span(Parser::get_span_expression(index)),
+                            });
+
                             expected.unwrap_or(Type::Void)
                         }
                     }
@@ -2569,7 +3055,12 @@ impl Analyzer {
                         const IMPLEMENTATION_FORMAT: &str = "fn slice(&self, index: usize) _";
 
                         let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
-                            self.error(format!("Type `{alias}` cannot be sliced"), *span);
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!("type `{alias}` cannot be sliced"),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             Type::Void
                         });
 
@@ -2583,39 +3074,58 @@ impl Analyzer {
                                 if !(*args == vec![Type::Alias(alias.clone()), Type::USIZE]
                                     && *datatype.clone() != Type::Void)
                                 {
-                                    self.error(
-                                        format!(
-                                            "Type `{alias}` has WRONG implementation for slice: {IMPLEMENTATION_FORMAT}"
+                                    self.error(SemanticError::IllegalImplementation {
+                                        exception: format!(
+                                            "type `{alias}` has wrong implementation for slice"
                                         ),
-                                        *span,
-                                    );
+                                        help: Some(format!(
+                                            "Consider using right format: {IMPLEMENTATION_FORMAT}"
+                                        )),
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span),
+                                    });
                                 }
 
                                 *datatype.clone()
                             } else {
-                                self.error(
-                                    format!(
-                                        "Type `{alias}` has no implementation for slice: {IMPLEMENTATION_FORMAT}"
-                                    ),
-                                    *span,
-                                );
+                                self.error(SemanticError::IllegalImplementation {
+                                    exception: format!("type `{alias}` has no implementation for slice"),
+                                    help: Some(format!("Consider implementing necessary method: {IMPLEMENTATION_FORMAT}")),
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span)
+                                });
                                 expected.unwrap_or(Type::Alias(alias))
                             }
                         } else {
-                            self.error(format!("Type `{alias}` cannot be sliced"), *span);
+                            self.error(SemanticError::UnsupportedType {
+                                exception: format!("type `{alias}` cannot be sliced"),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
                             expected.unwrap_or(struct_type)
                         }
                     }
 
                     _ => {
-                        self.error(format!("Type `{obj}` is not supported for slice"), *span);
+                        self.error(SemanticError::UnsupportedType {
+                            exception: format!("type `{obj}` isn't supported for slice"),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         expected.unwrap_or(Type::Void)
                     }
                 }
             }
             Expressions::Struct { name, fields, span } => {
                 let structure = self.scope.get_struct(name).unwrap_or_else(|| {
-                    self.error(format!("Structure `{name}` does not exist here"), *span);
+                    self.error(SemanticError::UnresolvedName {
+                        exception: format!("structure `{name}` doesn't exist here"),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
                     Type::Void
                 });
 
@@ -2624,6 +3134,8 @@ impl Analyzer {
                 };
                 if let Type::Struct(struct_fields, _) = structure.clone() {
                     let mut assigned_fields = HashMap::new();
+                    let mut none_fields = Vec::new();
+
                     struct_fields.iter().for_each(|x| {
                         assigned_fields.insert(x.0, false);
                     });
@@ -2641,33 +3153,46 @@ impl Analyzer {
                                 self.visit_expression(field.1, Some(field_type.clone()));
 
                             if field_type != provided_type && field_type != Type::Void {
-                                self.error(
-                                    format!(
-                                        "Field `{}` expected to be type `{}`, but found `{}`",
+                                self.error(SemanticError::TypesMismatch {
+                                    exception: format!(
+                                        "field `{}` expected to be `{}`, but found `{}`",
                                         field.0, field_type, provided_type
                                     ),
-                                    *span,
-                                );
+                                    help: None,
+                                    src: self.source.clone(),
+                                    span: error::position_to_span(*span),
+                                });
                                 return;
                             }
 
                             let _ = assigned_fields.insert(field.0, true);
                         } else {
-                            self.error(
-                                format!("Field `{}` doesn't exist in struct `{}`", field.0, name),
-                                *span,
-                            );
+                            none_fields.push(field.0.as_str());
                         }
                     });
+
+                    if !none_fields.is_empty() {
+                        self.error(SemanticError::UnresolvedName {
+                            exception: format!("non-existent fields: {}", none_fields.join(", ")),
+                            help: Some("Consider removing mentioned fields".to_string()),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
+                    }
 
                     let unassigned = assigned_fields
                         .iter()
                         .filter(|x| !x.1 && !x.0.starts_with("__"))
                         .map(|x| x.0.to_owned().to_owned())
                         .collect::<Vec<String>>();
-                    if !unassigned.is_empty() {
+                    if !unassigned.is_empty() && none_fields.is_empty() {
                         let fmt = format!("`{}`", unassigned.join("` , `"));
-                        self.error(format!("Missing structure fields: {fmt}"), *span);
+                        self.error(SemanticError::MissingFields {
+                            exception: format!("missing structure fields: {fmt}"),
+                            help: Some("Consider initializing mentioned fields".to_string()),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                     }
 
                     Type::Alias(name.clone())
@@ -2687,7 +3212,11 @@ impl Analyzer {
 
                 if let Some(unused) = self.scope.check_unused_variables() {
                     unused.iter().for_each(|var| {
-                        self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                        self.warning(SemanticWarning::UnusedVariable {
+                            varname: var.0.clone(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(var.1),
+                        });
                     });
                 }
 
@@ -2700,7 +3229,12 @@ impl Analyzer {
                 match self.visit_value(value.clone(), expected.clone()) {
                     Ok(tty) => tty,
                     Err(err) => {
-                        self.error(err, *span);
+                        self.error(SemanticError::ValueError {
+                            exception: err,
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span),
+                        });
                         expected.unwrap_or(Type::Void)
                     }
                 }
@@ -2850,7 +3384,12 @@ impl Analyzer {
         span: &(usize, usize),
     ) -> Type {
         let macro_object = self.compiler_macros.get(name).cloned().unwrap_or_else(|| {
-            self.error(format!("There's no macro called `{name}!()`"), *span);
+            self.error(SemanticError::UnresolvedName {
+                exception: format!("there's no macro called `{name}!()`"),
+                help: Some("Check official compiler's macros list in docs: https://deen-docs.vercel.app/advanced/compiler-macros.html".to_string()),
+                src: self.source.clone(),
+                span: error::position_to_span(*span)
+            });
 
             CompilerMacros::None
         });
@@ -3003,11 +3542,11 @@ impl Analyzer {
                             return Ok(enum_type);
                         }
                     } else {
-                        return Err(format!("Import `{module_name}` is not declared here"));
+                        return Err(format!("import `{module_name}` is not declared here"));
                     }
                 }
 
-                Err(format!("Type `{typ}` is not defined in this scope"))
+                Err(format!("type `{typ}` is not defined in this scope"))
             }
 
             Type::Pointer(ptr_type) => {

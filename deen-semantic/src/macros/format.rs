@@ -1,5 +1,8 @@
 use super::MacroObject;
-use crate::Analyzer;
+use crate::{
+    Analyzer,
+    error::{self, SemanticError},
+};
 use deen_parser::{expressions::Expressions, types::Type, value::Value};
 
 /// **Formats literal and args into single string**
@@ -18,15 +21,16 @@ impl MacroObject for FormatMacro {
         let return_type: Type = Type::Pointer(Box::new(Type::Char));
 
         if arguments.len() < MINIMUM_ARGUMENTS_LEN {
-            analyzer.error(
-                format!(
-                    "Not enough arguments: expected {}, found {}",
+            analyzer.error(SemanticError::ArgumentException {
+                exception: format!(
+                    "not enough arguments: expected {}, found {}",
                     MINIMUM_ARGUMENTS_LEN,
                     arguments.len()
                 ),
-                *span,
-            );
-            return return_type;
+                help: None,
+                src: analyzer.source.clone(),
+                span: error::position_to_span(*span),
+            });
         }
 
         if let Some(Expressions::Value(Value::String(literal), literal_span)) = arguments.first() {
@@ -41,10 +45,15 @@ impl MacroObject for FormatMacro {
 
                     match next {
                         Some('}') => bindings.push(Type::Void),
-                        _ => analyzer.error(
-                            String::from("Unexpected binding in string found"),
-                            *literal_span,
-                        ),
+                        _ => analyzer.error(SemanticError::FormatError {
+                            exception: "unknown binding in literal found".to_string(),
+                            help: Some(
+                                "Consider using right bindings syntax with curly brackets"
+                                    .to_string(),
+                            ),
+                            src: analyzer.source.clone(),
+                            span: error::position_to_span(*literal_span),
+                        }),
                     }
                 }
 
@@ -52,14 +61,16 @@ impl MacroObject for FormatMacro {
             }
 
             if arguments.len() != bindings.len() + 1 {
-                analyzer.error(
-                    format!(
-                        "Expected {} arguments, but found {}",
+                analyzer.error(SemanticError::ArgumentException {
+                    exception: format!(
+                        "expected {} arguments, but found {}",
                         bindings.len() + 1,
                         arguments.len()
                     ),
-                    *span,
-                );
+                    help: None,
+                    src: analyzer.source.clone(),
+                    span: error::position_to_span(*span),
+                });
                 return return_type;
             }
         }
@@ -85,18 +96,22 @@ impl MacroObject for FormatMacro {
                         {
                         } else {
                             analyzer.error(
-                                format!(
-                                    "Implementation for DISPLAY must be: {DISPLAY_IMPLEMENTATION_FORMAT}"
-                                ),
-                                deen_parser::Parser::get_span_expression(expr.clone()),
+                                SemanticError::IllegalImplementation {
+                                    exception: format!("type `{expr_type}` has wrong implementation for display"),
+                                    help: Some(format!("Consider using right format: {DISPLAY_IMPLEMENTATION_FORMAT}")),
+                                    src: analyzer.source.clone(),
+                                    span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
+                                }
                             );
                         }
                     } else {
                         analyzer.error(
-                            format!(
-                                "Type `{expr_type}` has no implementation for DISPLAY: {DISPLAY_IMPLEMENTATION_FORMAT}"
-                            ),
-                            deen_parser::Parser::get_span_expression(expr.clone()),
+                            SemanticError::IllegalImplementation {
+                                exception: format!("type `{expr_type}` has no implementation for display"),
+                                help: Some(format!("Consider implementing necessary method: {DISPLAY_IMPLEMENTATION_FORMAT}")),
+                                src: analyzer.source.clone(),
+                                span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
+                            }
                         );
                     }
                 }
@@ -109,33 +124,41 @@ impl MacroObject for FormatMacro {
                             {
                             } else {
                                 analyzer.error(
-                                    format!(
-                                        "Implementation for DISPLAY must be: {DISPLAY_IMPLEMENTATION_FORMAT}"
-                                    ),
-                                    deen_parser::Parser::get_span_expression(expr.clone()),
+                                    SemanticError::IllegalImplementation {
+                                        exception: format!("type `{expr_type}` has wrong implementation for display"),
+                                        help: Some(format!("Consider using right format: {DISPLAY_IMPLEMENTATION_FORMAT}")),
+                                        src: analyzer.source.clone(),
+                                        span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
+                                    }
                                 );
                             }
                         } else {
-                            analyzer.error(
-                                format!(
-                                    "Type `{expr_type}` has no implementation for DISPLAY: {DISPLAY_IMPLEMENTATION_FORMAT}"
-                                ),
-                                deen_parser::Parser::get_span_expression(expr.clone()),
-                            );
+                        analyzer.error(
+                            SemanticError::IllegalImplementation {
+                                exception: format!("type `{expr_type}` has no implementation for display"),
+                                help: Some(format!("Consider implementing necessary method: {DISPLAY_IMPLEMENTATION_FORMAT}")),
+                                src: analyzer.source.clone(),
+                                span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
+                            }
+                        );
                         }
                     } else if analyzer.scope.get_enum(&alias).is_none() {
-                        analyzer.error(
-                            format!("No displayable type with name `{expr_type}` found"),
-                            deen_parser::Parser::get_span_expression(expr.clone()),
-                        );
+                        analyzer.error(SemanticError::UnknownObject {
+                            exception: format!("no displayable type `{expr_type}` found"),
+                            help: None,
+                            src: analyzer.source.clone(),
+                            span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
+                        });
                     }
                 }
 
                 _ => {
-                    analyzer.error(
-                        format!("Type `{expr_type}` is not supported for display"),
-                        deen_parser::Parser::get_span_expression(expr.clone()),
-                    );
+                    analyzer.error(SemanticError::UnsupportedType {
+                        exception: format!("type `{expr_type}` is not supported for display"),
+                        help: None,
+                        src: analyzer.source.clone(),
+                        span: error::position_to_span(deen_parser::Parser::get_span_expression(expr))
+                    });
                 }
             }
         });
