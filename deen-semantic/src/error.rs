@@ -42,7 +42,7 @@ pub enum SemanticError {
         span: SourceSpan
     },
 
-    #[error("This feature is currently disabled")]
+    #[error("This feature is currently disabled by @compiler")]
     #[diagnostic(
         severity(Error),
         code(deen::semantics::disabled_feature),

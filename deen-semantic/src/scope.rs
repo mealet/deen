@@ -144,7 +144,7 @@ impl Scope {
     #[inline]
     pub fn add_fn(&mut self, name: String, return_type: Type, public: bool) -> Result<(), String> {
         if self.functions.contains_key(&name) {
-            return Err(format!("Function `{name}` already declared"));
+            return Err(format!("function `{name}` already declared"));
         }
         self.functions.insert(
             name.clone(),
@@ -173,7 +173,7 @@ impl Scope {
         public: bool,
     ) -> Result<(), String> {
         if self.structures.contains_key(&name) {
-            return Err(format!("Structure `{name}` already declared"));
+            return Err(format!("structure `{name}` already declared"));
         }
         self.structures.insert(
             name.clone(),
@@ -209,7 +209,7 @@ impl Scope {
     #[inline]
     pub fn add_enum(&mut self, name: String, enum_type: Type, public: bool) -> Result<(), String> {
         if self.enums.contains_key(&name) {
-            return Err(format!("Enum `{name}` already declared"));
+            return Err(format!("enum `{name}` already declared"));
         }
         self.enums.insert(
             name.clone(),
@@ -236,7 +236,7 @@ impl Scope {
     #[inline]
     pub fn add_typedef(&mut self, name: String, typ: Type) -> Result<(), String> {
         if self.typedefs.contains_key(&name) {
-            return Err(format!("Type `{name}` already declared"));
+            return Err(format!("type `{name}` already declared"));
         }
         self.typedefs.insert(name, typ);
         Ok(())

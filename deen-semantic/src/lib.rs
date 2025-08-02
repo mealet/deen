@@ -894,7 +894,12 @@ impl Analyzer {
                     )
                     .is_some()
                 {
-                    self.error(format!("Structure `{name}` already declared"), *span);
+                    self.error(SemanticError::RedefinitionError {
+                        exception: format!("structure `{name}` already declared"),
+                        help: format!("Consider changing structure name"),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                     return;
                 }
 
@@ -1007,10 +1012,12 @@ impl Analyzer {
 
                 // WARN: Methods in enums are currently disabled
                 if !functions.is_empty() {
-                    self.error(
-                        String::from("Methods in enums are currently disabled! @compiler"),
-                        *span,
-                    );
+                    self.error(SemanticError::DisabledFeature {
+                        exception: format!("methods in enums are currently disabled"),
+                        help: format!("Remove methods from enum"),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                 }
 
                 // functions.iter().for_each(|func| {
@@ -1033,12 +1040,23 @@ impl Analyzer {
                 self.scope
                     .add_enum(name.clone(), enum_type.clone(), *public)
                     .unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: format!(""),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                     });
+
                 self.scope
                     .add_typedef(name.clone(), enum_type.clone())
                     .unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: format!(""),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                     })
             }
             Statements::TypedefStatement {
@@ -1049,7 +1067,12 @@ impl Analyzer {
                 self.scope
                     .add_typedef(alias.clone(), datatype.clone())
                     .unwrap_or_else(|err| {
-                        self.error(err, *span);
+                        self.error(SemanticError::UnresolvedName {
+                            exception: err,
+                            help: format!(""),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                     });
             }
 
@@ -1062,10 +1085,12 @@ impl Analyzer {
                 let condition_type = self.visit_expression(condition, None);
 
                 if condition_type != Type::Bool {
-                    self.error(
-                        format!("Expected `bool` type in expression, but found `{condition_type}`"),
-                        *span,
-                    );
+                    self.error(SemanticError::TypesMismatch {
+                        exception: format!("expected `bool` type, but found `{condition_type}`"),
+                        help: format!("Consider returning `bool` type in expression"),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                     return;
                 }
 
@@ -1082,7 +1107,11 @@ impl Analyzer {
 
                 if let Some(unused) = self.scope.check_unused_variables() {
                     unused.iter().for_each(|var| {
-                        self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                        self.warning(SemanticWarning::UnusedVariable {
+                            varname: var.0.clone(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(var.1)
+                        });
                     });
                 }
 
@@ -1092,13 +1121,12 @@ impl Analyzer {
                     && then_block_type != Type::Void
                     && then_block_type != Type::Undefined
                 {
-                    self.error(
-                        format!(
-                            "Expected type `{}` for scope, but found `{}`",
-                            self.scope.expected, then_block_type
-                        ),
-                        *span,
-                    );
+                    self.error(SemanticError::TypesMismatch {
+                        exception: format!("scope expected `{}`, but found `{}`", self.scope.expected, then_block_type),
+                        help: format!(""),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                     return;
                 }
 
@@ -1120,7 +1148,11 @@ impl Analyzer {
 
                     if let Some(unused) = self.scope.check_unused_variables() {
                         unused.iter().for_each(|var| {
-                            self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                            self.warning(SemanticWarning::UnusedVariable {
+                                varname: var.0.clone(),
+                                src: self.source.clone(),
+                                span: error::position_to_span(var.1)
+                            });
                         });
                     }
 
@@ -1130,12 +1162,12 @@ impl Analyzer {
                         && (then_block_type != Type::Undefined
                             && else_block_type != Type::Undefined)
                     {
-                        self.error(
-                            format!(
-                                "Scopes has incompatible types: `{then_block_type}` and `{else_block_type}`"
-                            ),
-                            *span,
-                        );
+                        self.error(SemanticError::TypesMismatch {
+                            exception: format!("scopes has incompatible types: `{then_block_type}` and `{else_block_type}`"),
+                            help: format!(""),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                     }
                 }
             }
@@ -1147,10 +1179,12 @@ impl Analyzer {
                 let condition_type = self.visit_expression(condition, None);
 
                 if condition_type != Type::Bool {
-                    self.error(
-                        format!("Expected `bool` type in expression, but found `{condition_type}`"),
-                        *span,
-                    );
+                    self.error(SemanticError::TypesMismatch {
+                        exception: format!("expected `bool` in expression, but found `{condition_type}`"),
+                        help: format!(""),
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span)
+                    });
                     return;
                 }
 
@@ -1166,7 +1200,11 @@ impl Analyzer {
 
                 if let Some(unused) = self.scope.check_unused_variables() {
                     unused.iter().for_each(|var| {
-                        self.warning(format!("Unused variable `{}` found", var.0), var.1);
+                        self.warning(SemanticWarning::UnusedVariable {
+                            varname: var.0.clone(),
+                            src: self.source.clone(),
+                            span: error::position_to_span(var.1)
+                        });
                     });
                 }
 
