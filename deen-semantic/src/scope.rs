@@ -133,7 +133,7 @@ impl Scope {
             None => Err(
                 SemanticError::UnresolvedName {
                     exception: format!("variable \"{name}\" is not defined here"),
-                    help: format!("Verify provided identifier"),
+                    help: None,
                     src: source,
                     span: error::position_to_span(span)
                 }

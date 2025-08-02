@@ -238,11 +238,11 @@ impl Analyzer {
                 } => {}
                 Statements::LinkCStatement { path: _, span: _ } => {}
                 _ => {
-                    if let Some(err) = self.errors.last() {
-                        // if err.span == (255, 0).into() {
-                        //     return;
-                        // };
-                    }
+                    // if let Some(err) = self.errors.last() {
+                    //     if err.span == (255, 0).into() {
+                    //         return;
+                    //     };
+                    // }
                     
                     self.error(
                         SemanticError::SemanticError  {
@@ -451,7 +451,7 @@ impl Analyzer {
                             });
                         }
                     }
-                    Type::DynamicArray(typ) => {
+                    Type::DynamicArray(_) => {
                         // TODO: Remove dynamic array type
 
                         unreachable!()
@@ -3250,7 +3250,12 @@ impl Analyzer {
         span: &(usize, usize),
     ) -> Type {
         let macro_object = self.compiler_macros.get(name).cloned().unwrap_or_else(|| {
-            self.error(format!("There's no macro called `{name}!()`"), *span);
+            self.error(SemanticError::UnresolvedName {
+                exception: format!("there's no macro called `{name}!()`"),
+                help: Some(format!("Check official compiler's macros list in docs: https://deen-docs.vercel.app/advanced/compiler-macros.html")),
+                src: self.source.clone(),
+                span: error::position_to_span(*span)
+            });
 
             CompilerMacros::None
         });

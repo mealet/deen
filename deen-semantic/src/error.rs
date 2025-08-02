@@ -314,8 +314,8 @@ pub enum SemanticWarning {
 
     #[error("Unused variable `{varname}` found")]
     #[diagnostic(
-        severity(Error),
-        code(deen::semantics::visibility_error),
+        severity(Warning),
+        code(deen::semantics::unused_variable),
         help("Consider removing unused variable")
     )]
     UnusedVariable {
@@ -329,8 +329,8 @@ pub enum SemanticWarning {
 
     #[error("Unused expression result found")]
     #[diagnostic(
-        severity(Error),
-        code(deen::semantics::visibility_error),
+        severity(Warning),
+        code(deen::semantics::unused_result),
         help("Consider assigning result to a variable")
     )]
     UnusedResult {
