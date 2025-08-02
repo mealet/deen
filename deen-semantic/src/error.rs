@@ -18,11 +18,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::parser::global_error),
-        help("{help}")
     )]
     GlobalError {
         message: String,
-        help: String,
+        #[help]
+        help: Option<String>,
         src: NamedSource<String>
     },
 
@@ -30,12 +30,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::argument_exception),
-        help("{help}")
     )]
     ArgumentException {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -46,12 +45,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::disabled_feature),
-        help("{help}")
     )]
     DisabledFeature {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -62,12 +60,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::format_error),
-        help("{help}")
     )]
     FormatError {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -78,13 +75,12 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::illegal_implementation),
-        help("{help}"),
         url("deen-docs.vercel.app/advanced/structures-implementations.html")
     )]
     IllegalImplementation {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -95,12 +91,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::io_error),
-        help("{help}")
     )]
     IoError {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -111,12 +106,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::main_error),
-        help("{help}")
     )]
     MainFunctionError {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -127,12 +121,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::missing_fields),
-        help("{help}")
     )]
     MissingFields {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -143,12 +136,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::operator_exception),
-        help("{help}")
     )]
     OperatorException {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -159,12 +151,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::range_overflow),
-        help("{help}")
     )]
     RangeOverflow {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -175,12 +166,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::redefinition_error),
-        help("{help}")
     )]
     RedefinitionError {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -191,12 +181,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::semantic_error),
-        help("{help}")
     )]
     SemanticError {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -207,12 +196,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::types_mismatch),
-        help("{help}")
     )]
     TypesMismatch {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -223,12 +211,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::unresolved_name),
-        help("{help}")
     )]
     UnresolvedName {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -239,12 +226,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::unsupported_expression),
-        help("{help}")
     )]
     UnsupportedExpression {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -255,12 +241,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::unsupported_type),
-        help("{help}")
     )]
     UnsupportedType {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -271,12 +256,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::unknown_object),
-        help("{help}")
     )]
     UnknownObject {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]
@@ -287,12 +271,11 @@ pub enum SemanticError {
     #[diagnostic(
         severity(Error),
         code(deen::semantics::visibility_error),
-        help("{help}")
     )]
     VisibilityError {
         exception: String,
-        help: String,
-
+        #[help]
+        help: Option<String>,
         #[source_code]
         src: NamedSource<String>,
         #[label("{exception}")]

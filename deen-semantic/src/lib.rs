@@ -151,7 +151,7 @@ impl Analyzer {
         if self.scope.get_fn("main").is_none() && self.scope.is_main {
             let err = SemanticError::GlobalError {
                 message: format!("Program has no entry `main` function"),
-                help: format!("Consider creating main function: `fn main() {{}}`"),
+                help: Some(format!("Consider creating main function: `fn main()) {{}}`")),
                 src: self.source.clone(),
             };
 
@@ -247,7 +247,7 @@ impl Analyzer {
                     self.error(
                         SemanticError::SemanticError  {
                             exception: format!("This item is not allowed in global scope"),
-                            help: format!("Consider removing this item from global scope"),
+                            help: Some(format!("Consider removing this item from global scope")),
                             src: self.source.clone(),
                             span: error::position_to_span(Parser::get_span_statement(statement))
                         }
@@ -273,7 +273,7 @@ impl Analyzer {
                             self.error(
                                 SemanticError::TypesMismatch {
                                     exception: format!("variable has type `{}`, but found `{}`", variable.datatype, value_type),
-                                    help: format!("Consider changing value, or variable datatype"),
+                                    help: Some(format!("Consider changing value, or variable datatype")),
                                     src: self.source.clone(),
                                     span: error::position_to_span(*span)
                                 }
@@ -291,7 +291,7 @@ impl Analyzer {
                         self.error(
                             SemanticError::UnresolvedName {
                                 exception: format!("variable \"{identifier}\" is not defined here"),
-                                help: format!("Verify provided identifier"),
+                                help: Some(format!("Verify provided identifier")),
                                 src: self.source.clone(),
                                 span: error::position_to_span(*span)
                             }
@@ -332,7 +332,7 @@ impl Analyzer {
                             self.error(
                                 SemanticError::TypesMismatch {
                                     exception: format!("pointer has type `{ptr_type}`, but found `{value_type}`"),
-                                    help: format!("Consider changing provided value, or pointer type"),
+                                    help: Some(format!("Consider changing provided value, or pointer type")),
                                     src: self.source.clone(),
                                     span: error::position_to_span(*span)
                                 }
@@ -346,7 +346,7 @@ impl Analyzer {
                         let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
                             self.error(SemanticError::UnsupportedType {
                                 exception: format!("type `{alias}` cannot be derefence-assigned"),
-                                help: format!("Verify provided type, or change it"),
+                                help: Some(format!("Verify provided type, or change it")),
                                 src: self.source.clone(),
                                 span: error::position_to_span(*span)
                             });
@@ -369,7 +369,7 @@ impl Analyzer {
                                 {
                                     self.error(SemanticError::IllegalImplementation {
                                         exception: format!("type `{alias}` has WRONG implementation for deref-assign"),
-                                        help: format!("Consider using right format: {IMPLEMENTATION_FORMAT}"),
+                                        help: Some(format!("Consider using right format: {IMPLEMENTATION_FORMAT}")),
                                         src: self.source.clone(),
                                         span: error::position_to_span(*span)
                                     });
@@ -385,7 +385,7 @@ impl Analyzer {
                                     self.error(
                                         SemanticError::TypesMismatch {
                                             exception: format!("expected type `{expected_value}`, but found `{value_type}`"),
-                                            help: format!("Consider changing value, or implementation format"),
+                                            help: Some(format!("Consider changing value, or implementation format")),
                                             src: self.source.clone(),
                                             span: error::position_to_span(*span)
                                         }
@@ -394,7 +394,7 @@ impl Analyzer {
                             } else {
                                 self.error(SemanticError::IllegalImplementation {
                                     exception: format!("type `{alias}` has no implementation for deref-assign"),
-                                    help: format!("Consider implementing necessary method"),
+                                    help: Some(format!("Consider implementing necessary method")),
                                     src: self.source.clone(),
                                     span: error::position_to_span(*span)
                                 });
@@ -408,7 +408,7 @@ impl Analyzer {
                         self.error(
                             SemanticError::UnsupportedType {
                                 exception: format!("type `{instance}` cannot be deref-assigned"),
-                                help: format!("no help"),
+                                help: Some(format!("no help")),
                                 src: self.source.clone(),
                                 span: error::position_to_span(*span)
                             }
@@ -434,7 +434,7 @@ impl Analyzer {
                         if index_type != Type::USIZE {
                             self.error(SemanticError::TypesMismatch {
                                 exception: format!("expected index with `usize` type, but found `{index_type}`"),
-                                help: format!("You can cast integer types to `usize`: cast!(VALUE, usize)"),
+                                help: Some(format!("You can cast integer types to `usize`: cast!(VALUE, usize))")),
                                 src: self.source.clone(),
                                 span: error::position_to_span(*span)
                             });
@@ -445,7 +445,7 @@ impl Analyzer {
                         if value_type != *typ {
                             self.error(SemanticError::TypesMismatch {
                                 exception: format!("array's elements has type `{typ}`, but found `{value_type}`"),
-                                help: format!("Consider changing provided value"),
+                                help: Some(format!("Consider changing provided value")),
                                 src: self.source.clone(),
                                 span: error::position_to_span(*span)
                             });
@@ -482,7 +482,7 @@ impl Analyzer {
                         if value_type != *ptr_type {
                             self.error(SemanticError::TypesMismatch {
                                 exception: format!("pointer has type `{ptr_type}`, but found `{value_type}"),
-                                help: format!("Consider changing value, or pointer type"),
+                                help: Some(format!("Consider changing value, or pointer type")),
                                 src: self.source.clone(),
                                 span: error::position_to_span(*span),
                             });
@@ -496,7 +496,7 @@ impl Analyzer {
                             self.error(
                                 SemanticError::UnsupportedType {
                                     exception: format!("type `{alias}` cannot be slice-assigned"),
-                                    help: format!("Consider changing provided type"),
+                                    help: Some(format!("Consider changing provided type")),
                                     src: self.source.clone(),
                                     span: error::position_to_span(*span)
                                 }
@@ -521,7 +521,7 @@ impl Analyzer {
                                 {
                                     self.error(SemanticError::IllegalImplementation {
                                         exception: format!("type `{alias}` has wrong implementation for slice-assign"),
-                                        help: format!("Consider using right format: {IMPLEMENTATION_FORMAT}"),
+                                        help: Some(format!("Consider using right format: {IMPLEMENTATION_FORMAT}")),
                                         src: self.source.clone(),
                                         span: error::position_to_span(*span)
                                     })
@@ -529,7 +529,7 @@ impl Analyzer {
                             } else {
                                 self.error(SemanticError::IllegalImplementation {
                                     exception: format!("type `{alias}` has no implementation for slice-assign"),
-                                    help: format!("Consider implementing necessary method: {IMPLEMENTATION_FORMAT}"),
+                                    help: Some(format!("Consider implementing necessary method: {IMPLEMENTATION_FORMAT}")),
                                     src: self.source.clone(),
                                     span: error::position_to_span(*span)
                                 });
@@ -537,7 +537,7 @@ impl Analyzer {
                         } else {
                             self.error(SemanticError::UnsupportedType {
                                 exception: format!("type `{alias}` cannot be slice-assigned"),
-                                help: format!("Consider using another supported type"),
+                                help: Some(format!("Consider using another supported type")),
                                 src: self.source.clone(),
                                 span: error::position_to_span(*span)
                             });
@@ -546,7 +546,7 @@ impl Analyzer {
                     _ => {
                         self.error(SemanticError::UnsupportedType {
                             exception: format!("type `{instance}` cannot be slice-assigned"),
-                            help: format!("Consider using another supported type"),
+                            help: Some(format!("Consider using another supported type")),
                             src: self.source.clone(),
                             span: error::position_to_span(*span)
                         });
@@ -567,7 +567,7 @@ impl Analyzer {
                 } else {
                     self.error(SemanticError::UnsupportedExpression {
                         exception: format!("field assign is supported only for subelement expression"),
-                        help: format!("Verify provided expression"),
+                        help: Some(format!("Verify provided expression")),
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -579,7 +579,7 @@ impl Analyzer {
                 let unwrapped_object_type = self.unwrap_alias(&object_type).unwrap_or_else(|err| {
                     self.error(SemanticError::UnresolvedName {
                         exception: err,
-                        help: format!("Verify provided type"),
+                        help: Some(format!("Verify provided type")),
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -594,7 +594,7 @@ impl Analyzer {
                 if object_type != value_type {
                     self.error(SemanticError::TypesMismatch {
                         exception: format!("field has type `{object_type}`, but found `{value_type}`"),
-                        help: format!("Consider using another value, or changing field type"),
+                        help: Some(format!("Consider using another value, or changing field type")),
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -620,7 +620,7 @@ impl Analyzer {
                                 self.unwrap_alias(datatype).unwrap_or_else(|err| {
                                     self.error(SemanticError::UnresolvedName {
                                         exception: err,
-                                        help: format!("Verify provided type"),
+                                        help: Some(format!("Verify provided type")),
                                         src: self.source.clone(),
                                         span: error::position_to_span(*span)
                                     });
@@ -636,7 +636,7 @@ impl Analyzer {
                                     {
                                         self.error(SemanticError::TypesMismatch {
                                             exception: format!("expected integer type `{}`, but found `{}`", display_type.unwrap(), value_type),
-                                            help: format!("Consider using value with smaller range, or change explicit type"),
+                                            help: Some(format!("Consider using value with smaller range, or change explicit type")),
                                             src: self.source.clone(),
                                             span: error::position_to_span(value_span)
                                         });
@@ -644,7 +644,7 @@ impl Analyzer {
                                 } else {
                                     self.error(SemanticError::TypesMismatch {
                                         exception: format!("expected type `{}`, but found `{}`", display_type.unwrap(), value_type),
-                                        help: format!("Consider using another value type, or change explicit type"),
+                                        help: Some(format!("Consider using another value type, or change explicit type")),
                                         src: self.source.clone(),
                                         span: error::position_to_span(value_span)
                                     });
@@ -667,7 +667,7 @@ impl Analyzer {
                     (None, None) => {
                         self.error(SemanticError::UnknownObject {
                             exception: format!("variable `{identifier}` has unknown_type"),
-                            help: format!("Provide explicit or implicit type for annotation"),
+                            help: Some(format!("Provide explicit or implicit type for annotation")),
                             src: self.source.clone(),
                             span: error::position_to_span(*span)
                         });
@@ -686,7 +686,7 @@ impl Analyzer {
                 if !self.scope.is_main && name == "main" {
                     self.error(SemanticError::MainFunctionError {
                         exception: format!("`main()` function is not allowed in non-global scope"),
-                        help: format!("Move it to the global scope"),
+                        help: Some(format!("Move it to the global scope")),
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -696,7 +696,7 @@ impl Analyzer {
                 if self.scope.get_fn(name).is_some() {
                     self.error(SemanticError::RedefinitionError {
                         exception: format!("function `{}` already declared", name.replace("@!", "")),
-                        help: format!("Consider using another function name"),
+                        help: Some(format!("Consider using another function name")),
                         src: self.source.clone(),
                         span: error::position_to_span(*header_span)
                     });
@@ -735,7 +735,7 @@ impl Analyzer {
                     .unwrap_or_else(|err| {
                         self.error(SemanticError::UnresolvedName {
                             exception: err,
-                            help: format!("Verify provided type"),
+                            help: Some(format!("Verify provided type")),
                             src: self.source.clone(),
                             span: error::position_to_span(*span)
                         });
@@ -746,7 +746,7 @@ impl Analyzer {
                     .unwrap_or_else(|err| {
                         self.error(SemanticError::UnresolvedName {
                             exception: err,
-                            help: format!("Verify provided type"),
+                            help: Some(format!("Verify provided type")),
                             src: self.source.clone(),
                             span: error::position_to_span(*span)
                         });
@@ -756,7 +756,7 @@ impl Analyzer {
                 if exp != ret && ret != Type::Undefined {
                     self.error(SemanticError::TypesMismatch {
                         exception: format!("function `{}` returns type `{}`, but found `{}`", name.replace("@!", ""), datatype, ret),
-                        help: format!("Consider verifying returned value, or change function signature"),
+                        help: Some(format!("Consider verifying returned value, or change function signature")),
                         src: self.source.clone(),
                         span: error::position_to_span(*header_span)
                     });
@@ -777,7 +777,7 @@ impl Analyzer {
                 if *public && name == "main" {
                     self.error(SemanticError::VisibilityError {
                         exception: format!("`main()` function is not allowed to be public"),
-                        help: format!("Consider removing `pub` keyword"),
+                        help: Some(format!("Consider removing `pub` keyword")),
                         src: self.source.clone(),
                         span: error::position_to_span(*header_span)
                     });
@@ -791,7 +791,7 @@ impl Analyzer {
                 let func = self.scope.get_fn(name).unwrap_or_else(|| {
                     self.error(SemanticError::UnresolvedName {
                         exception: format!("function `{name}` is not defined here"),
-                        help: format!("Verify provided function name"),
+                        help: Some(format!("Verify provided function name")),
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -818,7 +818,7 @@ impl Analyzer {
                         } else {
                             self.error(SemanticError::ArgumentException {
                                 exception: format!("function `{}` has {} arguments, but found {}", name, func_args.len(), call_args.len()),
-                                help: format!("Verify provided call arguments"),
+                                help: Some(format!("Verify provided call arguments")),
                                 src: self.source.clone(),
                                 span: error::position_to_span(*span)
                             });
@@ -846,7 +846,7 @@ impl Analyzer {
                             {
                                 self.error(SemanticError::ArgumentException {
                                     exception: format!("argument #{} must be `{}`, but found `{}`", ind + 1, expected, provided),
-                                    help: format!("Consider verifying provided argument"),
+                                    help: Some(format!("Consider verifying provided argument")),
                                     src: self.source.clone(),
                                     span: error::position_to_span(Parser::get_span_expression(&arguments[ind]))
                                 });
@@ -896,7 +896,7 @@ impl Analyzer {
                 {
                     self.error(SemanticError::RedefinitionError {
                         exception: format!("structure `{name}` already declared"),
-                        help: format!("Consider changing structure name"),
+                        help: Some(format!("Consider changing structure name")),
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -1014,7 +1014,7 @@ impl Analyzer {
                 if !functions.is_empty() {
                     self.error(SemanticError::DisabledFeature {
                         exception: format!("methods in enums are currently disabled"),
-                        help: format!("Remove methods from enum"),
+                        help: Some(format!("Remove methods from enum")),
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -1042,7 +1042,7 @@ impl Analyzer {
                     .unwrap_or_else(|err| {
                         self.error(SemanticError::UnresolvedName {
                             exception: err,
-                            help: format!(""),
+                            help: None,
                             src: self.source.clone(),
                             span: error::position_to_span(*span)
                         });
@@ -1053,7 +1053,7 @@ impl Analyzer {
                     .unwrap_or_else(|err| {
                         self.error(SemanticError::UnresolvedName {
                             exception: err,
-                            help: format!(""),
+                            help: None,
                             src: self.source.clone(),
                             span: error::position_to_span(*span)
                         });
@@ -1069,7 +1069,7 @@ impl Analyzer {
                     .unwrap_or_else(|err| {
                         self.error(SemanticError::UnresolvedName {
                             exception: err,
-                            help: format!(""),
+                            help: None,
                             src: self.source.clone(),
                             span: error::position_to_span(*span)
                         });
@@ -1087,7 +1087,7 @@ impl Analyzer {
                 if condition_type != Type::Bool {
                     self.error(SemanticError::TypesMismatch {
                         exception: format!("expected `bool` type, but found `{condition_type}`"),
-                        help: format!("Consider returning `bool` type in expression"),
+                        help: Some(format!("Consider returning `bool` type in expression")),
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -1123,7 +1123,7 @@ impl Analyzer {
                 {
                     self.error(SemanticError::TypesMismatch {
                         exception: format!("scope expected `{}`, but found `{}`", self.scope.expected, then_block_type),
-                        help: format!(""),
+                        help: None,
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -1164,7 +1164,7 @@ impl Analyzer {
                     {
                         self.error(SemanticError::TypesMismatch {
                             exception: format!("scopes has incompatible types: `{then_block_type}` and `{else_block_type}`"),
-                            help: format!(""),
+                            help: None,
                             src: self.source.clone(),
                             span: error::position_to_span(*span)
                         });
@@ -1181,7 +1181,7 @@ impl Analyzer {
                 if condition_type != Type::Bool {
                     self.error(SemanticError::TypesMismatch {
                         exception: format!("expected `bool` in expression, but found `{condition_type}`"),
-                        help: format!(""),
+                        help: None,
                         src: self.source.clone(),
                         span: error::position_to_span(*span)
                     });
@@ -1212,13 +1212,12 @@ impl Analyzer {
 
                 if block_type != Type::Void {
                     if block_type != self.scope.expected {
-                        self.error(
-                            format!(
-                                "Expected type `{}`, but found `{}`",
-                                self.scope.expected, block_type
-                            ),
-                            *span,
-                        );
+                        self.error(SemanticError::TypesMismatch {
+                            exception: format!("expected `{}`, but found `{}`", self.scope.expected, block_type),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
                         return;
                     }
 
