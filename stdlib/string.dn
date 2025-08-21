@@ -37,7 +37,7 @@ pub struct String {
 
   fn from(value: *char) String {
     let len = strlen(value);
-    let size = sizeof!(char) * len;
+    let size = sizeof!(char) * len + 1;
     let ptr: *char = malloc(size);
 
     if ptr == NULL {
@@ -58,7 +58,7 @@ pub struct String {
   }
 
   fn with_capacity(capacity: usize) String {
-    let size = sizeof!(char) * capacity;
+    let size = sizeof!(char) * capacity + 1;
     let ptr: *char = malloc(size);
 
     if ptr == NULL {
@@ -91,7 +91,7 @@ pub struct String {
 
     self.len += 1;
 
-    if self.size < self.len {
+    if (self.size - 1) < self.len {
       let temp: *char = realloc(self.ptr, self.len);
 
       if temp == NULL {
@@ -105,6 +105,7 @@ pub struct String {
 
     let ptr = self.ptr;
     ptr[self.len - 1] = value;
+    ptr[self.len] = '\0';
   }
 
   fn push_str(&self, value: *char) {
@@ -114,7 +115,7 @@ pub struct String {
 
     self.len += strlen(value);
 
-    if self.size < self.len {
+    if (self.size - 1) < self.len {
       let temp: *char = realloc(self.ptr, self.len);
 
       if temp == NULL {
@@ -148,19 +149,6 @@ pub struct String {
     let output = ptr[self.len];
 
     ptr[self.len] = '\0';
-
-    if self.size > self.len {
-      let temp: *char = realloc(self.ptr, self.len);
-
-      if temp == NULL {
-        free(self.ptr);
-        panic!("Reallocation returned NULL pointer: `String.pop`");
-      }
-
-      self.ptr = temp;
-      self.size = self.len;
-    }
-
     return output;
   }
 
