@@ -72,7 +72,12 @@ fn golden_system_tests() -> anyhow::Result<()> {
         compile_cmd.arg(&input_file)
                    .arg(&binary_name);
 
-        compile_cmd.assert().success();
+        let compilation_result = compile_cmd.assert().try_success();
+        if let Err(compilation_error) = compilation_result {
+            let err = compilation_error.to_string();
+            failed_tests.push(FailedTest { test_case: test_name.clone(), error: err.clone() });
+            continue;
+        }
         
         let binary_path = format!("{}{}", binary_name, if cfg!(windows) { ".exe" } else { Default::default() });
         let expected_output = fs::read_to_string(&expected_file)?;
