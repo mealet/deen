@@ -1,0 +1,17 @@
+fn main() i32 {
+  // identifier test
+  let _some_variable_withStrangeNAME123 = 10;
+  println!("{}", _some_variable_withStrangeNAME123);
+
+  // redefinition test
+  let var = "hello";
+  println!("{}", var);
+
+  let var = 10;
+  println!("{}", var);
+
+  // empty annotation
+  let _ = 10;
+
+  return 0;
+}
