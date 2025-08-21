@@ -321,6 +321,15 @@ pub struct String {
     return buffer;
   }
 
+  fn truncate(&self, new_len: usize) {
+    if (new_len > self.len) { return; }
+
+    self.len = new_len;
+
+    let ptr = self.ptr;
+    ptr[self.len] = '\0';
+  }
+
   fn as_ptr(&self) *char {
     return self.ptr;
   }
