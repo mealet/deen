@@ -1,0 +1,32 @@
+fn foo() i32 {
+  return 123;
+}
+
+fn greeter(name: *char) {
+  println!("{}", name);
+}
+
+fn _strange_functionNameTEST123() {
+  println!("strange function name printed");
+}
+
+fn add_numbers(a: i32, b: i32) i32 {
+  return a + b;
+}
+
+fn ptr_arg_function(pointer: *i32) {
+  println!("{}", *pointer);
+}
+
+fn main() i32 {
+  println!("{}", foo());
+
+  _strange_functionNameTEST123();
+
+  println!("{}", add_numbers(5, 5));
+
+  let a = 555;
+  ptr_arg_function(&a);
+
+  return 0;
+}
