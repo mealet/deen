@@ -30,6 +30,12 @@ TEST_ARGS = -- --show-output
 test:
 	$(PACKAGE_MANAGER) $(TEST_COMMAND) $(TEST_ARGS)
 
+# Golden System Tests
+GTEST_ARGS = -p deen -- --show-output
+
+gtest:
+	$(PACKAGE_MANAGER) $(TEST_COMMAND) $(GTEST_ARGS)
+
 # Formatting
 FMT_ARGS = --emit=files
 

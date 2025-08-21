@@ -20,3 +20,7 @@ deen-parser = { path = "../deen-parser" }
 deen-semantic = { path = "../deen-semantic" }
 deen-codegen = { path = "../deen-codegen" }
 deen-linker = { path = "../deen-linker" }
+
+[dev-dependencies]
+assert_cmd = "2.0.17"
+anyhow = "1.0.99"
