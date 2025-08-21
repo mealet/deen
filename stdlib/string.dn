@@ -340,7 +340,9 @@ pub struct String {
       self.len = 0;
       self.size = 0;
 
-      free(self.ptr);
+      if (self.ptr != NULL) {
+        free(self.ptr);
+      }
     }
   }
 
