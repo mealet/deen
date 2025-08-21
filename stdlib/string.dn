@@ -48,6 +48,15 @@ pub struct String {
     return String { .ptr = ptr, .size = size, .len = len, .iterator_ptr = 0 };
   }
 
+  fn from_raw_parts(ptr: *void, len: usize, capacity: usize) String {
+    if ptr == NULL {
+      panic!("Null pointer appeared in raw creation: `String.from_raw_parts`");
+    }
+
+    let ptr: *char = ptr;
+    return String { .ptr = ptr, .size = capacity, .len = len, .iterator_ptr = 0 };
+  }
+
   fn with_capacity(capacity: usize) String {
     let size = sizeof!(char) * capacity;
     let ptr: *char = malloc(size);
