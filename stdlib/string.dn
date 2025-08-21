@@ -37,7 +37,7 @@ pub struct String {
 
   fn from(value: *char) String {
     let len = strlen(value);
-    let size = sizeof!(char) * len;
+    let size = sizeof!(char) * len + 1;
     let ptr: *char = malloc(size);
 
     if ptr == NULL {
@@ -48,8 +48,17 @@ pub struct String {
     return String { .ptr = ptr, .size = size, .len = len, .iterator_ptr = 0 };
   }
 
+  fn from_raw_parts(ptr: *void, len: usize, capacity: usize) String {
+    if ptr == NULL {
+      panic!("Null pointer appeared in raw creation: `String.from_raw_parts`");
+    }
+
+    let ptr: *char = ptr;
+    return String { .ptr = ptr, .size = capacity, .len = len, .iterator_ptr = 0 };
+  }
+
   fn with_capacity(capacity: usize) String {
-    let size = sizeof!(char) * capacity;
+    let size = sizeof!(char) * capacity + 1;
     let ptr: *char = malloc(size);
 
     if ptr == NULL {
@@ -82,7 +91,7 @@ pub struct String {
 
     self.len += 1;
 
-    if self.size < self.len {
+    if (self.size - 1) < self.len {
       let temp: *char = realloc(self.ptr, self.len);
 
       if temp == NULL {
@@ -96,6 +105,7 @@ pub struct String {
 
     let ptr = self.ptr;
     ptr[self.len - 1] = value;
+    ptr[self.len] = '\0';
   }
 
   fn push_str(&self, value: *char) {
@@ -105,7 +115,7 @@ pub struct String {
 
     self.len += strlen(value);
 
-    if self.size < self.len {
+    if (self.size - 1) < self.len {
       let temp: *char = realloc(self.ptr, self.len);
 
       if temp == NULL {
@@ -139,20 +149,41 @@ pub struct String {
     let output = ptr[self.len];
 
     ptr[self.len] = '\0';
+    return output;
+  }
 
-    if self.size > self.len {
-      let temp: *char = realloc(self.ptr, self.len);
-
-      if temp == NULL {
-        free(self.ptr);
-        panic!("Reallocation returned NULL pointer: `String.pop`");
-      }
-
-      self.ptr = temp;
-      self.size = self.len;
+  fn remove(&self, position: usize) {
+    if self.size < 1 {
+      panic!("Unable to use dropped string: `String.remove`");
     }
 
-    return output;
+    if self.len < 1 { return; }
+
+    if position >= self.len {
+      panic!("Position is {}, but String len is {}: `String.remove`", position, self.len);
+    }
+
+    if position == (self.len - 1) {
+      let _ = self.pop();
+      return;
+    }
+
+    let ptr = self.ptr;
+    ptr += position;
+
+    let left = ptr;
+    let right = ptr;
+    
+    right += 1;
+
+    while *right != '\0' {
+      *left = *right;
+
+      left++;
+      right++;
+    }
+
+    *left = '\0';
   }
 
   fn peek(&self, position: usize) char {
@@ -312,6 +343,15 @@ pub struct String {
     return buffer;
   }
 
+  fn truncate(&self, new_len: usize) {
+    if (new_len > self.len) { return; }
+
+    self.len = new_len;
+
+    let ptr = self.ptr;
+    ptr[self.len] = '\0';
+  }
+
   fn as_ptr(&self) *char {
     return self.ptr;
   }
@@ -331,7 +371,9 @@ pub struct String {
       self.len = 0;
       self.size = 0;
 
-      free(self.ptr);
+      if (self.ptr != NULL) {
+        free(self.ptr);
+      }
     }
   }
 

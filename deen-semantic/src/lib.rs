@@ -664,12 +664,18 @@ impl Analyzer {
                                         });
                                     }
                                 } else {
-                                    self.error(SemanticError::TypesMismatch {
-                                        exception: format!("expected type `{}`, but found `{}`", display_type.unwrap(), value_type),
-                                        help: Some("Consider using another value type, or change explicit type".to_string()),
-                                        src: self.source.clone(),
-                                        span: error::position_to_span(value_span)
-                                    });
+                                    // allowing assignation if both types are pointers and one of them is `*void`
+                                    if let Type::Pointer(ref expected_ptr) = unwrapped_datatype
+                                    && let Type::Pointer(ref value_ptr) = value_type
+                                    && (*expected_ptr.clone() == Type::Void || *value_ptr.clone() == Type::Void)
+                                    {} else {
+                                        self.error(SemanticError::TypesMismatch {
+                                            exception: format!("expected type `{}`, but found `{}`", display_type.unwrap(), value_type),
+                                            help: Some("Consider using another value type, or change explicit type".to_string()),
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(value_span)
+                                        });
+                                    }
                                 }
                             }
                         }
@@ -688,7 +694,7 @@ impl Analyzer {
                     }
                     (None, None) => {
                         self.error(SemanticError::UnknownObject {
-                            exception: format!("variable `{identifier}` has unknown_type"),
+                            exception: format!("variable `{identifier}` has unknown type"),
                             help: Some(
                                 "Provide explicit or implicit type for annotation".to_string(),
                             ),
@@ -2608,12 +2614,17 @@ impl Analyzer {
                                                 if *ptr_type.clone() == *raw_expected { return };
                                             }
                                             if expr_type != expected {
-                                                self.error(SemanticError::TypesMismatch {
-                                                    exception: format!("argument #{} has type `{}`, but found `{}`", index + 1, raw_expected, raw_expr_type),
-                                                    help: None,
-                                                    src: self.source.clone(),
-                                                    span: error::position_to_span(Parser::get_span_expression(expr))
-                                                });
+                                                if let Type::Pointer(ref expr_ptr) = expr_type 
+                                                && let Type::Pointer(ref expected_ptr) = expected
+                                                && (*expr_ptr.clone() == Type::Void || *expected_ptr.clone() == Type::Void)
+                                                {} else {
+                                                    self.error(SemanticError::TypesMismatch {
+                                                        exception: format!("argument #{} has type `{}`, but found `{}`", index + 1, raw_expected, raw_expr_type),
+                                                        help: None,
+                                                        src: self.source.clone(),
+                                                        span: error::position_to_span(Parser::get_span_expression(expr))
+                                                    });
+                                                }
                                             }
                                         });
                                     };
