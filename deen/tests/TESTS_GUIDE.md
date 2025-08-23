@@ -10,3 +10,4 @@ In this realization happens:
 2. Create 2 files: `test_name.dn`, `test_name.expected`.
 3. Write your code in `.dn` file (main function should return 0 for no error).
 4. Write expected output in `.expected` file.
+5. **If you want to specify expected exit code** use this format at start of `.expected` file: **`@! EXIT_CODE`**

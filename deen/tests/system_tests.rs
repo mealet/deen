@@ -100,12 +100,52 @@ fn golden_system_tests() -> anyhow::Result<()> {
         }
         
         let binary_path = format!("{}{}", binary_name, if cfg!(windows) { ".exe" } else { Default::default() });
-        let expected_output = fs::read_to_string(&expected_file)?;
+        let (expected_output, expected_exit_code) = {
+            let mut content = fs::read_to_string(&expected_file)?;
+            let mut exit_code = 0;
+
+            if content.starts_with("@! ") {
+                let chars = content.chars();
+                let mut cursor = chars.into_iter().skip_while(|&chr| chr == '@' || chr == '!' || chr.is_whitespace());
+                let mut current = cursor.next().unwrap_or('\0');
+
+                let mut number = 0;
+                let mut number_digits = 0;
+
+                while current != '\0' && current.is_digit(10) {
+                    number = number * 10 + current.to_digit(10).unwrap_or(0);
+                    number_digits += 1;
+                    current = cursor.next().unwrap_or('\0');
+                }
+
+                // `+1` is used to remove '\n' symbol
+                (0..(3 + number_digits + 1)).for_each(|_| {
+                    content.remove(0);
+                });
+
+
+                exit_code = number as i32;
+            }
+
+            (content, exit_code)
+        };
 
         let mut run_cmd = Command::new(format!("./{}", &binary_path));
-        let _ = run_cmd.assert().success().try_stdout(expected_output).map_err(|err| {
-            failed_tests.push(FailedTest { test_case: test_name, error: err.to_string() });
-        });
+        let code_assertion = run_cmd
+            .assert()
+            .try_code(expected_exit_code);
+
+        if let Ok(code_assertion) = code_assertion {
+            let _ = code_assertion
+                .try_stdout(expected_output)
+                .map_err(|err| {
+                failed_tests.push(FailedTest { test_case: test_name, error: err.to_string() });
+            });
+        } else {
+            let _ = code_assertion.map_err(|err| {
+                failed_tests.push(FailedTest { test_case: test_name, error: err.to_string() });
+            });
+        }
 
         let _ = fs::remove_file(binary_path);
     }
