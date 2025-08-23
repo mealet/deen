@@ -1,6 +1,6 @@
 @! 1
-print macro
-println macro
+print macro formatted
+println macro formatted
 Hello, World!
 4
 8
