@@ -1,9 +1,9 @@
 fn main() i32 {
   // print!(LITERAL_FORMAT, ...) void
-  print!("print macro\n");
+  print!("print macro {}\n", "formatted");
 
   // println!(LITERAL_FORMAT, ...) void
-  println!("println macro");
+  println!("println macro {}", "formatted");
 
   // format!(LITERAL_FORMAT, ...) *char
   let greet: *char = format!("Hello, {}!", "World");
