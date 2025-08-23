@@ -6,6 +6,20 @@ struct FailedTest {
     pub error: String
 }
 
+fn count_digits(mut number: usize) -> usize {
+    if number == 0 { return 1 };
+    if number / 10 == 0 { return 1 };
+
+    let mut count = 0;
+
+    while number != 0 {
+        number /= 10;
+        count += 1;
+    }
+
+    return count;
+}
+
 fn discover_test_cases() -> Vec<(String, String)> {
     const TEST_CASES_DIRECTORY: &str = "tests/test_cases";
     let mut test_cases = Vec::new();
@@ -58,10 +72,16 @@ fn discover_test_cases_recursive(dir: &str, test_cases: &mut Vec<(String, String
 #[test]
 fn golden_system_tests() -> anyhow::Result<()> {
     let test_cases = discover_test_cases();
+    let tests_count = test_cases.len();
+    let tests_count_digits = count_digits(tests_count);
+
     let mut failed_tests: Vec<FailedTest> = Vec::new();
 
     for (index, (test_name, test_path)) in test_cases.into_iter().enumerate() {
-        println!("{} | Running test: `{}`", index + 1, test_name);
+        let current_number_digits = count_digits(index + 1).wrapping_sub(1);
+        let numeration = format!("{}{}|", index + 1, " ".repeat(tests_count_digits - current_number_digits));
+
+        println!("{} Running test: `{}`", numeration, test_name);
 
         let input_file = format!("tests/test_cases/{}.dn", test_path);
         let expected_file = format!("tests/test_cases/{}.expected", test_path);
