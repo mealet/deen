@@ -1,0 +1,11 @@
+enum Foo {
+  A,
+  B,
+  C
+}
+
+fn main() i32 {
+  println!("{} | {} | {}", Foo.A, Foo.B, Foo.C);
+
+  return 0;
+}
