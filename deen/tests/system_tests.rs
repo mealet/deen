@@ -60,8 +60,8 @@ fn golden_system_tests() -> anyhow::Result<()> {
     let test_cases = discover_test_cases();
     let mut failed_tests: Vec<FailedTest> = Vec::new();
 
-    for (test_name, test_path) in test_cases {
-        println!("Running test: `{}`", test_name);
+    for (index, (test_name, test_path)) in test_cases.into_iter().enumerate() {
+        println!("{} | Running test: `{}`", index + 1, test_name);
 
         let input_file = format!("tests/test_cases/{}.dn", test_path);
         let expected_file = format!("tests/test_cases/{}.expected", test_path);
