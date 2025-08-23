@@ -26,6 +26,10 @@ fn main() i32 {
   println!("countering");
   let counter = 0;
   while counter < 5 {
+    if counter == 4 {
+      break;
+    }
+
     println!("{}", counter);
     counter += 1;
   }
