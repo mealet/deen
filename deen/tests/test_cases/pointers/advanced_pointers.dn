@@ -1,0 +1,27 @@
+struct Foo {
+  value: i32
+}
+
+fn main() i32 {
+  // pointer to struct field
+  let instance = Foo { .value = 10 };
+  let ptr = &instance.value;
+
+  println!("{} | {}", *ptr, instance.value);
+
+  *ptr = 15;
+
+  println!("{} | {}", *ptr, instance.value);
+
+  // pointer to array field
+  let arr = [1, 2, 3];
+  let ptr = &arr[0];
+
+  println!("{} | {}", *ptr, arr[0]);
+
+  *ptr = 133;
+
+  println!("{} | {}", *ptr, arr[0]);
+
+  return 0;
+}
