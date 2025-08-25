@@ -1,0 +1,42 @@
+fn main() i32 {
+  // integer constants
+  let decimal = 1000;
+  let decimal_sep = 1_000;
+  let binary = 0b1111101000;
+  let hexadecimal = 0x3E8;
+  let hexadecimal_lc = 0x3e8;
+
+  println!("{}", decimal);
+  println!("{}", decimal_sep);
+  println!("{}", binary);
+  println!("{}", hexadecimal);
+  println!("{}", hexadecimal_lc);
+
+  // float constants
+  let default = 1.0;
+  let bigger = 51.32;
+  let pi = 3.141592;
+
+  println!("{}", default);
+  println!("{}", bigger);
+  println!("{}", pi);
+
+  // boolean constants
+
+  let boolean_true = true;
+  let boolean_false = false;
+
+  println!("{} -> {} | {} -> {}", boolean_true, cast!(boolean_true, u32), boolean_false, cast!(boolean_false, u32));
+
+  // character constants
+  
+  let character: char = 'a';
+  println!("{}", character);
+
+  // string constants
+
+  let raw_string: *char = "hello";
+  println!("{}", raw_string);
+
+  return 0;
+}

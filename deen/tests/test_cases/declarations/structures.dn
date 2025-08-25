@@ -1,0 +1,158 @@
+struct Foo {
+  value_1: i32,
+  value_2: f64,
+  value_3: *char
+}
+
+struct Person {
+  name: *char,
+
+  fn new(name: *char) Person {
+    return Person { .name = name };
+  }
+
+  fn greet(&self) {
+    println!("Hello, {}", self.name);
+  }
+}
+
+struct Repeater {
+  value: *char,
+  iterator: usize,
+
+  fn new(value: *char) Repeater {
+    return Repeater { .value = value, .iterator = 0 };
+  }
+  
+  // Compiler Implementations
+
+  fn display(&self) *char {
+    return self.value;
+  }
+
+  fn drop(&self) {
+    println!("dropped: {}", self.value);
+  }
+
+  fn iterate(&self) (*char, bool) {
+    if self.iterator >= 3 {
+      self.iterator = 0;
+      return ("", false);
+    }
+
+    self.iterator += 1;
+    return (self.value, true);
+  }
+
+  fn deref(&self) char {
+    return *self.value;
+  }
+
+  fn deref_assign(&self, value: char) {
+    let ptr = self.value;
+    *ptr = value;
+  }
+
+  fn slice(&self, index: usize) char {
+    let ptr = self.value
+    return ptr[index]
+  }
+
+  fn slice_assign(&self, index: usize, value: char) {
+    let ptr = self.value;
+    ptr[index] = value;
+  }
+}
+
+struct Int {
+  value: i32,
+
+  fn new(value: i32) Int {
+    return Int { .value = value };
+  }
+
+  // Compiler Implementations
+
+  fn display(&self) *char {
+    return format!("{}", self.value);
+  }
+
+  fn binary(&self, other: *Int, operator: *char) Int {
+    if operator == "+" {
+      return Int { .value = self.value + other.value };
+    } else if operator == "-" {
+      return Int { .value = self.value - other.value };
+    } else if operator == "*" {
+      return Int { .value = self.value * other.value };
+    } else if operator == "/" {
+      return Int { .value = self.value / other.value };
+    } else if operator == "%" {
+      return Int { .value = self.value % other.value };
+    } else {
+      return Int { .value = self.value };
+    }
+  }
+
+  fn unary(&self, operator: *char) Int {
+    if operator == "!" {
+      return Int { .value = !self.value };
+    } else {
+      return Int { .value = -self.value };
+    }
+  }
+
+  fn compare(&self, other: *Int) i32 {
+    if self.value > other.value {
+      return -1;
+    } else if self.value < other.value {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+}
+
+fn main() i32 {
+  // basic initialization test
+  let foo_init = Foo { .value_1 = 123, .value_2 = 1.23, .value_3 = "hello" };
+  println!("{} | {} | {}", foo_init.value_1, foo_init.value_2, foo_init.value_3);
+
+  // structure methods and self-methods
+  let person = Person.new("Jason");
+  person.greet();
+
+  // compiler implementations
+  // struct Repeater
+
+  let repeater = Repeater.new("hello");
+
+  println!("Repeater: `{}`", repeater);
+  println!("Deref: {}", *repeater);
+
+  *repeater = 'a';
+  repeater[1] = 'a';
+
+  for i = repeater {
+    println!("{}", i);
+  }
+
+  // struct Int
+  
+  let a = Int.new(10);
+  let b = Int.new(5);
+
+  println!("{}", a + b);
+  println!("{}", a - b);
+  println!("{}", a * b);
+  println!("{}", a / b);
+  println!("{}", a % b);
+
+  println!("{}", !a);
+  println!("{}", -a);
+
+  println!("{}", a == b);
+  println!("{}", a > b);
+  println!("{}", a < b);
+
+  return 0;
+}

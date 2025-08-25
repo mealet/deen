@@ -1,0 +1,11 @@
+fn main() i32 {
+  println!("{}" 25 + 5);
+  println!("{}" 25 - 5);
+  println!("{}" 25 * 5);
+  println!("{}" 25 / 5);
+  println!("{}" 25 % 5);
+  println!("{}", 25 >> 5);
+  println!("{}", 25 << 5);
+
+  return 0;
+}

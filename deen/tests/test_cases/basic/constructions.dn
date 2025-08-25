@@ -1,0 +1,45 @@
+fn main() i32 {
+  // IF ELSE construction
+
+  if true {
+    println!("if true");
+  }
+
+  if true {
+    println!("if true else");
+  } else {
+    println!("wrong");
+  }
+
+  if false {
+    println!("wrong");
+  }
+
+  if false {
+    println!("wrong");
+  } else {
+    println!("if false else")
+  }
+
+  // WHILE construction
+
+  println!("countering");
+  let counter = 0;
+  while counter < 5 {
+    if counter == 4 {
+      break;
+    }
+
+    println!("{}", counter);
+    counter += 1;
+  }
+
+  // FOR construction
+  
+  println!("for countering");
+  for counter = 5 {
+    println!("{}", counter);
+  }
+
+  return 0;
+}

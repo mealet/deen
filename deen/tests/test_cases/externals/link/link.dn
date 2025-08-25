@@ -1,0 +1,11 @@
+// TODO: Provided path works only with absolute path. After fixing that update this test
+
+// _link_c "./link.c";
+
+extern "C" fn square(i32) i32;
+
+fn main() i32 {
+  // println!("{}", square(5));
+
+  return 0;
+}

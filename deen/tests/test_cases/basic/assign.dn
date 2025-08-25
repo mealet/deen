@@ -1,0 +1,43 @@
+fn main() i32 {
+  // integer
+  let int: i32 = 1;
+  println!("{}", int);
+
+  int = 2;
+  println!("{}", int);
+
+  int = 3;
+  println!("{}", int);
+
+  // floating
+  let float: f64 = 1.0;
+  println!("{}", float);
+
+  float = 1.23;
+  println!("{}", float);
+
+  float = 1.33;
+  println!("{}", float);
+
+  // string
+  let string = "hello";
+  println!("{}", string);
+
+  string = "world";
+  println!("{}", string);
+
+  string = "test";
+  println!("{}", string);
+
+  // char
+  let character = 'a';
+  println!("{}", character);
+
+  character = 'b';
+  println!("{}", character);
+
+  character = 'c';
+  println!("{}", character);
+
+  return 0;
+}

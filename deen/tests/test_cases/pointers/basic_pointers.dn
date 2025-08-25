@@ -1,0 +1,28 @@
+fn main() i32 {
+  // reference to single stack value
+  let a = &10;
+  println!("{}", *a);
+
+  *a = 20;
+  println!("{}", *a);
+
+  // reference to variable
+  let var = 123;
+  let var_ptr = &var;
+  println!("{} | {}", var, *var_ptr);
+
+  *var_ptr = 100;
+  println!("{} | {}", var, *var_ptr);
+
+  // multi-references
+  let var = 555;
+  let multi_ptr = &&var;
+
+  println!("{} | {}", var, **multi_ptr);
+  
+  **multi_ptr = 0;
+
+  println!("{} | {}", var, **multi_ptr);
+
+  return 0;
+}

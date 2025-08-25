@@ -1,0 +1,9 @@
+// TODO: Include paths works only with absolute paths. Update this test after that fixed.
+
+// include "./lib.dn"
+
+fn main() i32 {
+  // println!("{}", square(5));
+  
+  return 0;
+}

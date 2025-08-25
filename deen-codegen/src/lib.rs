@@ -1635,16 +1635,25 @@ impl<'ctx> CodeGen<'ctx> {
                         var.ptr.into(),
                     )
                 }
-                Expressions::Slice { object: _, index: _, span: _ } => {
-                    let result = self.compile_expression(*object,Some(Type::Pointer(Box::new(Type::Undefined))));
-                    result
+                Expressions::Slice {
+                    object: _,
+                    index: _,
+                    span: _,
+                } => {
+                    self.compile_expression(*object, Some(Type::Pointer(Box::new(Type::Undefined))))
                 }
-                Expressions::SubElement { head: _, subelements: _, span: _ } => {
-                    let (result_type, ptr) = self.compile_expression(*object,Some(Type::Pointer(Box::new(Type::Undefined))));
+                Expressions::SubElement {
+                    head: _,
+                    subelements: _,
+                    span: _,
+                } => {
+                    let (result_type, ptr) = self.compile_expression(
+                        *object,
+                        Some(Type::Pointer(Box::new(Type::Undefined))),
+                    );
                     (Type::Pointer(Box::new(result_type)), ptr)
                 }
                 _ => {
-
                     let value = self.compile_expression(
                         *object,
                         Some(Type::Pointer(Box::new(Type::Undefined))),
@@ -2861,8 +2870,9 @@ impl<'ctx> CodeGen<'ctx> {
                         };
 
                         if let Some(Type::Pointer(expected_ptr)) = expected
-                            && *expected_ptr == Type::Undefined {
-                            return (Type::Pointer(Box::new(*ret_type)), ptr.into())
+                            && *expected_ptr == Type::Undefined
+                        {
+                            return (Type::Pointer(Box::new(*ret_type)), ptr.into());
                         }
 
                         let ret_value = self.builder.build_load(basic_ret_type, ptr, "").unwrap();

@@ -666,9 +666,11 @@ impl Analyzer {
                                 } else {
                                     // allowing assignation if both types are pointers and one of them is `*void`
                                     if let Type::Pointer(ref expected_ptr) = unwrapped_datatype
-                                    && let Type::Pointer(ref value_ptr) = value_type
-                                    && (*expected_ptr.clone() == Type::Void || *value_ptr.clone() == Type::Void)
-                                    {} else {
+                                        && let Type::Pointer(ref value_ptr) = value_type
+                                        && (*expected_ptr.clone() == Type::Void
+                                            || *value_ptr.clone() == Type::Void)
+                                    {
+                                    } else {
                                         self.error(SemanticError::TypesMismatch {
                                             exception: format!("expected type `{}`, but found `{}`", display_type.unwrap(), value_type),
                                             help: Some("Consider using another value type, or change explicit type".to_string()),
@@ -2614,7 +2616,7 @@ impl Analyzer {
                                                 if *ptr_type.clone() == *raw_expected { return };
                                             }
                                             if expr_type != expected {
-                                                if let Type::Pointer(ref expr_ptr) = expr_type 
+                                                if let Type::Pointer(ref expr_ptr) = expr_type
                                                 && let Type::Pointer(ref expected_ptr) = expected
                                                 && (*expr_ptr.clone() == Type::Void || *expected_ptr.clone() == Type::Void)
                                                 {} else {

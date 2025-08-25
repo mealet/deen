@@ -1,0 +1,10 @@
+@! 1
+print macro formatted
+println macro formatted
+Hello, World!
+4
+8
+123
+
+* Runtime Panic at `macros.dn` <line 21>
+Panic test, 2 + 2 = 4

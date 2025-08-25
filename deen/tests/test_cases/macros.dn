@@ -1,0 +1,24 @@
+fn main() i32 {
+  // print!(LITERAL_FORMAT, ...) void
+  print!("print macro {}\n", "formatted");
+
+  // println!(LITERAL_FORMAT, ...) void
+  println!("println macro {}", "formatted");
+
+  // format!(LITERAL_FORMAT, ...) *char
+  let greet: *char = format!("Hello, {}!", "World");
+  println!("{}", greet);
+
+  // sizeof!(EXPRESSION / BASIC TYPE) usize
+  println!("{}", sizeof!(i32));
+  println!("{}", sizeof!(i64));
+
+  // cast!(EXPRESSION, TYPE) TYPE
+  println!("{}", cast!(123.123, i32));
+
+  // panic!(LITERAL_FORMAT, ...) void
+  // EXITING WITH CODE 1
+  panic!("Panic test, 2 + 2 = {}", 2 + 2);
+
+  return 0;
+}
