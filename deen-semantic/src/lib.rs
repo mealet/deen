@@ -31,7 +31,11 @@ use deen_parser::{
 };
 use indexmap::IndexMap;
 use miette::NamedSource;
-use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
+use std::{
+    collections::HashMap,
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
 
 mod element;
 mod error;
@@ -50,6 +54,7 @@ const STANDARD_LIBRARY_VAR: &str = "DEEN_LIB";
 pub struct Analyzer {
     scope: Scope,
     source: NamedSource<String>,
+    source_path: PathBuf,
 
     errors: Vec<SemanticError>,
     warnings: Vec<SemanticWarning>,
@@ -59,7 +64,7 @@ pub struct Analyzer {
 }
 
 impl Analyzer {
-    pub fn new(src: &str, filename: &str, is_main: bool) -> Self {
+    pub fn new(src: &str, filename: &str, source_path: PathBuf, is_main: bool) -> Self {
         let compiler_macros = HashMap::from([
             (
                 String::from("print"),
@@ -91,6 +96,7 @@ impl Analyzer {
                 scope
             },
             source: NamedSource::new(filename, src.to_owned()),
+            source_path,
 
             errors: Vec::new(),
             warnings: Vec::new(),
@@ -1610,16 +1616,17 @@ impl Analyzer {
                 }
 
                 let included_path =
-                    Self::expand_library_path(import_path, true).unwrap_or_else(|err| {
-                        self.error(SemanticError::FormatError {
-                            exception: format!("unable to resolve provided path: {err}"),
-                            help: None,
-                            src: self.source.clone(),
-                            span: error::position_to_span(*path_span),
-                        });
+                    self.expand_library_path(import_path, true)
+                        .unwrap_or_else(|err| {
+                            self.error(SemanticError::FormatError {
+                                exception: format!("unable to resolve provided path: {err}"),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*path_span),
+                            });
 
-                        PathBuf::new()
-                    });
+                            PathBuf::new()
+                        });
 
                 if included_path.as_os_str().is_empty() {
                     return;
@@ -1702,7 +1709,7 @@ impl Analyzer {
                 };
 
                 // Semantical Analyzer
-                let mut analyzer = Analyzer::new(&src, fname, false);
+                let mut analyzer = Analyzer::new(&src, fname, included_path.clone(), false);
                 let (symtable, _) = match analyzer.analyze(&ast) {
                     Ok(res) => res,
                     Err((errors, _)) => {
@@ -1800,15 +1807,16 @@ impl Analyzer {
                     };
 
                 let formatted_path =
-                    Self::expand_library_path(link_path, false).unwrap_or_else(|err| {
-                        self.error(SemanticError::FormatError {
-                            exception: format!("unable to resolve linkage path: {err}"),
-                            help: None,
-                            src: self.source.clone(),
-                            span: error::position_to_span(*path_span),
+                    self.expand_library_path(link_path, false)
+                        .unwrap_or_else(|err| {
+                            self.error(SemanticError::FormatError {
+                                exception: format!("unable to resolve linkage path: {err}"),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*path_span),
+                            });
+                            PathBuf::new()
                         });
-                        PathBuf::new()
-                    });
 
                 if formatted_path.as_os_str().is_empty() {
                     return;
@@ -3589,6 +3597,7 @@ impl Analyzer {
     }
 
     fn expand_library_path(
+        &self,
         path: impl AsRef<str>,
         is_deen_module: bool,
     ) -> Result<PathBuf, Box<dyn std::error::Error>> {
@@ -3614,8 +3623,21 @@ impl Analyzer {
             path_buffer.push(module_path);
             Ok(path_buffer)
         } else {
-            // relative library path
-            Ok(PathBuf::from(path))
+            // relative library path (relative from current module)
+            let relative_dir = self
+                .source_path
+                .parent()
+                .unwrap_or(Path::new(""))
+                .to_path_buf();
+
+            if relative_dir.to_str().unwrap_or("").is_empty()
+                || !relative_dir.exists()
+                || !relative_dir.is_dir()
+            {
+                return Ok(PathBuf::from(path));
+            }
+
+            Ok(relative_dir.join(path))
         }
     }
 }
