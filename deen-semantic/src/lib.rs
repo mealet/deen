@@ -31,7 +31,11 @@ use deen_parser::{
 };
 use indexmap::IndexMap;
 use miette::NamedSource;
-use std::{collections::HashMap, ffi::OsStr, path::{PathBuf, Path}};
+use std::{
+    collections::HashMap,
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
 
 mod element;
 mod error;
@@ -1612,16 +1616,17 @@ impl Analyzer {
                 }
 
                 let included_path =
-                    self.expand_library_path(import_path, true).unwrap_or_else(|err| {
-                        self.error(SemanticError::FormatError {
-                            exception: format!("unable to resolve provided path: {err}"),
-                            help: None,
-                            src: self.source.clone(),
-                            span: error::position_to_span(*path_span),
-                        });
+                    self.expand_library_path(import_path, true)
+                        .unwrap_or_else(|err| {
+                            self.error(SemanticError::FormatError {
+                                exception: format!("unable to resolve provided path: {err}"),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*path_span),
+                            });
 
-                        PathBuf::new()
-                    });
+                            PathBuf::new()
+                        });
 
                 if included_path.as_os_str().is_empty() {
                     return;
@@ -1802,15 +1807,16 @@ impl Analyzer {
                     };
 
                 let formatted_path =
-                    self.expand_library_path(link_path, false).unwrap_or_else(|err| {
-                        self.error(SemanticError::FormatError {
-                            exception: format!("unable to resolve linkage path: {err}"),
-                            help: None,
-                            src: self.source.clone(),
-                            span: error::position_to_span(*path_span),
+                    self.expand_library_path(link_path, false)
+                        .unwrap_or_else(|err| {
+                            self.error(SemanticError::FormatError {
+                                exception: format!("unable to resolve linkage path: {err}"),
+                                help: None,
+                                src: self.source.clone(),
+                                span: error::position_to_span(*path_span),
+                            });
+                            PathBuf::new()
                         });
-                        PathBuf::new()
-                    });
 
                 if formatted_path.as_os_str().is_empty() {
                     return;
@@ -3618,9 +3624,16 @@ impl Analyzer {
             Ok(path_buffer)
         } else {
             // relative library path (relative from current module)
-            let relative_dir = self.source_path.parent().unwrap_or(&Path::new("")).to_path_buf();
+            let relative_dir = self
+                .source_path
+                .parent()
+                .unwrap_or(Path::new(""))
+                .to_path_buf();
 
-            if relative_dir.to_str().unwrap_or("").is_empty() || !relative_dir.exists() || !relative_dir.is_dir() {
+            if relative_dir.to_str().unwrap_or("").is_empty()
+                || !relative_dir.exists()
+                || !relative_dir.is_dir()
+            {
                 return Ok(PathBuf::from(path));
             }
 
