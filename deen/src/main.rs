@@ -233,7 +233,7 @@ fn main() {
     // Imports aren't working currently | 20/06/2025 v0.0.4
     //
     // Analyzer takes only reference to AST (because we only provide checking)
-    let mut analyzer = deen_semantic::Analyzer::new(&src, fname, true);
+    let mut analyzer = deen_semantic::Analyzer::new(&src, fname, args.path.clone().into(), true);
     let (symtable, warns) = match analyzer.analyze(&ast) {
         Ok(res) => res,
         Err((errors, warns)) => {
