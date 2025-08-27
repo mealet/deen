@@ -2052,7 +2052,6 @@ impl Analyzer {
                     //
                     //     Type::USIZE
                     // }
-
                     (Type::Alias(left), Type::Alias(right)) => {
                         let implementation_format: String =
                             format!("fn binary(&self, other: *{left}, operand: *char) {left}");
@@ -3448,19 +3447,13 @@ impl Analyzer {
             }
 
             // pointer to integer cast
-            _ if matches!(from, &Type::Pointer(_)) && Self::is_integer(to) => {
-                Ok(())
-            }
+            _ if matches!(from, &Type::Pointer(_)) && Self::is_integer(to) => Ok(()),
 
             // integer to pointer cast
-            _ if Self::is_integer(from) && matches!(to, &Type::Pointer(_)) => {
-                Ok(())
-            }
+            _ if Self::is_integer(from) && matches!(to, &Type::Pointer(_)) => Ok(()),
 
             // pointers types casts
-            _ if matches!(from, &Type::Pointer(_)) && matches!(to, &Type::Pointer(_)) => {
-                Ok(())
-            }
+            _ if matches!(from, &Type::Pointer(_)) && matches!(to, &Type::Pointer(_)) => Ok(()),
 
             _ if from == to => Ok(()),
             _ => Err(format!("Cast `{from}` -> `{to}` is unavaible")),

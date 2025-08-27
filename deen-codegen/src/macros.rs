@@ -544,22 +544,51 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                     }
 
                     // `pointer -> integer` cast
-                    (from, to) if matches!(from, &Type::Pointer(_)) && deen_semantic::Analyzer::is_integer(to) => {
-                        let value = self.builder.build_ptr_to_int(from_value.1.into_pointer_value(), target_basic_type.into_int_type(), "").unwrap();
+                    (from, to)
+                        if matches!(from, &Type::Pointer(_))
+                            && deen_semantic::Analyzer::is_integer(to) =>
+                    {
+                        let value = self
+                            .builder
+                            .build_ptr_to_int(
+                                from_value.1.into_pointer_value(),
+                                target_basic_type.into_int_type(),
+                                "",
+                            )
+                            .unwrap();
 
                         (to_type.0, value.into())
                     }
 
                     // `integer -> pointer` cast
-                    (from, to) if deen_semantic::Analyzer::is_integer(from) && matches!(to, &Type::Pointer(_)) => {
-                        let value = self.builder.build_int_to_ptr(from_value.1.into_int_value(), target_basic_type.into_pointer_type(), "").unwrap();
+                    (from, to)
+                        if deen_semantic::Analyzer::is_integer(from)
+                            && matches!(to, &Type::Pointer(_)) =>
+                    {
+                        let value = self
+                            .builder
+                            .build_int_to_ptr(
+                                from_value.1.into_int_value(),
+                                target_basic_type.into_pointer_type(),
+                                "",
+                            )
+                            .unwrap();
 
                         (to_type.0, value.into())
                     }
 
                     // pointers types cast
-                    (from, to) if matches!(from, &Type::Pointer(_)) && matches!(to, &Type::Pointer(_)) => {
-                        let value = self.builder.build_pointer_cast(from_value.1.into_pointer_value(), target_basic_type.into_pointer_type(), "").unwrap();
+                    (from, to)
+                        if matches!(from, &Type::Pointer(_)) && matches!(to, &Type::Pointer(_)) =>
+                    {
+                        let value = self
+                            .builder
+                            .build_pointer_cast(
+                                from_value.1.into_pointer_value(),
+                                target_basic_type.into_pointer_type(),
+                                "",
+                            )
+                            .unwrap();
 
                         (to_type.0, value.into())
                     }

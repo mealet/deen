@@ -459,7 +459,7 @@ impl Parser {
                     return Expressions::Argument {
                         name: String::from("@deen_type"),
                         r#type: parsed_type,
-                        span: (span_start, span_end)
+                        span: (span_start, span_end),
                     };
                 }
 
@@ -467,7 +467,7 @@ impl Parser {
                     object: Box::new(self.term()),
                     span: (current.span.0, self.current().span.1),
                 }
-            },
+            }
 
             // This case looks is for C-like syntax: `type name`,
             // but syntax must be like: `name: type`
