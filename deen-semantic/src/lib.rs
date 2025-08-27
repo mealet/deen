@@ -2038,6 +2038,7 @@ impl Analyzer {
                     //     left
                     // }
                     //
+
                     // (Type::Pointer(_), Type::Pointer(_)) => {
                     //     if operand != "+" && operand != "-" {
                     //         self.error(SemanticError::OperatorException {
@@ -3438,6 +3439,10 @@ impl Analyzer {
             _ if (from == &Type::Bool && Self::is_integer(to))
                 || (Self::is_integer(from) && to == &Type::Bool) =>
             {
+                Ok(())
+            }
+
+            _ if matches!(from, &Type::Pointer(_)) && Self::is_integer(to) => {
                 Ok(())
             }
 
