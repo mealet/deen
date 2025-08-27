@@ -2023,21 +2023,20 @@ impl Analyzer {
                         }
                     }
 
-                    // (Type::Pointer(_), r) if Self::is_integer(&r) => {
-                    //     if operand != "+" && operand != "-" {
-                    //         self.error(SemanticError::OperatorException {
-                    //             exception: "unsupported binary operator for pointer".to_string(),
-                    //             help: Some(
-                    //                 "Pointers arithemics supports only: `+` / `-`".to_string(),
-                    //             ),
-                    //             src: self.source.clone(),
-                    //             span: error::position_to_span(*span),
-                    //         });
-                    //     }
-                    //
-                    //     left
-                    // }
-                    //
+                    (Type::Pointer(_), r) if Self::is_integer(&r) => {
+                        if operand != "+" && operand != "-" {
+                            self.error(SemanticError::OperatorException {
+                                exception: "unsupported binary operator for pointer".to_string(),
+                                help: Some(
+                                    "Pointers arithemics supports only: `+` / `-`".to_string(),
+                                ),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
+                        }
+
+                        left
+                    }
 
                     // (Type::Pointer(_), Type::Pointer(_)) => {
                     //     if operand != "+" && operand != "-" {

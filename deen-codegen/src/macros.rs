@@ -539,6 +539,12 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                         (to_type.0, value)
                     }
 
+                    (from, to) if matches!(from, &Type::Pointer(_)) && deen_semantic::Analyzer::is_integer(to) => {
+                        let value = self.builder.build_ptr_to_int(from_value.1.into_pointer_value(), target_basic_type.into_int_type(), "").unwrap();
+
+                        (to_type.0, value.into())
+                    }
+
                     _ => panic!(
                         "Unimplemented cast type catched: `{}` -> `{}`",
                         from_value.0, to_type.0
