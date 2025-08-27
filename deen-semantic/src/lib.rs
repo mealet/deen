@@ -3420,28 +3420,40 @@ impl Analyzer {
 
     fn verify_cast(&self, from: &Type, to: &Type) -> Result<(), String> {
         match (from, to) {
+            // integers types casts
             _ if Self::is_integer(from) && Self::is_integer(to) => Ok(()),
+
+            // float types casts
             _ if Self::is_float(from) && Self::is_float(to) => Ok(()),
 
+            // integers && float casts
             _ if (Self::is_integer(from) && Self::is_float(to))
                 || (Self::is_float(from) && Self::is_integer(to)) =>
             {
                 Ok(())
             }
 
+            // integer and `char` casts
             _ if (Self::is_integer(from) && to == &Type::Char)
                 || (from == &Type::Char && Self::is_integer(to)) =>
             {
                 Ok(())
             }
 
+            // boolean and integer casts
             _ if (from == &Type::Bool && Self::is_integer(to))
                 || (Self::is_integer(from) && to == &Type::Bool) =>
             {
                 Ok(())
             }
 
+            // pointer to integer cast
             _ if matches!(from, &Type::Pointer(_)) && Self::is_integer(to) => {
+                Ok(())
+            }
+
+            // integer to pointer cast
+            _ if Self::is_integer(from) && matches!(to, &Type::Pointer(_)) => {
                 Ok(())
             }
 

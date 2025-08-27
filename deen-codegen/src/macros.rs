@@ -395,6 +395,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                 match (&from_value.0, &to_type.0) {
                     (from, to) if from == to => from_value,
 
+                    // integer types cast
                     (from, to)
                         if deen_semantic::Analyzer::is_integer(from)
                             && deen_semantic::Analyzer::is_integer(to)
@@ -449,6 +450,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                         (to_type.0, value)
                     }
 
+                    // float types casts
                     (from, to)
                         if deen_semantic::Analyzer::is_float(from)
                             && deen_semantic::Analyzer::is_float(to) =>
@@ -481,6 +483,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                         (to_type.0, value)
                     }
 
+                    // `float -> integer` cast
                     (from, to)
                         if deen_semantic::Analyzer::is_float(from)
                             && deen_semantic::Analyzer::is_integer(to) =>
@@ -510,6 +513,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                         (to_type.0, value)
                     }
 
+                    // `integer -> float` cast
                     (from, to)
                         if deen_semantic::Analyzer::is_integer(from)
                             && deen_semantic::Analyzer::is_float(to) =>
@@ -539,8 +543,16 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                         (to_type.0, value)
                     }
 
+                    // `pointer -> integer` cast
                     (from, to) if matches!(from, &Type::Pointer(_)) && deen_semantic::Analyzer::is_integer(to) => {
                         let value = self.builder.build_ptr_to_int(from_value.1.into_pointer_value(), target_basic_type.into_int_type(), "").unwrap();
+
+                        (to_type.0, value.into())
+                    }
+
+                    // `integer -> pointer` cast
+                    (from, to) if deen_semantic::Analyzer::is_integer(from) && matches!(to, &Type::Pointer(_)) => {
+                        let value = self.builder.build_int_to_ptr(from_value.1.into_int_value(), target_basic_type.into_pointer_type(), "").unwrap();
 
                         (to_type.0, value.into())
                     }
