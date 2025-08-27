@@ -557,6 +557,13 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                         (to_type.0, value.into())
                     }
 
+                    // pointers types cast
+                    (from, to) if matches!(from, &Type::Pointer(_)) && matches!(to, &Type::Pointer(_)) => {
+                        let value = self.builder.build_pointer_cast(from_value.1.into_pointer_value(), target_basic_type.into_pointer_type(), "").unwrap();
+
+                        (to_type.0, value.into())
+                    }
+
                     _ => panic!(
                         "Unimplemented cast type catched: `{}` -> `{}`",
                         from_value.0, to_type.0

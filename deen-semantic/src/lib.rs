@@ -3457,6 +3457,11 @@ impl Analyzer {
                 Ok(())
             }
 
+            // pointers types casts
+            _ if matches!(from, &Type::Pointer(_)) && matches!(to, &Type::Pointer(_)) => {
+                Ok(())
+            }
+
             _ if from == to => Ok(()),
             _ => Err(format!("Cast `{from}` -> `{to}` is unavaible")),
         }
