@@ -2038,21 +2038,20 @@ impl Analyzer {
                         left
                     }
 
-                    (Type::Pointer(_), Type::Pointer(_)) => {
-                        if operand != "+" && operand != "-" {
-                            self.error(SemanticError::OperatorException {
-                                exception: "unsupported binary operator for pointer".to_string(),
-                                help: Some(
-                                    "Pointers arithemics supports only: `+` / `-`".to_string(),
-                                ),
-                                src: self.source.clone(),
-                                span: error::position_to_span(*span),
-                            });
-                        }
-
-                        Type::USIZE
-                    }
-
+                    // (Type::Pointer(_), Type::Pointer(_)) => {
+                    //     if operand != "+" && operand != "-" {
+                    //         self.error(SemanticError::OperatorException {
+                    //             exception: "unsupported binary operator for pointer".to_string(),
+                    //             help: Some(
+                    //                 "Pointers arithemics supports only: `+` / `-`".to_string(),
+                    //             ),
+                    //             src: self.source.clone(),
+                    //             span: error::position_to_span(*span),
+                    //         });
+                    //     }
+                    //
+                    //     Type::USIZE
+                    // }
                     (Type::Alias(left), Type::Alias(right)) => {
                         let implementation_format: String =
                             format!("fn binary(&self, other: *{left}, operand: *char) {left}");
@@ -3420,26 +3419,41 @@ impl Analyzer {
 
     fn verify_cast(&self, from: &Type, to: &Type) -> Result<(), String> {
         match (from, to) {
+            // integers types casts
             _ if Self::is_integer(from) && Self::is_integer(to) => Ok(()),
+
+            // float types casts
             _ if Self::is_float(from) && Self::is_float(to) => Ok(()),
 
+            // integers && float casts
             _ if (Self::is_integer(from) && Self::is_float(to))
                 || (Self::is_float(from) && Self::is_integer(to)) =>
             {
                 Ok(())
             }
 
+            // integer and `char` casts
             _ if (Self::is_integer(from) && to == &Type::Char)
                 || (from == &Type::Char && Self::is_integer(to)) =>
             {
                 Ok(())
             }
 
+            // boolean and integer casts
             _ if (from == &Type::Bool && Self::is_integer(to))
                 || (Self::is_integer(from) && to == &Type::Bool) =>
             {
                 Ok(())
             }
+
+            // pointer to integer cast
+            _ if matches!(from, &Type::Pointer(_)) && Self::is_integer(to) => Ok(()),
+
+            // integer to pointer cast
+            _ if Self::is_integer(from) && matches!(to, &Type::Pointer(_)) => Ok(()),
+
+            // pointers types casts
+            _ if matches!(from, &Type::Pointer(_)) && matches!(to, &Type::Pointer(_)) => Ok(()),
 
             _ if from == to => Ok(()),
             _ => Err(format!("Cast `{from}` -> `{to}` is unavaible")),
