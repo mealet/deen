@@ -7,7 +7,7 @@ CLIPPY_COMMAND = clippy
 
 # Compile example and run
 SRC_FILE = source.dn
-OUTPUT_FILE = out
+OUTPUT_FILE = output
 DEEN_ARGS =
 CODE_EDITOR = nvim
 
