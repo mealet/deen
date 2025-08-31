@@ -10,8 +10,10 @@ env:
 
 jobs:
   build:
+    name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
@@ -28,8 +30,9 @@ jobs:
             binary: deen.exe
 
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
@@ -64,7 +67,7 @@ jobs:
     - name: Install Windows dependencies
       if: matrix.os == 'windows-latest'
       run: |
-        choco install llvm --version=18.1.8 -y
+        choco install llvm --version=18.1.8 --force -y
         echo "LLVM_SYS_180_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
 
     - name: Build
