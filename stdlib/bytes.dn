@@ -2,31 +2,37 @@ extern "C" fn malloc(usize) *void;
 extern "C" fn realloc(*void, usize) *void;
 extern "C" fn free(*void);
 
+extern "C" fn strdup(*char) *char;
+
 pub struct Bytes {
   ptr: *u8,
   size: usize,
   len: usize,
 
   iterator_ptr: usize,
+  cached: usize,
+  display_cache: *char,
 
   fn new() Bytes {
     let ptr: *u8 = malloc(sizeof!(u8));
+    let display_cache: *char = malloc(sizeof!(char));
 
     if ptr == NULL {
       panic!("Null pointer appeared on heap allocation `Bytes.new`");
     }
 
-    return Bytes { .ptr = ptr, .size = sizeof!(u8), .len = 0, .iterator_ptr = 0 };
+    return Bytes { .ptr = ptr, .size = sizeof!(u8), .len = 0, .iterator_ptr = 0, .cached = 0, .display_cache = display_cache };
   }
 
   fn with_size(size: usize) Bytes {
     let ptr: *u8 = malloc(sizeof!(u8) * size);
+    let display_cache: *char = malloc(sizeof!(char));
 
     if ptr == NULL {
       panic!("Null pointer apeared on heap allocation `Bytes.with_size`");
     }
 
-    return Bytes { .ptr = ptr, .size = sizeof!(u8) * size, .len = 0, .iterator_ptr = 0 };
+    return Bytes { .ptr = ptr, .size = sizeof!(u8) * size, .len = 0, .iterator_ptr = 0, .cached = 0, .display_cache = display_cache };
   }
 
   fn len(&self) usize {
@@ -127,12 +133,44 @@ pub struct Bytes {
   }
 
   // tech
+  fn display(&self) *char {
+    if self.len == self.cached {
+      return self.display_cache;
+    }
+
+    let fmt =  "";
+    let ptr = self.ptr;
+    
+    for index = self.len() {
+      if index == 0 {
+        fmt = format!("{}", ptr[index]);
+      } else {
+        fmt = format!("{}, {}", fmt, ptr[index]);
+      }
+    }
+
+    if self.display_cache != NULL {
+      free(self.display_cache);
+    }
+
+    self.display_cache = strdup(format!("[{}]", fmt));
+    self.cached = self.len;
+
+    return self.display_cache;
+  }
+
   fn drop(&self) {
     if self.size != 0 {
       self.len = 0;
       self.size = 0;
 
-      free(self.ptr);
+      if self.ptr != NULL {
+        free(self.ptr);
+      }
+
+      if self.display_cache != NULL {
+        free(self.display_cache);
+      }
     }
   }
 
