@@ -69,6 +69,7 @@ jobs:
       run: |
         choco install llvm --version=18.1.8 --force -y
         echo "LLVM_SYS_180_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
+        echo "PATH=C:\Program Files\LLVM\bin;$env:PATH" >> $env:GITHUB_ENV
 
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
@@ -109,9 +110,9 @@ jobs:
       run: |
         mkdir -p release-assets
         
-        # Copy binaries and rename them properly
+        # Copy binaries with correct names
         cp artifacts/deen-linux-x86_64/deen-linux-x86_64 release-assets/deen
-        cp artifacts/deen-macos-aarch64/deen-macos-aarch64 release-assets/deen-macos
+        cp artifacts/deen-macos-aarch64/deen-macos-aarch64 release-assets/deen
         cp artifacts/deen-windows-x86_64/deen-windows-x86_64.exe release-assets/deen.exe
         
         # Copy additional files
@@ -119,9 +120,8 @@ jobs:
         cp README.md release-assets/
         cp -r stdlib release-assets/
         
-        # Make binaries executable
+        # Make Unix binaries executable
         chmod +x release-assets/deen
-        chmod +x release-assets/deen-macos
 
     - name: Generate tag name
       id: tag
@@ -139,7 +139,6 @@ jobs:
         generate_release_notes: true
         files: |
           release-assets/deen
-          release-assets/deen-macos
           release-assets/deen.exe
           release-assets/LICENSE
           release-assets/README.md
