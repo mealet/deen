@@ -1,4 +1,6 @@
-name: Build Release
+permissions:
+  contents: write
+name: Build Deen Release
 
 on:
   workflow_dispatch:
@@ -12,16 +14,19 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            binary_name: deen
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            binary_name: deen.exe
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            binary_name: deen
-    
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: deen-linux-x86_64
+            binary: deen
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: deen-macos-aarch64
+            binary: deen
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: deen-windows-x86_64
+            binary: deen.exe
+
     steps:
     - uses: actions/checkout@v4
     
@@ -29,85 +34,110 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
       with:
         targets: ${{ matrix.target }}
-    
+
+    - name: Setup Rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ matrix.target }}
+
+    # Linux dependencies
+    - name: Install Linux dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y llvm-18-dev libclang-18-dev clang-18 libpolly-18-dev
+        echo "LLVM_SYS_180_PREFIX=/usr/lib/llvm-18" >> $GITHUB_ENV
+
+    # macOS dependencies
+    - name: Install macOS dependencies
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install llvm@18 zstd libffi
+        LLVM_PREFIX=$(brew --prefix llvm@18)
+        echo "LLVM_SYS_180_PREFIX=$LLVM_PREFIX" >> $GITHUB_ENV
+        echo "LIBRARY_PATH=$LLVM_PREFIX/lib:$(brew --prefix zstd)/lib:$(brew --prefix libffi)/lib:$LIBRARY_PATH" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=$LLVM_PREFIX/lib:$(brew --prefix zstd)/lib:$(brew --prefix libffi)/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo "PKG_CONFIG_PATH=$LLVM_PREFIX/lib/pkgconfig:$(brew --prefix zstd)/lib/pkgconfig:$(brew --prefix libffi)/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+        echo "RUSTFLAGS=-L$LLVM_PREFIX/lib" >> $GITHUB_ENV
+
+    # Windows dependencies
+    - name: Install Windows dependencies
+      if: matrix.os == 'windows-latest'
+      run: |
+        choco install llvm --version=18.1.8 -y
+        echo "LLVM_SYS_180_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
+
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
-    
-    - name: Rename binary
-      shell: bash
+
+    - name: Prepare binary (Unix)
+      if: matrix.os != 'windows-latest'
       run: |
-        if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          mv target/${{ matrix.target }}/release/deen.exe target/${{ matrix.target }}/release/${{ matrix.binary_name }}
-        else
-          mv target/${{ matrix.target }}/release/deen target/${{ matrix.target }}/release/${{ matrix.binary_name }}
-        fi
-    
+        cp target/${{ matrix.target }}/release/${{ matrix.binary }} ${{ matrix.name }}
+        chmod +x ${{ matrix.name }}
+
+    - name: Prepare binary (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        copy target\${{ matrix.target }}\release\${{ matrix.binary }} ${{ matrix.name }}.exe
+
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.binary_name }}-${{ matrix.target }}
-        path: target/${{ matrix.target }}/release/${{ matrix.binary_name }}
+        name: ${{ matrix.name }}
+        path: ${{ matrix.name }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
   release:
-    needs: build
+    name: Create Draft Release
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
     
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
         path: artifacts
-    
+
     - name: Prepare release assets
       run: |
         mkdir -p release-assets
         
-        # Copy binaries and rename them with target suffix
-        cp artifacts/deen-x86_64-unknown-linux-gnu/deen release-assets/deen-linux-x86_64
-        cp artifacts/deen.exe-x86_64-pc-windows-msvc/deen.exe release-assets/deen-windows-x86_64.exe
-        cp artifacts/deen-x86_64-apple-darwin/deen release-assets/deen-macos-x86_64
+        # Copy binaries and rename them properly
+        cp artifacts/deen-linux-x86_64/deen-linux-x86_64 release-assets/deen
+        cp artifacts/deen-macos-aarch64/deen-macos-aarch64 release-assets/deen-macos
+        cp artifacts/deen-windows-x86_64/deen-windows-x86_64.exe release-assets/deen.exe
         
-        # Copy other required files
+        # Copy additional files
         cp LICENSE release-assets/
         cp README.md release-assets/
         cp -r stdlib release-assets/
         
-        # Create archive for stdlib and docs
-        tar -czf release-assets/stdlib.tar.gz stdlib
-        tar -czf release-assets/docs.tar.gz LICENSE README.md
-    
+        # Make binaries executable
+        chmod +x release-assets/deen
+        chmod +x release-assets/deen-macos
+
+    - name: Generate tag name
+      id: tag
+      run: |
+        TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+        TAG="release-${TIMESTAMP}"
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
     - name: Create Draft Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
+        tag_name: ${{ steps.tag.outputs.tag }}
+        name: "Deen Compiler Release ${{ steps.tag.outputs.tag }}"
         draft: true
+        generate_release_notes: true
         files: |
-          release-assets/deen-linux-x86_64
-          release-assets/deen-windows-x86_64.exe
-          release-assets/deen-macos-x86_64
+          release-assets/deen
+          release-assets/deen-macos
+          release-assets/deen.exe
           release-assets/LICENSE
           release-assets/README.md
-          release-assets/stdlib.tar.gz
-          release-assets/docs.tar.gz
-        body: |
-          ## Release Notes
-          
-          ### Downloads
-          - **Linux (x86_64)**: `deen-linux-x86_64`
-          - **Windows (x86_64)**: `deen-windows-x86_64.exe`
-          - **macOS (x86_64)**: `deen-macos-x86_64`
-          
-          ### Additional Files
-          - `LICENSE` - License file
-          - `README.md` - Project documentation
-          - `stdlib.tar.gz` - Standard library archive
-          - `docs.tar.gz` - Documentation archive
-          
-          ### Changes
-          <!-- Add your changelog here -->
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          release-assets/stdlib/**
