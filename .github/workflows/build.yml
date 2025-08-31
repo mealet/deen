@@ -1,6 +1,5 @@
 permissions:
   contents: write
-
 name: Build Deen Release
 
 on:
@@ -68,13 +67,16 @@ jobs:
     - name: Install Windows dependencies
       if: matrix.os == 'windows-latest'
       run: |
-        choco install llvm --version=18.1.8 --force -y
+        curl -L -o llvm.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-x86_64-pc-windows-msvc.tar.xz
+        7z x llvm.tar.xz
+        7z x llvm.tar -oC:\
+        move "C:\clang+llvm-18.1.8-x86_64-pc-windows-msvc" "C:\llvm"
         
     - name: Set Windows LLVM environment
       if: matrix.os == 'windows-latest'
       run: |
-        echo "LLVM_SYS_180_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
-        echo "PATH=C:\Program Files\LLVM\bin;$env:PATH" >> $env:GITHUB_ENV
+        echo "LLVM_SYS_180_PREFIX=C:\llvm" >> $env:GITHUB_ENV
+        echo "PATH=C:\llvm\bin;$env:PATH" >> $env:GITHUB_ENV
       shell: pwsh
 
     - name: Build
@@ -116,18 +118,35 @@ jobs:
       run: |
         mkdir -p release-assets
         
-        # Copy binaries with correct names
-        cp artifacts/deen-linux-x86_64/deen-linux-x86_64 release-assets/deen
-        cp artifacts/deen-macos-aarch64/deen-macos-aarch64 release-assets/deen
-        cp artifacts/deen-windows-x86_64/deen-windows-x86_64.exe release-assets/deen.exe
+        # Create platform-specific archive names and copy binaries
+        # Linux binary
+        mkdir -p release-assets/deen-linux-x86_64
+        cp artifacts/deen-linux-x86_64/deen-linux-x86_64 release-assets/deen-linux-x86_64/deen
+        cp LICENSE release-assets/deen-linux-x86_64/
+        cp README.md release-assets/deen-linux-x86_64/
+        cp -r stdlib release-assets/deen-linux-x86_64/
+        chmod +x release-assets/deen-linux-x86_64/deen
         
-        # Copy additional files
-        cp LICENSE release-assets/
-        cp README.md release-assets/
-        cp -r stdlib release-assets/
+        # macOS binary
+        mkdir -p release-assets/deen-macos-aarch64
+        cp artifacts/deen-macos-aarch64/deen-macos-aarch64 release-assets/deen-macos-aarch64/deen
+        cp LICENSE release-assets/deen-macos-aarch64/
+        cp README.md release-assets/deen-macos-aarch64/
+        cp -r stdlib release-assets/deen-macos-aarch64/
+        chmod +x release-assets/deen-macos-aarch64/deen
         
-        # Make Unix binaries executable
-        chmod +x release-assets/deen
+        # Windows binary
+        mkdir -p release-assets/deen-windows-x86_64
+        cp artifacts/deen-windows-x86_64/deen-windows-x86_64.exe release-assets/deen-windows-x86_64/deen.exe
+        cp LICENSE release-assets/deen-windows-x86_64/
+        cp README.md release-assets/deen-windows-x86_64/
+        cp -r stdlib release-assets/deen-windows-x86_64/
+        
+        # Create archives for each platform
+        cd release-assets
+        tar -czf deen-linux-x86_64.tar.gz deen-linux-x86_64/
+        tar -czf deen-macos-aarch64.tar.gz deen-macos-aarch64/
+        zip -r deen-windows-x86_64.zip deen-windows-x86_64/
 
     - name: Generate tag name
       id: tag
@@ -144,8 +163,6 @@ jobs:
         draft: true
         generate_release_notes: true
         files: |
-          release-assets/deen
-          release-assets/deen.exe
-          release-assets/LICENSE
-          release-assets/README.md
-          release-assets/stdlib/**
+          release-assets/deen-linux-x86_64.tar.gz
+          release-assets/deen-macos-aarch64.tar.gz
+          release-assets/deen-windows-x86_64.zip
