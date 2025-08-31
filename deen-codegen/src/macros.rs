@@ -63,7 +63,8 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
 
                 let format_values = compiled_args
                     .into_iter()
-                    .map(|arg| match arg.0.clone() {
+                    .enumerate()
+                    .map(|(index, arg)| match arg.0.clone() {
                         Type::Bool => {
                             let (_true, _false) = self.booleans_strings();
                             self.builder
@@ -89,20 +90,17 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         ))
                                         .unwrap();
 
-                                    // NOTE: Method `display(&self) *char` won`t give mutability of
-                                    // structure, it will only provide tool to use struct in basic
-                                    // output.
                                     let self_val: BasicMetadataValueEnum =
                                         if arg.1.is_pointer_value() {
                                             arg.1.into()
                                         } else {
-                                            let alloca = self
-                                                .builder
-                                                .build_alloca(arg.1.get_type(), "")
-                                                .unwrap();
-                                            let _ =
-                                                self.builder.build_store(alloca, arg.1).unwrap();
-                                            alloca.into()
+                                            let recompiled = self
+                                                .compile_expression(
+                                                    arguments.iter().skip(1).nth(index).unwrap().clone(),
+                                                    Some(Type::Pointer(Box::new(Type::Undefined))),
+                                                )
+                                                .1;
+                                            recompiled.into()
                                         };
 
                                     let output: BasicMetadataValueEnum = self
@@ -159,9 +157,6 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                     }
                 });
 
-                if id.contains("ln") {
-                    literal.push('\n')
-                }
                 let snprintf_fn = self.module.get_function("snprintf").unwrap_or_else(|| {
                     self.module.add_function(
                         "snprintf",
@@ -179,7 +174,8 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
 
                 let format_values = compiled_args
                     .into_iter()
-                    .map(|arg| match arg.0.clone() {
+                    .enumerate()
+                    .map(|(index, arg)| match arg.0.clone() {
                         Type::Bool => {
                             let (_true, _false) = self.booleans_strings();
                             self.builder
@@ -205,7 +201,18 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         ))
                                         .unwrap();
 
-                                    let self_val: BasicMetadataValueEnum = arg.1.into();
+                                    let self_val: BasicMetadataValueEnum =
+                                        if arg.1.is_pointer_value() {
+                                            arg.1.into()
+                                        } else {
+                                            let recompiled = self
+                                                .compile_expression(
+                                                    arguments.iter().skip(1).nth(index).unwrap().clone(),
+                                                    Some(Type::Pointer(Box::new(Type::Undefined))),
+                                                )
+                                                .1;
+                                            recompiled.into()
+                                        };
 
                                     let output: BasicMetadataValueEnum = self
                                         .builder
