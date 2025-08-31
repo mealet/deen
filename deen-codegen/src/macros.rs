@@ -96,7 +96,12 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         } else {
                                             let recompiled = self
                                                 .compile_expression(
-                                                    arguments.iter().skip(1).nth(index).unwrap().clone(),
+                                                    arguments
+                                                        .iter()
+                                                        .skip(1)
+                                                        .nth(index)
+                                                        .unwrap()
+                                                        .clone(),
                                                     Some(Type::Pointer(Box::new(Type::Undefined))),
                                                 )
                                                 .1;
@@ -207,7 +212,12 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         } else {
                                             let recompiled = self
                                                 .compile_expression(
-                                                    arguments.iter().skip(1).nth(index).unwrap().clone(),
+                                                    arguments
+                                                        .iter()
+                                                        .skip(1)
+                                                        .nth(index)
+                                                        .unwrap()
+                                                        .clone(),
                                                     Some(Type::Pointer(Box::new(Type::Undefined))),
                                                 )
                                                 .1;
