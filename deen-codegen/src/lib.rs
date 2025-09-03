@@ -1714,13 +1714,20 @@ impl<'ctx> CodeGen<'ctx> {
                 object,
                 span: _,
             } => {
-                let object_value = self.compile_expression(*object, expected);
+                let mut object_value = self.compile_expression(*object, expected);
+
+                if let Type::Pointer(ref ptr_type) = object_value.0
+                && let Type::Alias(_) = *ptr_type.clone() {
+                    object_value.0 = *ptr_type.clone();
+                } 
 
                 if let Type::Alias(alias) = &object_value.0 {
                     let structure = self.scope.get_struct(alias).unwrap();
                     let unary_function = structure.functions.get("unary").unwrap();
 
-                    let object_ptr = {
+                    let object_ptr = if object_value.1.is_pointer_value() {
+                        object_value.1.into_pointer_value()
+                    } else {
                         let alloca = self
                             .builder
                             .build_alloca(object_value.1.get_type(), "")

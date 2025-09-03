@@ -94,17 +94,28 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         if arg.1.is_pointer_value() {
                                             arg.1.into()
                                         } else {
-                                            let recompiled = self
-                                                .compile_expression(
-                                                    arguments
+                                            let self_expression = arguments
                                                         .iter()
                                                         .skip(1)
                                                         .nth(index)
                                                         .unwrap()
-                                                        .clone(),
+                                                        .clone();
+
+                                            let mut recompiled = self
+                                                .compile_expression(
+                                                    self_expression,
                                                     Some(Type::Pointer(Box::new(Type::Undefined))),
                                                 )
                                                 .1;
+
+                                            if !recompiled.is_pointer_value() {
+                                                let alloca = self.builder.build_alloca(arg.1.get_type(), "").unwrap();
+                                                let _ = self.builder.build_store(alloca, arg.1).unwrap();
+
+                                                recompiled = alloca.into();
+                                            }
+
+                                            assert!(recompiled.is_pointer_value());
                                             recompiled.into()
                                         };
 
@@ -116,6 +127,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         .left()
                                         .unwrap()
                                         .into();
+
                                     output
                                 }
                                 "enum" => arg.1.into(),
@@ -210,7 +222,7 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         if arg.1.is_pointer_value() {
                                             arg.1.into()
                                         } else {
-                                            let recompiled = self
+                                            let mut recompiled = self
                                                 .compile_expression(
                                                     arguments
                                                         .iter()
@@ -221,6 +233,16 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                                     Some(Type::Pointer(Box::new(Type::Undefined))),
                                                 )
                                                 .1;
+                                            
+                                            if !recompiled.is_pointer_value() {
+                                                let alloca = self.builder.build_alloca(arg.1.get_type(), "").unwrap();
+                                                let _ = self.builder.build_store(alloca, arg.1).unwrap();
+
+                                                recompiled = alloca.into();
+                                            }
+
+                                            assert!(recompiled.is_pointer_value());
+
                                             recompiled.into()
                                         };
 
