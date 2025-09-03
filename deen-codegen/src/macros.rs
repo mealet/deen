@@ -90,34 +90,36 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         ))
                                         .unwrap();
 
-                                    let self_val: BasicMetadataValueEnum =
-                                        if arg.1.is_pointer_value() {
-                                            arg.1.into()
-                                        } else {
-                                            let self_expression = arguments
-                                                        .iter()
-                                                        .skip(1)
-                                                        .nth(index)
-                                                        .unwrap()
-                                                        .clone();
+                                    let self_val: BasicMetadataValueEnum = if arg
+                                        .1
+                                        .is_pointer_value()
+                                    {
+                                        arg.1.into()
+                                    } else {
+                                        let self_expression =
+                                            arguments.iter().skip(1).nth(index).unwrap().clone();
 
-                                            let mut recompiled = self
-                                                .compile_expression(
-                                                    self_expression,
-                                                    Some(Type::Pointer(Box::new(Type::Undefined))),
-                                                )
-                                                .1;
+                                        let mut recompiled = self
+                                            .compile_expression(
+                                                self_expression,
+                                                Some(Type::Pointer(Box::new(Type::Undefined))),
+                                            )
+                                            .1;
 
-                                            if !recompiled.is_pointer_value() {
-                                                let alloca = self.builder.build_alloca(arg.1.get_type(), "").unwrap();
-                                                let _ = self.builder.build_store(alloca, arg.1).unwrap();
+                                        if !recompiled.is_pointer_value() {
+                                            let alloca = self
+                                                .builder
+                                                .build_alloca(arg.1.get_type(), "")
+                                                .unwrap();
+                                            let _ =
+                                                self.builder.build_store(alloca, arg.1).unwrap();
 
-                                                recompiled = alloca.into();
-                                            }
+                                            recompiled = alloca.into();
+                                        }
 
-                                            assert!(recompiled.is_pointer_value());
-                                            recompiled.into()
-                                        };
+                                        assert!(recompiled.is_pointer_value());
+                                        recompiled.into()
+                                    };
 
                                     let output: BasicMetadataValueEnum = self
                                         .builder
@@ -218,33 +220,39 @@ impl<'ctx> StandartMacros<'ctx> for CodeGen<'ctx> {
                                         ))
                                         .unwrap();
 
-                                    let self_val: BasicMetadataValueEnum =
-                                        if arg.1.is_pointer_value() {
-                                            arg.1.into()
-                                        } else {
-                                            let mut recompiled = self
-                                                .compile_expression(
-                                                    arguments
-                                                        .iter()
-                                                        .skip(1)
-                                                        .nth(index)
-                                                        .unwrap()
-                                                        .clone(),
-                                                    Some(Type::Pointer(Box::new(Type::Undefined))),
-                                                )
-                                                .1;
-                                            
-                                            if !recompiled.is_pointer_value() {
-                                                let alloca = self.builder.build_alloca(arg.1.get_type(), "").unwrap();
-                                                let _ = self.builder.build_store(alloca, arg.1).unwrap();
+                                    let self_val: BasicMetadataValueEnum = if arg
+                                        .1
+                                        .is_pointer_value()
+                                    {
+                                        arg.1.into()
+                                    } else {
+                                        let mut recompiled = self
+                                            .compile_expression(
+                                                arguments
+                                                    .iter()
+                                                    .skip(1)
+                                                    .nth(index)
+                                                    .unwrap()
+                                                    .clone(),
+                                                Some(Type::Pointer(Box::new(Type::Undefined))),
+                                            )
+                                            .1;
 
-                                                recompiled = alloca.into();
-                                            }
+                                        if !recompiled.is_pointer_value() {
+                                            let alloca = self
+                                                .builder
+                                                .build_alloca(arg.1.get_type(), "")
+                                                .unwrap();
+                                            let _ =
+                                                self.builder.build_store(alloca, arg.1).unwrap();
 
-                                            assert!(recompiled.is_pointer_value());
+                                            recompiled = alloca.into();
+                                        }
 
-                                            recompiled.into()
-                                        };
+                                        assert!(recompiled.is_pointer_value());
+
+                                        recompiled.into()
+                                    };
 
                                     let output: BasicMetadataValueEnum = self
                                         .builder

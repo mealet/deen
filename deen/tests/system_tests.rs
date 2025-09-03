@@ -195,8 +195,8 @@ fn golden_system_tests() -> anyhow::Result<()> {
     });
 
     if is_failed {
-        println!("");
-        return Err(anyhow::anyhow!("Tests failed"))
+        println!();
+        return Err(anyhow::anyhow!("Tests failed"));
     }
 
     Ok(())
