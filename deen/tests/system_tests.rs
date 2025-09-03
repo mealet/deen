@@ -179,7 +179,8 @@ fn golden_system_tests() -> anyhow::Result<()> {
         let _ = fs::remove_file(binary_path);
     }
 
-    if !failed_tests.is_empty() {
+    let is_failed = !failed_tests.is_empty();
+    if is_failed {
         println!();
         println!("Failed {} tests, showing up:", failed_tests.len());
         println!();
@@ -192,6 +193,10 @@ fn golden_system_tests() -> anyhow::Result<()> {
         println!("{}", failed_test.error);
         println!("|{}|", "-".repeat(title.len() - 2));
     });
+
+    if is_failed {
+        return Err(anyhow::anyhow!("Tests failed"))
+    }
 
     Ok(())
 }
