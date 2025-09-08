@@ -1,4 +1,8 @@
+[Deen Documentation]: https://deen-docs.vercel.app/
+[Deen Playground]: https://github.com/mealet/deen-playground
 [Latest Release]: https://github.com/mealet/deen/releases/latest
+[License File]: LICENSE
+[CONTRIBUTING.md]: CONTRIBUTING.md
 
 <div align="center">
   <picture>
@@ -20,7 +24,7 @@
 ## 👀 Description
 **Deen** - a statically-typed compiling programming language inspired by languages like C, C++, Zig, and Rust. <br><br>
 It provides tools for system programming, including: structures, C-like enums with supported functions, type definitions, backward compatibility with C, pointers, recursion, and more. <br/>
-See official documentation here: [Deen Documentation](https://deen-docs.vercel.app/)
+See official documentation here: [Deen Documentation]
 
 **⚠️ The project is currently under active development and may be unstable.**
 
@@ -63,7 +67,12 @@ The project is divided into submodules using a virtual workspace environment:
 4. Go to its directory and run: `cargo build --release`
 5. The executable file will be in the `target/release` folder.
 
+## 🌀 Web Playground
+Currently **Deen Language** has no hosted playground. <br/>
+You can setup your own playground with isolated docker runners and web code editor. <br/>
+Check this repository: [Deen Playground]
+
 ## 👮 Repository
 The project is licensed under the BSD-3 Clause License. <br>
-For more information see [License File](https://github.com/mealet/deen/blob/master/LICENSE) <br/>
-You can check the contribution guide by: [CONTRIBUTING.md](https://github.com/mealet/deen/blob/master/CONTRIBUTING.md).
+For more information see [License File] <br/>
+You can check the contribution guide by: [CONTRIBUTING.md].
