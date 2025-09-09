@@ -28,14 +28,6 @@ jobs:
         llvm-version: 18
 
     - name: 🔧 Packages test
-      run: |
-        cargo test -- --show-output
-
-    - name: 🌐 Cargo check
-      run: |
-        cargo check --workspace --all
-
-    # - name: 📎 Clippy check
-    #   continue-on-error: true
-    #   run: |
-    #     cargo clippy --workspace -- -D warnings
+      uses: jacderida/cargo-nextest@initial
+      with:
+        profile: ci
