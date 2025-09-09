@@ -25,10 +25,11 @@ build:
 	$(PACKAGE_MANAGER) $(BUILD_COMMAND) --release
 
 # Unit tests
-TEST_ARGS = -- --show-output
+NEXTEST_COMMAND = cargo nextest run
+CARGO_TEST_ARGS = -- --show-output
 
 test:
-	$(PACKAGE_MANAGER) $(TEST_COMMAND) $(TEST_ARGS)
+	$(NEXTEST_COMMAND) || $(PACKAGE_MANAGER) $(TEST_COMMAND) $(TEST_ARGS)
 
 # Golden System Tests
 GTEST_ARGS = -p deen -- --show-output
