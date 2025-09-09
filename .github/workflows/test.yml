@@ -27,7 +27,11 @@ jobs:
       with:
         llvm-version: 18
 
-    - name: 🔧 Packages test
-      uses: jacderida/cargo-nextest@initial
+    - name: ⚙️ Install Nextest
+      uses: taiki-e/install-action@nextest
+
+    - name: ⌛ Packages Tests
+      uses: actions-rs/cargo@v1
       with:
-        profile: ci
+        command: nextest
+        args: run --profile ci
