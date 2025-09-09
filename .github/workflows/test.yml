@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
-    - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+    - uses: dtolnay/rust-toolchain@stable
 
     - name: 🖱️ LLVM Install
       uses: ZhongRuoyu/setup-llvm@405ac952f13f3ee4d376adc2b7a96e5f48d1f73f
@@ -32,4 +32,4 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: nextest
-        args: run --profile ci
+        args: run
