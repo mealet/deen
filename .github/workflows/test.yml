@@ -17,10 +17,8 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: dtolnay/rust-toolchain@5aa646dfb739dff33bfae50a6193d9673a68e344
-      with:
-        components: "clippy"
+    - uses: actions/checkout@v5
+    - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
 
     - name: 🖱️ LLVM Install
       uses: ZhongRuoyu/setup-llvm@405ac952f13f3ee4d376adc2b7a96e5f48d1f73f
