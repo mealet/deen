@@ -157,7 +157,7 @@ impl Analyzer {
         if self.scope.get_fn("main").is_none() && self.scope.is_main {
             let err = SemanticError::GlobalError {
                 message: "Program has no entry `main` function".to_string(),
-                help: Some("Consider creating main function: `fn main()) {}`".to_string()),
+                help: Some("Consider creating main function: `fn main() {}`".to_string()),
                 src: self.source.clone(),
             };
 
