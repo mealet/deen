@@ -70,6 +70,7 @@ pub enum Statements {
         arguments: Vec<(String, Type)>,
         block: Vec<Statements>,
         public: bool,
+        external: bool,
         span: (usize, usize),
         header_span: (usize, usize),
     },
@@ -728,6 +729,7 @@ impl Parser {
             arguments: arguments_tuples,
             block,
             public: false,
+            external: false,
             span: (span_start, span_end),
             header_span,
         }
@@ -969,6 +971,7 @@ impl Parser {
                         arguments: _,
                         public: _,
                         block: _,
+                        external: _,
                         span: _,
                         header_span: _,
                     } = &stmt
@@ -1134,6 +1137,7 @@ impl Parser {
                         datatype: _,
                         arguments: _,
                         public: _,
+                        external: _,
                         block: _,
                         span: _,
                         header_span: _,

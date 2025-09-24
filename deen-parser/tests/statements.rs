@@ -313,6 +313,7 @@ fn function_define_statement() {
             arguments,
             block,
             public,
+            external: _,
             span: _,
             header_span: _,
         }) => {
@@ -344,6 +345,7 @@ fn function_define_statement_with_type() {
             arguments,
             block,
             public,
+            external: _,
             span: _,
             header_span: _,
         }) => {
@@ -375,6 +377,7 @@ fn function_define_statement_with_args() {
             arguments,
             block,
             public,
+            external: _,
             span: _,
             header_span: _,
         }) => {
@@ -420,6 +423,7 @@ fn function_define_statement_with_block() {
             arguments,
             block,
             public,
+            external: _,
             span: _,
             header_span: _,
         }) => {
@@ -474,6 +478,7 @@ fn function_define_statement_public() {
             arguments,
             block,
             public,
+            external: _,
             span: _,
             header_span: _,
         }) => {
@@ -643,6 +648,7 @@ fn struct_define_with_fn_statement() {
                 arguments: _,
                 block: _,
                 public: _,
+                external: _,
                 span: _,
                 header_span: _,
             }) = functions.get("foo")
@@ -694,6 +700,7 @@ fn struct_define_public_statement() {
                 arguments: _,
                 block: _,
                 public: _,
+                external: _,
                 span: _,
                 header_span: _,
             }) = functions.get("foo")
@@ -792,6 +799,7 @@ fn enum_define_with_fn_statement() {
                 arguments: _,
                 block: _,
                 public: _,
+                external: _,
                 span: _,
                 header_span: _,
             }) = functions.get("foo")

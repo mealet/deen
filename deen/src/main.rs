@@ -238,10 +238,7 @@ fn main() {
     // Imports aren't working currently | 20/06/2025 v0.0.4
     //
     // Analyzer takes only reference to AST (because we only provide checking)
-
-    // `is_main` flag is set to "NOT args.object" because if user enabled object compilation we
-    // should off main module checkers
-    let mut analyzer = deen_semantic::Analyzer::new(&src, fname, args.path.clone(), !args.object);
+    let mut analyzer = deen_semantic::Analyzer::new(&src, fname, args.path.clone(), !(args.object || args.llvm));
     let (symtable, warns) = match analyzer.analyze(&ast) {
         Ok(res) => res,
         Err((errors, warns)) => {
