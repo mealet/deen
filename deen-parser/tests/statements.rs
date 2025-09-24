@@ -516,6 +516,61 @@ fn function_define_statement_public() {
 }
 
 #[test]
+fn function_define_statement_external() {
+    const SRC: &str = "ext fn foo(a: i32, b: u64) { return 1; }";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::FunctionDefineStatement {
+            name,
+            datatype,
+            arguments,
+            block,
+            public: _,
+            external,
+            span: _,
+            header_span: _,
+        }) => {
+            assert_eq!(name, "foo");
+            assert_eq!(datatype, &Type::Void);
+            assert!(!block.is_empty());
+            assert!(!arguments.is_empty());
+            assert!(external);
+
+            if let Some((argname, argtype)) = arguments.first() {
+                assert_eq!(argname, "a");
+                assert_eq!(argtype, &Type::I32);
+            } else {
+                panic!("Wrong argument expr parsed")
+            }
+
+            if let Some((argname, argtype)) = arguments.get(1) {
+                assert_eq!(argname, "b");
+                assert_eq!(argtype, &Type::U64);
+            } else {
+                panic!("Wrong argument expr parsed")
+            }
+
+            if let Some(Statements::ReturnStatement { value, span: _ }) = block.first() {
+                if let Expressions::Value(Value::Integer(1), _) = value {
+                } else {
+                    panic!("Wrong value in statement block parsed")
+                }
+            } else {
+                panic!("Wrong statement parsed")
+            }
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
 fn function_call_statement() {
     const SRC: &str = "foo()";
     const FILENAME: &str = "test.dn";
