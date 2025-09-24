@@ -625,9 +625,10 @@ impl Parser {
                 "struct" => self.struct_statement(),
                 "enum" => self.enum_statement(),
 
-                "pub" => {
+                "pub" | "ext" => {
                     let _ = self.next();
                     let stmt = self.statement();
+                    let ext_function = current.value == "ext";
 
                     match stmt {
                         Statements::FunctionDefineStatement {
@@ -636,6 +637,7 @@ impl Parser {
                             arguments,
                             block,
                             public: _,
+                            external,
                             span,
                             header_span,
                         } => Statements::FunctionDefineStatement {
@@ -644,6 +646,7 @@ impl Parser {
                             arguments,
                             block,
                             public: true,
+                            external: external || ext_function,
                             span,
                             header_span,
                         },

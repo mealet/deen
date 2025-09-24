@@ -21,13 +21,17 @@ pub struct Args {
     #[arg(short, long, action, help = "Disable compiler's warnings")]
     pub no_warns: bool,
 
-    /// `-l --llvm` flag to enable compilation into LLVM IR
-    #[arg(short, long, action, help = "Enable compilation into LLVM IR")]
+    /// `--llvm` flag to enable compilation into LLVM IR
+    #[arg(long, action, help = "Enable compilation into LLVM IR")]
     pub llvm: bool,
 
-    /// `-i --include` flag to link C library to linker
-    #[arg(short, long, action, help = "Include C library to linker")]
-    pub include: Vec<PathBuf>,
+    /// `--object` flag to compile code without linkage and main function checker
+    #[arg(long, action, help = "Compile code to object file without linkage")]
+    pub object: bool,
+
+    /// `-l --link` flag to link C library to linker
+    #[arg(short, long, action, help = "Link C library to linker")]
+    pub link: Vec<PathBuf>,
 }
 
 /// Prints formatted red error message to _stderr_

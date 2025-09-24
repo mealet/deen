@@ -481,27 +481,32 @@ impl<'ctx> CodeGen<'ctx> {
                 arguments,
                 block,
                 public: _,
+                external,
                 span: _,
                 header_span: _,
             } => {
                 let module_name = self.module.get_name().to_str().unwrap();
-                let name = format!("{}{}", prefix.clone().unwrap_or_default(), raw_name,);
+                let name = format!("{}{}", prefix.clone().unwrap_or_default(), raw_name);
 
-                let llvm_ir_name = format!(
-                    "{}{}{}({})",
-                    if module_name == "main" {
-                        "".to_owned()
-                    } else {
-                        format!("{module_name}.")
-                    },
-                    prefix.clone().unwrap_or_default(),
-                    raw_name,
-                    arguments
-                        .iter()
-                        .map(|arg| arg.1.to_string())
-                        .collect::<Vec<String>>()
-                        .join(", ")
-                );
+                let llvm_ir_name = if external {
+                    raw_name
+                } else {
+                    format!(
+                        "{}{}{}({})",
+                        if module_name == "main" {
+                            "".to_owned()
+                        } else {
+                            format!("{module_name}.")
+                        },
+                        prefix.clone().unwrap_or_default(),
+                        raw_name,
+                        arguments
+                            .iter()
+                            .map(|arg| arg.1.to_string())
+                            .collect::<Vec<String>>()
+                            .join(", ")
+                    )
+                };
 
                 let mut args: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
                 arguments.iter().for_each(|arg| {
@@ -516,8 +521,14 @@ impl<'ctx> CodeGen<'ctx> {
                         &llvm_ir_name
                     },
                     fn_type,
-                    None,
+                    // if public { Some(Linkage::External) } else { None },
+                    if external {
+                        Some(Linkage::External)
+                    } else {
+                        None
+                    },
                 );
+
                 let entry = self.context.append_basic_block(function, "entry");
 
                 let old_position = self.builder.get_insert_block();

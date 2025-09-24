@@ -313,6 +313,7 @@ fn function_define_statement() {
             arguments,
             block,
             public,
+            external: _,
             span: _,
             header_span: _,
         }) => {
@@ -344,6 +345,7 @@ fn function_define_statement_with_type() {
             arguments,
             block,
             public,
+            external: _,
             span: _,
             header_span: _,
         }) => {
@@ -375,6 +377,7 @@ fn function_define_statement_with_args() {
             arguments,
             block,
             public,
+            external: _,
             span: _,
             header_span: _,
         }) => {
@@ -420,6 +423,7 @@ fn function_define_statement_with_block() {
             arguments,
             block,
             public,
+            external: _,
             span: _,
             header_span: _,
         }) => {
@@ -474,6 +478,7 @@ fn function_define_statement_public() {
             arguments,
             block,
             public,
+            external: _,
             span: _,
             header_span: _,
         }) => {
@@ -482,6 +487,61 @@ fn function_define_statement_public() {
             assert!(!block.is_empty());
             assert!(!arguments.is_empty());
             assert!(public);
+
+            if let Some((argname, argtype)) = arguments.first() {
+                assert_eq!(argname, "a");
+                assert_eq!(argtype, &Type::I32);
+            } else {
+                panic!("Wrong argument expr parsed")
+            }
+
+            if let Some((argname, argtype)) = arguments.get(1) {
+                assert_eq!(argname, "b");
+                assert_eq!(argtype, &Type::U64);
+            } else {
+                panic!("Wrong argument expr parsed")
+            }
+
+            if let Some(Statements::ReturnStatement { value, span: _ }) = block.first() {
+                if let Expressions::Value(Value::Integer(1), _) = value {
+                } else {
+                    panic!("Wrong value in statement block parsed")
+                }
+            } else {
+                panic!("Wrong statement parsed")
+            }
+        }
+        _ => panic!("Wrong statement parsed"),
+    }
+}
+
+#[test]
+fn function_define_statement_external() {
+    const SRC: &str = "ext fn foo(a: i32, b: u64) { return 1; }";
+    const FILENAME: &str = "test.dn";
+
+    let mut lexer = Lexer::new(SRC, "test.dn");
+    let (tokens, _) = lexer.tokenize().unwrap();
+
+    let mut parser = Parser::new(tokens, SRC, FILENAME);
+    let (ast, _) = parser.parse().unwrap();
+
+    match ast.first() {
+        Some(Statements::FunctionDefineStatement {
+            name,
+            datatype,
+            arguments,
+            block,
+            public: _,
+            external,
+            span: _,
+            header_span: _,
+        }) => {
+            assert_eq!(name, "foo");
+            assert_eq!(datatype, &Type::Void);
+            assert!(!block.is_empty());
+            assert!(!arguments.is_empty());
+            assert!(external);
 
             if let Some((argname, argtype)) = arguments.first() {
                 assert_eq!(argname, "a");
@@ -643,6 +703,7 @@ fn struct_define_with_fn_statement() {
                 arguments: _,
                 block: _,
                 public: _,
+                external: _,
                 span: _,
                 header_span: _,
             }) = functions.get("foo")
@@ -694,6 +755,7 @@ fn struct_define_public_statement() {
                 arguments: _,
                 block: _,
                 public: _,
+                external: _,
                 span: _,
                 header_span: _,
             }) = functions.get("foo")
@@ -792,6 +854,7 @@ fn enum_define_with_fn_statement() {
                 arguments: _,
                 block: _,
                 public: _,
+                external: _,
                 span: _,
                 header_span: _,
             }) = functions.get("foo")

@@ -157,7 +157,7 @@ impl Analyzer {
         if self.scope.get_fn("main").is_none() && self.scope.is_main {
             let err = SemanticError::GlobalError {
                 message: "Program has no entry `main` function".to_string(),
-                help: Some("Consider creating main function: `fn main()) {}`".to_string()),
+                help: Some("Consider creating main function: `fn main() {}`".to_string()),
                 src: self.source.clone(),
             };
 
@@ -204,6 +204,7 @@ impl Analyzer {
                     arguments: _,
                     block: _,
                     public: _,
+                    external: _,
                     span: _,
                     header_span: _,
                 } => {}
@@ -718,6 +719,7 @@ impl Analyzer {
                 arguments,
                 block,
                 public,
+                external,
                 span,
                 header_span,
             } => {
@@ -824,10 +826,11 @@ impl Analyzer {
 
                 self.scope = *self.scope.parent.clone().unwrap();
 
-                if *public && name == "main" {
+                if (*public || *external) && name == "main" {
                     self.error(SemanticError::VisibilityError {
-                        exception: "`main()` function is not allowed to be public".to_string(),
-                        help: Some("Consider removing `pub` keyword".to_string()),
+                        exception: "`main()` function is not allowed to be public/external"
+                            .to_string(),
+                        help: Some("Consider removing visibility keyword".to_string()),
                         src: self.source.clone(),
                         span: error::position_to_span(*header_span),
                     });
@@ -979,6 +982,7 @@ impl Analyzer {
                         arguments,
                         block,
                         public,
+                        external,
                         span,
                         header_span,
                     } = wrapped_statement.clone()
@@ -999,6 +1003,7 @@ impl Analyzer {
                                 arguments,
                                 block,
                                 public,
+                                external,
                                 span,
                                 header_span,
                             };
@@ -1009,6 +1014,7 @@ impl Analyzer {
                                 arguments,
                                 block,
                                 public,
+                                external,
                                 span,
                                 header_span,
                             };
