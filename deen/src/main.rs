@@ -79,6 +79,11 @@ fn main() {
         }
     });
 
+    if args.llvm && args.object {
+        cli::error("Flags `--llvm` and `--object` are incompatible");
+        std::process::exit(1);
+    }
+
     let no_warns = args.no_warns;
 
     // Getting filename from provided path
@@ -233,7 +238,10 @@ fn main() {
     // Imports aren't working currently | 20/06/2025 v0.0.4
     //
     // Analyzer takes only reference to AST (because we only provide checking)
-    let mut analyzer = deen_semantic::Analyzer::new(&src, fname, args.path.clone(), true);
+
+    // `is_main` flag is set to "NOT args.object" because if user enabled object compilation we
+    // should off main module checkers
+    let mut analyzer = deen_semantic::Analyzer::new(&src, fname, args.path.clone(), !args.object);
     let (symtable, warns) = match analyzer.analyze(&ast) {
         Ok(res) => res,
         Err((errors, warns)) => {
@@ -281,7 +289,7 @@ fn main() {
         cli::warn(&format!("`{}` generated {} warnings", &fname, total_warns));
     }
 
-    cli::info("Compiling", &format!("`{}` to binary", &fname,));
+    cli::info("Compiling", &format!("`{}` to binary", &fname));
 
     // Extracting module name from filename (for codegen)
     let module_name = fname
@@ -292,7 +300,7 @@ fn main() {
 
     // Combining linkages
     let linked_list: Vec<std::path::PathBuf> = symtable.linked.iter().cloned().collect();
-    let external_linkages = [args.include, linked_list].concat();
+    let external_linkages = [args.link, linked_list].concat();
 
     // Code Generator Initialization.
     // Creating custom context and a very big wrapper for builder.
@@ -317,6 +325,12 @@ fn main() {
         )
     } else {
         deen_linker::compiler::ObjectCompiler::compile_module(module_ref, &module_name);
+
+        if args.object {
+            cli::info("Successfully", &format!("compiled to object file: {}.o", args.output.display()));
+            return;
+        }
+
         let compiler = deen_linker::linker::ObjectLinker::link(
             &module_name,
             args.output.to_str().unwrap(),
