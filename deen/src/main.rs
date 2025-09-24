@@ -238,7 +238,8 @@ fn main() {
     // Imports aren't working currently | 20/06/2025 v0.0.4
     //
     // Analyzer takes only reference to AST (because we only provide checking)
-    let mut analyzer = deen_semantic::Analyzer::new(&src, fname, args.path.clone(), !(args.object || args.llvm));
+    let mut analyzer =
+        deen_semantic::Analyzer::new(&src, fname, args.path.clone(), !(args.object || args.llvm));
     let (symtable, warns) = match analyzer.analyze(&ast) {
         Ok(res) => res,
         Err((errors, warns)) => {
@@ -324,7 +325,10 @@ fn main() {
         deen_linker::compiler::ObjectCompiler::compile_module(module_ref, &module_name);
 
         if args.object {
-            cli::info("Successfully", &format!("compiled to object file: {}.o", args.output.display()));
+            cli::info(
+                "Successfully",
+                &format!("compiled to object file: {}.o", args.output.display()),
+            );
             return;
         }
 

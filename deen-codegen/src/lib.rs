@@ -522,7 +522,11 @@ impl<'ctx> CodeGen<'ctx> {
                     },
                     fn_type,
                     // if public { Some(Linkage::External) } else { None },
-                    if external { Some(Linkage::External) } else { None }
+                    if external {
+                        Some(Linkage::External)
+                    } else {
+                        None
+                    },
                 );
 
                 let entry = self.context.append_basic_block(function, "entry");

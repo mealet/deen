@@ -828,7 +828,8 @@ impl Analyzer {
 
                 if (*public || *external) && name == "main" {
                     self.error(SemanticError::VisibilityError {
-                        exception: "`main()` function is not allowed to be public/external".to_string(),
+                        exception: "`main()` function is not allowed to be public/external"
+                            .to_string(),
                         help: Some("Consider removing visibility keyword".to_string()),
                         src: self.source.clone(),
                         span: error::position_to_span(*header_span),

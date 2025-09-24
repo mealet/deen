@@ -32,7 +32,6 @@ pub struct Args {
     /// `-l --link` flag to link C library to linker
     #[arg(short, long, action, help = "Link C library to linker")]
     pub link: Vec<PathBuf>,
-
 }
 
 /// Prints formatted red error message to _stderr_
