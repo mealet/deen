@@ -18,6 +18,8 @@
     <a href="https://github.com/mealet/deen/releases/latest"><img src="https://img.shields.io/github/v/tag/mealet/deen?label=version&logo=hackthebox&logoColor=fff&color=19a63e" /></a>
     <a href="https://github.com/mealet/deen" /><img src="https://img.shields.io/github/actions/workflow/status/mealet/deen/test.yml?logo=speedtest&logoColor=fff&label=tests&color=19a63e" /></a>
     <a href="https://github.com/mealet/deen/blob/master/LICENSE"><img src="https://img.shields.io/github/license/mealet/deen?style=flat&color=%2319a63e&logo=opensourcehardware&logoColor=fff" /></a>
+    <br/>
+    <a href="https://justforfunnoreally.dev"><img src="https://img.shields.io/badge/justforfunnoreally-dev-19a63e" /></a>
   </div>
 </div>
 
