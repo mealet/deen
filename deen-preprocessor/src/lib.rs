@@ -2,7 +2,7 @@ use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
 
 pub struct PreProccessor {
-    context: minipre::Context
+    pub context: minipre::Context
 }
 
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]

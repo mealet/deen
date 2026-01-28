@@ -1693,12 +1693,16 @@ impl<'preprocessor> Analyzer<'preprocessor> {
                     return;
                 }
 
+                let preprocessor_before_defs = self.preprocessor.context.defs.len();
+
                 // Preprocessing
                 src = self.preprocessor.process(src, &module_name).unwrap_or_else(|err| {
                     dbg!(&err);
                     self.error(err.into());
                     String::new()
                 });
+
+                let _defs_changed = self.preprocessor.context.defs.len() != preprocessor_before_defs;
 
                 // if src.is_empty() { return; }
 
@@ -1806,6 +1810,26 @@ impl<'preprocessor> Analyzer<'preprocessor> {
                 symtable.linked.into_iter().for_each(|link| {
                     let _ = self.symtable.linked.insert(link);
                 });
+
+                // reprocessing current module with new defs
+                
+                // TODO: Figure out how to reprocess new defs
+                
+                // if defs_changed {
+                //     let self_source = self.source.inner();
+                //     let self_source_name = self.source.name().to_owned();
+                //
+                //     let mut error_occured: Option<deen_preprocessor::PreProccessorError> = None;
+                //
+                //     let processed_source = self.preprocessor.process(self_source, &self_source_name).unwrap_or_else(|err| {
+                //         error_occured = Some(err);
+                //         self_source.to_owned()
+                //     });
+                //
+                //     if let Some(error_occured) = error_occured { self.error(error_occured.into()) };
+                //
+                //     self.source = NamedSource::new(self_source_name, processed_source);
+                // }
             }
 
             Statements::ExternDeclareStatement {
