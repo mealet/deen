@@ -3677,7 +3677,9 @@ impl<'preprocessor> Analyzer<'preprocessor> {
         if path.starts_with('@') {
             // standard library path
 
-            let deenlib_env = std::env::var(STANDARD_LIBRARY_VAR)?;
+            let deenlib_env = std::env::var(STANDARD_LIBRARY_VAR).or_else(
+                |_| Err(std::io::Error::new(std::io::ErrorKind::Other, "environment variable \"DEEN_LIB\" not found"))
+            )?;
             let expanded_stdlib_path = shellexpand::full(&deenlib_env)?;
             let mut path_buffer = PathBuf::from(expanded_stdlib_path.as_ref());
 

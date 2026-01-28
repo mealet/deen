@@ -1,7 +1,7 @@
 use inkwell::{
     OptimizationLevel,
     module::Module,
-    targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
+    targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple},
 };
 
 pub struct ObjectCompiler;
@@ -13,7 +13,12 @@ impl ObjectCompiler {
         const CODE_MODEL: CodeModel = CodeModel::Default;
 
         Target::initialize_all(&InitializationConfig::default());
-        let target_triple = TargetMachine::get_default_triple();
+        let mut target_triple = TargetMachine::get_default_triple();
+
+        if super::linker::ObjectLinker::detect_compiler().unwrap_or_default() == "gcc" && !target_triple.as_str().to_str().unwrap().contains("gnu") {
+            target_triple = TargetTriple::create(&target_triple.as_str().to_string_lossy().replace("msvc", "gnu"));
+        }
+
         let target = Target::from_triple(&target_triple).unwrap();
         let target_machine = target
             .create_target_machine(
