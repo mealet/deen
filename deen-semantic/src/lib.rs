@@ -1695,11 +1695,12 @@ impl<'preprocessor> Analyzer<'preprocessor> {
 
                 // Preprocessing
                 src = self.preprocessor.process(src, &module_name).unwrap_or_else(|err| {
+                    dbg!(&err);
                     self.error(err.into());
                     String::new()
                 });
 
-                if src.is_empty() { return; }
+                // if src.is_empty() { return; }
 
                 // Lexical Analyzer
                 let mut lexer = deen_lexer::Lexer::new(&src, fname);

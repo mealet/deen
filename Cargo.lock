@@ -501,8 +501,6 @@ dependencies = [
 [[package]]
 name = "minipre"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d54496a759dfd7b32810f78c5f2af67ccad0a9be3ad8c6d7c4a9536bb3d20539"
 dependencies = [
  "regex",
 ]

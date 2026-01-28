@@ -9,5 +9,5 @@ license.workspace = true
 
 [dependencies]
 miette = { version = "7.6.0", features = ["fancy"] }
-minipre = "0.2.0"
+minipre = { path = "./minipre/" }
 thiserror = "2.0.18"
