@@ -242,6 +242,10 @@ pub enum SemanticError {
         #[label("{exception}")]
         span: SourceSpan,
     },
+
+    #[error("Preprocessor unit returned error")]
+    #[diagnostic(severity(Error), code(deen::semantics::pre_error))]
+    PreProcessorError(#[from] deen_preprocessor::PreProccessorError)
 }
 
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]

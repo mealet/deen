@@ -8,3 +8,6 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+miette = { version = "7.6.0", features = ["fancy"] }
+minipre = "0.2.0"
+thiserror = "2.0.18"

@@ -50,8 +50,7 @@ pub type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
 const STANDARD_LIBRARY_VAR: &str = "DEEN_LIB";
 
 /// Main Analyzer Struct
-#[derive(Debug)]
-pub struct Analyzer {
+pub struct Analyzer<'preprocessor> {
     scope: Scope,
     source: NamedSource<String>,
     source_path: PathBuf,
@@ -61,10 +60,12 @@ pub struct Analyzer {
 
     symtable: SymbolTable,
     compiler_macros: HashMap<String, CompilerMacros>,
+
+    preprocessor: &'preprocessor mut deen_preprocessor::PreProccessor
 }
 
-impl Analyzer {
-    pub fn new(src: &str, filename: &str, source_path: PathBuf, is_main: bool) -> Self {
+impl<'preprocessor> Analyzer<'preprocessor> {
+    pub fn new(src: &str, filename: &str, source_path: PathBuf, preprocessor: &'preprocessor mut deen_preprocessor::PreProccessor, is_main: bool) -> Self {
         let compiler_macros = HashMap::from([
             (
                 String::from("print"),
@@ -103,6 +104,8 @@ impl Analyzer {
 
             symtable: SymbolTable::default(),
             compiler_macros,
+
+            preprocessor
         }
     }
 
@@ -193,7 +196,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'preprocessor> Analyzer<'preprocessor> {
     fn visit_statement(&mut self, statement: &Statements) {
         // checking for allowed global scope statements
         if self.scope.parent.is_none() {
@@ -1639,7 +1642,7 @@ impl Analyzer {
                 };
 
                 // Reading source code
-                let src = std::fs::read_to_string(&included_path).unwrap_or_else(|err| {
+                let mut src = std::fs::read_to_string(&included_path).unwrap_or_else(|err| {
                     self.error(SemanticError::IoError {
                         exception: format!("unable to read source code: {err}"),
                         help: None,
@@ -1690,6 +1693,14 @@ impl Analyzer {
                     return;
                 }
 
+                // Preprocessing
+                src = self.preprocessor.process(src, &module_name).unwrap_or_else(|err| {
+                    self.error(err.into());
+                    String::new()
+                });
+
+                if src.is_empty() { return; }
+
                 // Lexical Analyzer
                 let mut lexer = deen_lexer::Lexer::new(&src, fname);
                 let (tokens, _) = match lexer.tokenize() {
@@ -1715,16 +1726,31 @@ impl Analyzer {
                 };
 
                 // Semantical Analyzer
-                let mut analyzer = Analyzer::new(&src, fname, included_path.clone(), false);
-                let (symtable, _) = match analyzer.analyze(&ast) {
-                    Ok(res) => res,
-                    Err((errors, _)) => {
-                        errors.into_iter().for_each(|err| self.errors.push(err));
-                        return;
-                    }
-                };
 
-                analyzer.scope.functions.into_iter().for_each(|func| {
+                let scope_functions;
+                let scope_structures;
+                let scope_enums;
+
+                let symtable;
+
+                {
+                    let mut analyzer = Analyzer::new(&src, fname, included_path.clone(), self.preprocessor, false);
+                    let (analyzer_symtable, _) = match analyzer.analyze(&ast) {
+                        Ok(res) => res,
+                        Err((errors, _)) => {
+                            errors.into_iter().for_each(|err| self.errors.push(err));
+                            return;
+                        }
+                    };
+
+                    scope_functions = analyzer.scope.functions;
+                    scope_structures = analyzer.scope.structures;
+                    scope_enums = analyzer.scope.enums;
+
+                    symtable = analyzer_symtable;
+                }
+
+                scope_functions.into_iter().for_each(|func| {
                     if func.1.public && self.scope.get_fn(&func.0).is_none() {
                         self.scope
                             .add_fn(func.0, func.1.datatype, true)
@@ -1739,7 +1765,7 @@ impl Analyzer {
                     }
                 });
 
-                analyzer.scope.structures.into_iter().for_each(|structure| {
+                scope_structures.into_iter().for_each(|structure| {
                     if structure.1.public && self.scope.get_struct(&structure.0).is_none() {
                         self.scope
                             .add_struct(structure.0, structure.1.datatype, true)
@@ -1754,7 +1780,7 @@ impl Analyzer {
                     }
                 });
 
-                analyzer.scope.enums.into_iter().for_each(|enumeration| {
+                scope_enums.into_iter().for_each(|enumeration| {
                     if enumeration.1.public && self.scope.get_enum(&enumeration.0).is_none() {
                         self.scope
                             .add_enum(enumeration.0, enumeration.1.datatype, true)
@@ -1778,7 +1804,7 @@ impl Analyzer {
 
                 symtable.linked.into_iter().for_each(|link| {
                     let _ = self.symtable.linked.insert(link);
-                })
+                });
             }
 
             Statements::ExternDeclareStatement {
@@ -3402,7 +3428,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'preprocessor> Analyzer<'preprocessor> {
     pub fn verify_macrocall(
         &mut self,
         name: &String,
@@ -3467,7 +3493,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'preprocessor> Analyzer<'preprocessor> {
     /// Returns true if provided type is integer
     #[inline]
     pub fn is_integer(typ: &Type) -> bool {

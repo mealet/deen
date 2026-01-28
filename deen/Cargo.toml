@@ -15,6 +15,7 @@ llvm-sys = { version = "180", features = ["prefer-static"] }
 colored = "3.0.0"
 thiserror = "2.0.12"
 
+deen-preprocessor = { path = "../deen-preprocessor/" }
 deen-lexer = { path = "../deen-lexer" }
 deen-parser = { path = "../deen-parser" }
 deen-semantic = { path = "../deen-semantic" }
