@@ -1,13 +1,13 @@
-extern "C" fn getchar() char;
+extern "C" fn getchar() i32;
 extern "C" fn printf(*char, ...);
 
-extern "C" fn fflush(*i8);
-extern "C" fn fprintf(*i8, *char, ...);
+extern "C" fn fflush(*char);
+extern "C" fn fprintf(*char, *char, ...);
 
 // standart streams
-_extern_declare stdout **i8
-_extern_declare stderr **i8
-_extern_declare stdin **i8
+_extern_declare stdout **char
+_extern_declare stderr **char
+_extern_declare stdin **char
 
 include "@string";
 include "@bytes";
@@ -15,9 +15,11 @@ include "@bytes";
 // standart input
 pub struct Stdin {
   fn read_line(buffer: *String) {
-    let ch = getchar();
-    while (ch != '\0') {
-      if ch == '\n' || ch == '\0' {
+    let ch_i = getchar();
+    let ch = ch_i;
+
+    while (ch != '\0' && ch_i != -1) {
+      if ch == '\n' || ch == '\0' || ch_i == -1 {
         break;
       }
 
