@@ -5,7 +5,7 @@ members = [
   "deen-parser",
   "deen-semantic",
   "deen-codegen",
-  "deen-linker",
+  "deen-linker", "deen-preprocessor",
 ]
 resolver = "2"
 
