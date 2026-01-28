@@ -92,7 +92,9 @@ pub struct String {
     self.len += 1;
 
     if (self.size - 1) < self.len {
-      let temp: *char = realloc(self.ptr, self.len);
+      self.size = self.len * 2;
+
+      let temp: *char = realloc(self.ptr, self.size);
 
       if temp == NULL {
         free(self.ptr);
@@ -100,7 +102,6 @@ pub struct String {
       }
 
       self.ptr = temp;
-      self.size = self.len;
     }
 
     let ptr = self.ptr;
@@ -116,7 +117,9 @@ pub struct String {
     self.len += strlen(value);
 
     if (self.size - 1) < self.len {
-      let temp: *char = realloc(self.ptr, self.len);
+      self.size = self.len * 2;
+
+      let temp: *char = realloc(self.ptr, self.size);
 
       if temp == NULL {
         free(self.ptr);
@@ -124,7 +127,6 @@ pub struct String {
       }
 
       self.ptr = temp;
-      self.size = self.len;
     }
 
     strcat(self.ptr, value);
