@@ -8,11 +8,11 @@ pub fn position_to_span(span: (usize, usize)) -> SourceSpan {
 
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 pub enum SemanticError {
-    #[error("Lexical Analyzer error")]
+    #[error("Lexical Analyzer error in included module")]
     #[diagnostic(transparent)]
     ModuleLexerError(#[from] deen_lexer::error::LexerError),
 
-    #[error("Syntax Analyzer error")]
+    #[error("Syntax Analyzer error in included module")]
     #[diagnostic(transparent)]
     ModuleParserError(#[from] deen_parser::error::ParserError),
 
