@@ -2,7 +2,7 @@
 #include <string.h>
 
 // NOTE: This function is AI generated
-void __string_replace(char *src, char *from, char *to) {
+void __string_replace(char* src, char* from, char* to) {
   if (!src || !from || !to)
     return;
 
@@ -13,12 +13,12 @@ void __string_replace(char *src, char *from, char *to) {
   if (from_len == 0)
     return;
 
-  char *temp = malloc(src_len * 2 + 1);
+  char* temp = malloc(src_len * 2 + 1);
   if (!temp)
     return;
 
-  char *src_ptr = src;
-  char *temp_ptr = temp;
+  char* src_ptr = src;
+  char* temp_ptr = temp;
 
   while (*src_ptr) {
     if (strncmp(src_ptr, from, from_len) == 0) {
