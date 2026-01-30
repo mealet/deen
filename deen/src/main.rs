@@ -69,7 +69,7 @@ fn main() {
                 eprintln!("{}", "🎓 Examples of usage:".bold().cyan());
                 eprintln!("  deen example.dn output");
                 eprintln!("  deen example.dn output --no-warns");
-                eprintln!("  deen example.dn output --include foo.c");
+                eprintln!("  deen example.dn output --link foo.c");
 
                 // Checking for the error kind (if just --help flag returning without error)
                 if e.kind() == clap::error::ErrorKind::DisplayHelp {
