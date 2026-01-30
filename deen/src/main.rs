@@ -137,7 +137,8 @@ fn main() {
         .map(|n| n.to_string())
         .unwrap_or(fname.replace(".dn", ""));
 
-    let handler = miette::GraphicalReportHandler::new();
+    let handler = miette::GraphicalReportHandler::new()
+        .with_cause_chain();
 
     // Preprocessor unit
     let mut preprocessor = deen_preprocessor::PreProccessor::new();

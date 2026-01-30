@@ -9,9 +9,11 @@ pub fn position_to_span(span: (usize, usize)) -> SourceSpan {
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 pub enum SemanticError {
     #[error("Lexical Analyzer error")]
+    #[diagnostic(transparent)]
     ModuleLexerError(#[from] deen_lexer::error::LexerError),
 
     #[error("Syntax Analyzer error")]
+    #[diagnostic(transparent)]
     ModuleParserError(#[from] deen_parser::error::ParserError),
 
     #[error("{message}")]
@@ -244,18 +246,18 @@ pub enum SemanticError {
     },
 
     #[error("Preprocessor unit returned error")]
-    #[diagnostic(severity(Error), code(deen::semantics::pre_error))]
+    #[diagnostic(transparent)]
     PreProcessorError(#[from] deen_preprocessor::PreProccessorError)
 }
 
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
 pub enum SemanticWarning {
     #[error("Lexical Analyzer warning")]
-    #[diagnostic(severity(Warning))]
+    #[diagnostic(transparent)]
     ModuleLexerWarning(#[from] deen_lexer::error::LexerWarning),
 
     #[error("Syntax Analyzer warning")]
-    #[diagnostic(severity(Warning))]
+    #[diagnostic(transparent)]
     ModuleParserWarning(#[from] deen_parser::error::ParserWarning),
 
     #[error("Unused variable `{varname}` found")]
