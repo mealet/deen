@@ -1,3 +1,4 @@
+extern "C" fn memcpy(*void, *void, usize) *void;
 extern "C" fn malloc(usize) *void;
 extern "C" fn realloc(*void, usize) *void;
 extern "C" fn free(*void);
@@ -39,10 +40,35 @@ pub struct RawVec {
         }
     }
 
+    fn clone(&self) RawVec {
+        let len = self.len;
+        let capacity = self.capacity;
+        let element_size = self.element_size;
+
+        let ptr = malloc(capacity);
+
+        if ptr == NULL {
+            panic!("Null pointer appeared on heap allocation: `RawVec.clone`");
+        }
+
+        let _ = memcpy(ptr, self.ptr, capacity);
+
+        return RawVec {
+            .ptr = ptr,
+            .len = len,
+            .element_size = element_size,
+            .capacity = capacity
+        }
+    }
+
     // -- fields getters
 
     fn len(&self) usize {
         return self.len
+    }
+
+    fn is_empty(&self) bool {
+        return self.len < 1;
     }
 
     fn capacity(&self) usize {
@@ -53,13 +79,134 @@ pub struct RawVec {
         return self.element_size;
     }
 
-    // -- modifications
+    // -- vec read/edit
 
+    // pushes element from provided pointer
     fn push(&self, element_ptr: *void) {
-        if self.capacity < 1 {
+        if self.capacity < 1 || self.ptr == NULL {
             panic!("Attempt to push to dropped vector: `RawVec.push`");
         }
 
-        // TODO: Implement
+        if element_ptr == NULL {
+            panic!("Attempt to push NULL value to vector: `RawVec.push`");
+        }
+
+        self.len += 1;
+
+        if (self.capacity / self.element_size) < self.len {
+            self.capacity *= 2;
+
+            let new_ptr = realloc(self.ptr, self.capacity);
+
+            if new_ptr == NULL {
+                panic!("Heap reallocation returned NULL: `RawVec.push`");
+            }
+
+            self.ptr = new_ptr;
+        }
+
+        let ptr = self.ptr;
+        let idx = self.len - 1;
+
+        ptr += idx * self.element_size;
+
+        let _ = memcpy(ptr, element_ptr, self.element_size);
+    }
+
+    // sets value by index
+    fn set(&self, index: usize, value_ptr: *void) {
+         if self.capacity < 1 || self.ptr == NULL {
+            panic!("Attempt to edit dropped vector: `RawVec.set`");
+        }
+
+        if value_ptr == NULL {
+            panic!("Attempt to use NULL value: `RawVec.set`");
+        }       
+
+        if index >= self.len {
+            panic!("Index is {}, but vector len is {}: `RawVec.set`", index, self.len);
+        }
+
+        let ptr = self.ptr;
+        ptr += index * self.element_size;
+
+        let _ = memcpy(ptr, value_ptr, self.element_size);
+    }
+
+    // pops element from array and returns pointer to it
+    fn pop(&self) *void {
+        if self.capacity < 1 || self.ptr == NULL {
+            panic!("Attempt to pop dropped vector: `RawVec.pop`");
+        }
+
+        if self.len < 1 {
+            return cast!(0, *void); // NULL ptr
+        }
+
+        self.len -= 1;
+
+        let ptr = self.ptr;
+        ptr += self.len * self.element_size;
+
+        return ptr;
+    }
+
+    // returns ptr to array element
+    fn get(&self, index: usize) *void {
+        if self.capacity < 1 || self.ptr == NULL {
+            panic!("Attempt to pop dropped vector: `RawVec.get`");
+        }
+
+        if self.len < 1 {
+            // panic!("Indexed access on empty vector: `RawVec.get`");
+            return cast!(0, *void); // NULL ptr
+        }
+
+        if index >= self.len {
+            // panic!("Vector len is {}, but index is {}: `RawVec.get`", self.len, index);
+            return cast!(0, *void); // NULL ptr
+        }
+
+        let ptr = self.ptr;
+        ptr += index * self.element_size;
+
+        return ptr;
+    }
+
+    // removes element by index
+    fn remove(&self, index: usize) {
+        if self.capacity < 1 || self.ptr == NULL {
+            panic!("Attempt to pop dropped vector: `RawVec.remove`");
+        }
+
+        if self.len < 1 { return; }
+
+        if index >= self.len {
+            panic!("Index is {}, but vector len is {}: `RawVec.remove`", index, self.len);
+        }
+
+        if index == (self.len - 1) {
+            let _ = self.pop();
+            return;
+        }
+
+        let ptr = self.ptr;
+        ptr += index * self.element_size;
+        
+        let left = ptr;
+        let right = ptr;
+        let end = ptr;
+
+        right += self.element_size;
+        end += self.len * self.element_size;
+
+        let end_usize = cast!(end, usize);
+
+        while cast!(right, usize) < end_usize {
+            let _ = memcpy(left, right, self.element_size);
+
+            left += self.element_size;
+            right += self.element_size;
+        }
     }
 }
