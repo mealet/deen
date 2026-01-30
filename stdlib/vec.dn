@@ -10,6 +10,7 @@ pub struct RawVec {
     len: usize,
     element_size: usize,
     capacity: usize,
+    __iterator_ptr: usize,
 
     // -- constructors
 
@@ -27,7 +28,8 @@ pub struct RawVec {
             .ptr = ptr,
             .len = len,
             .element_size = element_size,
-            .capacity = capacity
+            .capacity = capacity,
+            .__iterator_ptr = 0
         };
     }
 
@@ -36,7 +38,8 @@ pub struct RawVec {
             .ptr = ptr,
             .len = len,
             .element_size = element_size,
-            .capacity = capacity
+            .capacity = capacity,
+            .__iterator_ptr = 0
         }
     }
 
@@ -57,7 +60,8 @@ pub struct RawVec {
             .ptr = ptr,
             .len = len,
             .element_size = element_size,
-            .capacity = capacity
+            .capacity = capacity,
+            .__iterator_ptr = 0,
         }
     }
 
@@ -158,8 +162,8 @@ pub struct RawVec {
         }
 
         if self.len < 1 {
-            // panic!("Indexed access on empty vector: `RawVec.get`");
-            return cast!(0, *void); // NULL ptr
+            panic!("Indexed access on empty vector: `RawVec.get`");
+            // return cast!(0, *void); // NULL ptr
         }
 
         if index >= self.len {
@@ -176,7 +180,7 @@ pub struct RawVec {
     // removes element by index
     fn remove(&self, index: usize) {
         if self.capacity < 1 || self.ptr == NULL {
-            panic!("Attempt to pop dropped vector: `RawVec.remove`");
+            panic!("Attempt to remove from dropped vector: `RawVec.remove`");
         }
 
         if self.len < 1 { return; }
@@ -208,5 +212,46 @@ pub struct RawVec {
             left += self.element_size;
             right += self.element_size;
         }
+    }
+
+    fn clear(&self) {
+        self.len = 0;
+    }
+
+    fn as_ptr(&self) *void {
+        return self.ptr;
+    }
+
+    // -- Compiler Implementations
+    
+    fn drop(&self) {
+        if self.capacity > 0 {
+            self.len = 0;
+            self.capacity = 0;
+
+            if self.ptr != NULL {
+                free(self.ptr);
+            }
+        }
+    }
+
+    fn slice(&self, index: usize) *void {
+        return self.get(index);
+    }
+
+    fn slice_assign(&self, index: usize, value: *void) {
+        self.set(index, value);
+    }
+
+    fn iterate(&self) (*void, bool) {
+        if self.__iterator_ptr >= self.len {
+            self.__iterator_ptr = 0;
+            return (cast!(0, *void), false);
+        }
+
+        let output = self.get(self.__iterator_ptr);
+        self.__iterator_ptr += 1;
+
+        return (output, true);
     }
 }
