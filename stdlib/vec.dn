@@ -1,0 +1,65 @@
+extern "C" fn malloc(usize) *void;
+extern "C" fn realloc(*void, usize) *void;
+extern "C" fn free(*void);
+
+// RawVec - raw dynamic array implementations, which provides simple API to automate non-fixed lists.
+// Due no Generic types in language it requires to keep information about element size.
+pub struct RawVec {
+    ptr: *void,
+    len: usize,
+    element_size: usize,
+    capacity: usize,
+
+    // -- constructors
+
+    fn new(element_size: usize) RawVec {
+        let len: usize = 0;
+        let capacity = element_size;
+
+        let ptr = malloc(element_size);
+
+        if ptr == NULL {
+            panic!("Null pointer appeared on heap allocation: `RawVec.new`");
+        }
+
+        return RawVec {
+            .ptr = ptr,
+            .len = len,
+            .element_size = element_size,
+            .capacity = capacity
+        };
+    }
+
+    fn from_raw_parts(ptr: *void, len: usize, element_size: usize, capacity: usize) RawVec {
+        return RawVec {
+            .ptr = ptr,
+            .len = len,
+            .element_size = element_size,
+            .capacity = capacity
+        }
+    }
+
+    // -- fields getters
+
+    fn len(&self) usize {
+        return self.len
+    }
+
+    fn capacity(&self) usize {
+        return self.capacity;
+    }
+
+    fn element_size(&self) usize {
+        return self.element_size;
+    }
+
+    // -- modifications
+
+    fn push(&self, element_ptr: *void) {
+        if self.capacity < 1 {
+            panic!("Attempt to push to dropped vector: `RawVec.push`");
+        }
+
+        // TODO: Implement
+    }
+}
