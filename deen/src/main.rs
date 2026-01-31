@@ -141,7 +141,7 @@ fn main() {
         .with_cause_chain();
 
     // Preprocessor unit
-    let mut preprocessor = deen_preprocessor::PreProccessor::new();
+    let mut preprocessor = deen_preprocessor::PreProcessor::new();
 
     src = preprocessor.process(src, &module_name).unwrap_or_else(|err| {
         let mut buf = String::new();

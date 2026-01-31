@@ -247,7 +247,7 @@ pub enum SemanticError {
 
     #[error("Preprocessor unit returned error")]
     #[diagnostic(transparent)]
-    PreProcessorError(#[from] deen_preprocessor::PreProccessorError)
+    PreProcessorError(#[from] deen_preprocessor::PreProcessorError)
 }
 
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]

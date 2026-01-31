@@ -1,12 +1,28 @@
+//! # Deen Preprocessor
+//! Tool to implement C-like macros with compiler pre-defines.
+//! 
+//! Main tool is [`PreProcessor`] structure, which keeps defines context.
+//! 
+//! ## Usage
+//! ```rust
+//! const INPUT: &str = "__LANG__";
+//! const FILENAME: &str = "test.dn";
+//! 
+//! let mut pre = deen_preprocessor::PreProcessor::new();
+//! let output = pre.process(INPUT, FILENAME).unwrap();
+//! 
+//! assert_eq!(output, "deen");
+//! ```
+
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
 
-pub struct PreProccessor {
+pub struct PreProcessor {
     pub context: minipre::Context
 }
 
 #[derive(Debug, Error, Diagnostic, Clone, PartialEq, Eq)]
-pub enum PreProccessorError {
+pub enum PreProcessorError {
     #[error("Preprocessor module returned IO error")]
     #[diagnostic(
         severity(Error),
@@ -29,7 +45,7 @@ pub enum PreProccessorError {
     },
 }
 
-impl PreProccessor {
+impl PreProcessor {
     pub fn new() -> Self {
         let mut context = minipre::Context::new();
 
@@ -47,12 +63,12 @@ impl PreProccessor {
         _self
     }
 
-    pub fn process(&mut self, code: impl AsRef<str>, module_name: impl AsRef<str>) -> Result<String, PreProccessorError> {
+    pub fn process(&mut self, code: impl AsRef<str>, module_name: impl AsRef<str>) -> Result<String, PreProcessorError> {
         let code = code.as_ref().to_owned();
 
         minipre::process_str(&code, &mut self.context).map_err(|err| {
             match err {
-                minipre::Error::Io(_) => PreProccessorError::Io,
+                minipre::Error::Io(_) => PreProcessorError::Io,
                 minipre::Error::Syntax { line, msg } => {
                     let start = code
                         .lines()
@@ -63,7 +79,7 @@ impl PreProccessor {
                     let len = code.lines().nth(line as usize - 1).unwrap_or("").len();
                     let src = NamedSource::new(module_name, code);
 
-                    PreProccessorError::Syntax {
+                    PreProcessorError::Syntax {
                         message: msg.to_owned(),
                         src: src,
                         span: (start, len).into()
@@ -74,7 +90,7 @@ impl PreProccessor {
     }
 }
 
-impl PreProccessor {
+impl PreProcessor {
     fn define_os(&mut self) {
         self.context.define("__OS_LINUX__", format!("{}", cfg!(target_os = "linux") as u8));
         self.context.define("__OS_WINDOWS__", format!("{}", cfg!(target_os = "windows") as u8));

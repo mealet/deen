@@ -61,11 +61,11 @@ pub struct Analyzer<'preprocessor> {
     symtable: SymbolTable,
     compiler_macros: HashMap<String, CompilerMacros>,
 
-    preprocessor: &'preprocessor mut deen_preprocessor::PreProccessor
+    preprocessor: &'preprocessor mut deen_preprocessor::PreProcessor
 }
 
 impl<'preprocessor> Analyzer<'preprocessor> {
-    pub fn new(src: &str, filename: &str, source_path: PathBuf, preprocessor: &'preprocessor mut deen_preprocessor::PreProccessor, is_main: bool) -> Self {
+    pub fn new(src: &str, filename: &str, source_path: PathBuf, preprocessor: &'preprocessor mut deen_preprocessor::PreProcessor, is_main: bool) -> Self {
         let compiler_macros = HashMap::from([
             (
                 String::from("print"),
