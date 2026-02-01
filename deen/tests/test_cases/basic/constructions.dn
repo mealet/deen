@@ -21,6 +21,18 @@ fn main() i32 {
     println!("if false else")
   }
 
+  // priority operators with constants
+
+  if true && false || true {
+    println!("if true false true")
+  }
+
+  // complex if statement
+
+  if (true && (false || 1 != 0) && (!false)) || false {
+    println!("complex works")
+  }
+
   // WHILE construction
 
   println!("countering");

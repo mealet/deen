@@ -239,16 +239,17 @@ impl Parser {
     }
 
     pub fn boolean_expression(&mut self, node: Expressions) -> Expressions {
-        // FIXME: Expressions like `true || false` returns error "Undefined term found"
-
         let node_span = Self::get_span_expression(&node);
         let span_end;
 
         let current = self.current();
 
         match current.token_type {
-            op if PRIORITY_BOOLEAN_OPERATORS.contains(&op) => node,
+            op if PRIORITY_BOOLEAN_OPERATORS.contains(&op) && self.active_boolean_state => node,
             op if BOOLEAN_OPERATORS.contains(&op) => {
+                let previous_state = self.active_boolean_state;
+                self.active_boolean_state = true;
+
                 let _ = self.next();
 
                 let lhs = node.clone();
@@ -270,6 +271,8 @@ impl Parser {
                     let _ = self.next();
                     let rhs_node = self.expression();
 
+                    self.active_boolean_state = previous_state;
+
                     return Expressions::Boolean {
                         operand,
                         lhs: Box::new(lhs_node),
@@ -277,6 +280,8 @@ impl Parser {
                         span: (node_span.0, span_end),
                     };
                 }
+
+                self.active_boolean_state = previous_state;
 
                 Expressions::Boolean {
                     operand: current.value,
