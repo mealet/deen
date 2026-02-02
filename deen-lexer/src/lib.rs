@@ -425,6 +425,11 @@ impl Lexer {
                             let mut captured_string = String::new();
 
                             while self.char != '"' {
+                                if self.char == '\0' {
+                                    self.error(LexerError::UnclosedString { src: self.source.clone(), span: (span_start, 0).into() });
+                                    break;
+                                }
+
                                 if self.char == '\\' {
                                     self.getc();
 

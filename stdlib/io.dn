@@ -1,13 +1,24 @@
-extern "C" fn getchar() char;
+extern "C" fn getchar() i32;
 extern "C" fn printf(*char, ...);
 
-extern "C" fn fflush(*i8);
-extern "C" fn fprintf(*i8, *char, ...);
+extern "C" fn fflush(*char);
+extern "C" fn fprintf(*char, *char, ...);
+
+extern "C" fn puts(*char);
+extern "C" fn fputs(*char, *char);
+extern "C" fn fputc(i32, *char);
 
 // standart streams
-_extern_declare stdout **i8
-_extern_declare stderr **i8
-_extern_declare stdin **i8
+
+#if __OS_WINDOWS__
+
+extern "C" fn __acrt_iob_func(u32) *char;
+
+#else
+_extern_declare stdout **char
+_extern_declare stderr **char
+_extern_declare stdin **char
+#endif
 
 include "@string";
 include "@bytes";
@@ -15,9 +26,11 @@ include "@bytes";
 // standart input
 pub struct Stdin {
   fn read_line(buffer: *String) {
-    let ch = getchar();
-    while (ch != '\0') {
-      if ch == '\n' || ch == '\0' {
+    let ch_i = getchar();
+    let ch = ch_i;
+
+    while (ch != '\0' && ch_i != -1) {
+      if ch == '\n' || ch == '\0' || ch_i == -1 {
         break;
       }
 
@@ -35,28 +48,71 @@ pub struct Stdin {
 // output streams
 pub struct Stdout {
   fn print(input: *char) {
-    printf("%s", input);
+    let buffer = 
+#if __OS_WINDOWS__
+      __acrt_iob_func(1)
+#else
+      *stdout
+#endif
+
+    fputs(input, buffer);
+    fflush(buffer);
   }
 
   fn println(input: *char) {
-    printf("%s\n", input);
+    let buffer = 
+#if __OS_WINDOWS__
+      __acrt_iob_func(1)
+#else
+      *stdout
+#endif
+
+    fputs(input, buffer);
+    fputc(cast!('\n', i32), buffer);
+    fflush(buffer);
   }
 
   fn flush() {
+#if __OS_WINDOWS__
+    fflush(__acrt_iob_func(1));
+#else
     fflush(*stdout);
+#endif
   }
 }
 
 pub struct Stderr {
   fn print(input: *char) {
-    fprintf(*stderr, "%s", input);
+    let stderr_ptr =
+#if __OS_WINDOWS__
+      __acrt_iob_func(2)
+#else
+      *stderr
+#endif
+    ;
+
+    fputs(input, stderr_ptr);
   }
 
   fn println(input: *char) {
-    fprintf(*stderr, "%s\n", input);
+      let stderr_ptr =
+#if __OS_WINDOWS__
+        __acrt_iob_func(2)
+#else
+        *stderr
+#endif
+    ;
+
+    fputs(input, stderr_ptr);
+    fputc(cast!('\n', i32), stderr_ptr);
+    fflush(stderr_ptr);
   }
 
   fn flush() {
+#if __OS_WINDOWS__
+    fflush(__acrt_iob_func(2));
+#else
     fflush(*stderr);
+#endif
   }
 }

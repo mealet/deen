@@ -12,6 +12,7 @@ extern "C" fn strcpy(*char, *char);
 
 extern "C" fn strchr(*char, char) *char;
 extern "C" fn strstr(*char, *char) *char;
+extern "C" fn strcmp(*char, *char) i32;
 
 extern "C" fn toupper(char) char;
 extern "C" fn tolower(char) char;
@@ -92,7 +93,9 @@ pub struct String {
     self.len += 1;
 
     if (self.size - 1) < self.len {
-      let temp: *char = realloc(self.ptr, self.len);
+      self.size = self.len * 2;
+
+      let temp: *char = realloc(self.ptr, self.size);
 
       if temp == NULL {
         free(self.ptr);
@@ -100,7 +103,6 @@ pub struct String {
       }
 
       self.ptr = temp;
-      self.size = self.len;
     }
 
     let ptr = self.ptr;
@@ -116,7 +118,9 @@ pub struct String {
     self.len += strlen(value);
 
     if (self.size - 1) < self.len {
-      let temp: *char = realloc(self.ptr, self.len);
+      self.size = self.len * 2;
+
+      let temp: *char = realloc(self.ptr, self.size);
 
       if temp == NULL {
         free(self.ptr);
@@ -124,7 +128,6 @@ pub struct String {
       }
 
       self.ptr = temp;
-      self.size = self.len;
     }
 
     strcat(self.ptr, value);
@@ -391,12 +394,7 @@ pub struct String {
   }
 
   fn compare(&self, other: *String) i32 {
-    if self.ptr == other.ptr {
-      return 0;
-    }
-
-    if self.len > other.len { return -1 }
-    return 1;
+    return strcmp(other.ptr, self.ptr);
   }
 
   fn slice(&self, index: usize) char {

@@ -12,6 +12,7 @@
 //! # Project Structure
 //! Project separated to multiple submodels by virtual Cargo manifest (cargo workspace):
 //! - [`deen`](crate) - main executable module. Combines all submodules into the main process
+//! - [`deen-preprocessor`](deen_preprocessor) - C-like preprocessor. Resolves compile time definitions and coniditons (based on [minipre](https://github.com/Diggsey/minipre) by Diggsey)
 //! - [`deen-lexer`](deen_lexer) - lexical analyzer. Converts source code into abstract data types (tokens)
 //! - [`deen-parser`](deen_parser) - syntax analyzer. Analyzes and converts provided input into [Abstract Syntax Tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree)
 //! - [`deen-semantic`](deen_semantic) - semantical analyzer. Recursively checks the AST for type and principle matching
@@ -68,7 +69,7 @@ fn main() {
                 eprintln!("{}", "🎓 Examples of usage:".bold().cyan());
                 eprintln!("  deen example.dn output");
                 eprintln!("  deen example.dn output --no-warns");
-                eprintln!("  deen example.dn output --include foo.c");
+                eprintln!("  deen example.dn output --link foo.c");
 
                 // Checking for the error kind (if just --help flag returning without error)
                 if e.kind() == clap::error::ErrorKind::DisplayHelp {
@@ -115,7 +116,7 @@ fn main() {
     );
 
     // Reading it (on old devices it might take a little bit longer)
-    let src = std::fs::read_to_string(&args.path).unwrap_or_else(|err| {
+    let mut src = std::fs::read_to_string(&args.path).unwrap_or_else(|err| {
         eprintln!(
             "Unable to open path: {}. System error: {}",
             std::path::Path::new(&args.path).display(),
@@ -129,12 +130,33 @@ fn main() {
         &format!("tokens ({} lines of code)", src.lines().count()),
     );
 
+    // Extracting module name from filename
+    let module_name = fname
+        .split(".")
+        .next()
+        .map(|n| n.to_string())
+        .unwrap_or(fname.replace(".dn", ""));
+
+    let handler = miette::GraphicalReportHandler::new()
+        .with_cause_chain();
+
+    // Preprocessor unit
+    let mut preprocessor = deen_preprocessor::PreProcessor::new();
+
+    src = preprocessor.process(src, &module_name).unwrap_or_else(|err| {
+        let mut buf = String::new();
+        handler.render_report(&mut buf, &err).unwrap();
+
+        eprintln!("{buf}");
+
+        std::process::exit(1);
+    });
+
     // Lexical Analyzer Initialization
     let mut lexer = deen_lexer::Lexer::new(&src, fname);
 
     // `miette` graphical reporter (for this amazing error reports).
     // "total_warns" variable made just for reporting how much warnings we've got at the end
-    let handler = miette::GraphicalReportHandler::new();
     let mut total_warns = 0;
 
     let (tokens, warns) = match lexer.tokenize() {
@@ -239,7 +261,7 @@ fn main() {
     //
     // Analyzer takes only reference to AST (because we only provide checking)
     let mut analyzer =
-        deen_semantic::Analyzer::new(&src, fname, args.path.clone(), !(args.object || args.llvm));
+        deen_semantic::Analyzer::new(&src, fname, args.path.clone(), &mut preprocessor, !(args.object || args.llvm));
     let (symtable, warns) = match analyzer.analyze(&ast) {
         Ok(res) => res,
         Err((errors, warns)) => {
@@ -288,13 +310,6 @@ fn main() {
     }
 
     cli::info("Compiling", &format!("`{}` to binary", &fname));
-
-    // Extracting module name from filename (for codegen)
-    let module_name = fname
-        .split(".")
-        .next()
-        .map(|n| n.to_string())
-        .unwrap_or(fname.replace(".dn", ""));
 
     // Combining linkages
     let linked_list: Vec<std::path::PathBuf> = symtable.linked.iter().cloned().collect();

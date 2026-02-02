@@ -57,6 +57,21 @@ pub enum LexerError {
         span: SourceSpan,
     },
 
+    #[error("String literal is not closed")]
+    #[diagnostic(
+        severity(Error),
+        code(deen::lexer::unclosed_string),
+        help(
+            "Please end string literal with double quote"
+        )
+    )]
+    UnclosedString {
+        #[source_code]
+        src: NamedSource<String>,
+        #[label("unclosed string starts here")]
+        span: SourceSpan,
+    },
+
     #[error("Unknown character found: '{character}'")]
     #[diagnostic(severity(Error), code(deen::lexer::unknown))]
     UnknownCharacter {

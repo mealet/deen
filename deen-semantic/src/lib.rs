@@ -50,8 +50,7 @@ pub type SemanticErr = (Vec<SemanticError>, Vec<SemanticWarning>);
 const STANDARD_LIBRARY_VAR: &str = "DEEN_LIB";
 
 /// Main Analyzer Struct
-#[derive(Debug)]
-pub struct Analyzer {
+pub struct Analyzer<'preprocessor> {
     scope: Scope,
     source: NamedSource<String>,
     source_path: PathBuf,
@@ -61,10 +60,12 @@ pub struct Analyzer {
 
     symtable: SymbolTable,
     compiler_macros: HashMap<String, CompilerMacros>,
+
+    preprocessor: &'preprocessor mut deen_preprocessor::PreProcessor
 }
 
-impl Analyzer {
-    pub fn new(src: &str, filename: &str, source_path: PathBuf, is_main: bool) -> Self {
+impl<'preprocessor> Analyzer<'preprocessor> {
+    pub fn new(src: &str, filename: &str, source_path: PathBuf, preprocessor: &'preprocessor mut deen_preprocessor::PreProcessor, is_main: bool) -> Self {
         let compiler_macros = HashMap::from([
             (
                 String::from("print"),
@@ -103,6 +104,8 @@ impl Analyzer {
 
             symtable: SymbolTable::default(),
             compiler_macros,
+
+            preprocessor
         }
     }
 
@@ -193,7 +196,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'preprocessor> Analyzer<'preprocessor> {
     fn visit_statement(&mut self, statement: &Statements) {
         // checking for allowed global scope statements
         if self.scope.parent.is_none() {
@@ -1639,7 +1642,7 @@ impl Analyzer {
                 };
 
                 // Reading source code
-                let src = std::fs::read_to_string(&included_path).unwrap_or_else(|err| {
+                let mut src = std::fs::read_to_string(&included_path).unwrap_or_else(|err| {
                     self.error(SemanticError::IoError {
                         exception: format!("unable to read source code: {err}"),
                         help: None,
@@ -1690,6 +1693,19 @@ impl Analyzer {
                     return;
                 }
 
+                let preprocessor_before_defs = self.preprocessor.context.defs.len();
+
+                // Preprocessing
+                src = self.preprocessor.process(src, &module_name).unwrap_or_else(|err| {
+                    dbg!(&err);
+                    self.error(err.into());
+                    String::new()
+                });
+
+                let _defs_changed = self.preprocessor.context.defs.len() != preprocessor_before_defs;
+
+                // if src.is_empty() { return; }
+
                 // Lexical Analyzer
                 let mut lexer = deen_lexer::Lexer::new(&src, fname);
                 let (tokens, _) = match lexer.tokenize() {
@@ -1715,16 +1731,31 @@ impl Analyzer {
                 };
 
                 // Semantical Analyzer
-                let mut analyzer = Analyzer::new(&src, fname, included_path.clone(), false);
-                let (symtable, _) = match analyzer.analyze(&ast) {
-                    Ok(res) => res,
-                    Err((errors, _)) => {
-                        errors.into_iter().for_each(|err| self.errors.push(err));
-                        return;
-                    }
-                };
 
-                analyzer.scope.functions.into_iter().for_each(|func| {
+                let scope_functions;
+                let scope_structures;
+                let scope_enums;
+
+                let symtable;
+
+                {
+                    let mut analyzer = Analyzer::new(&src, fname, included_path.clone(), self.preprocessor, false);
+                    let (analyzer_symtable, _) = match analyzer.analyze(&ast) {
+                        Ok(res) => res,
+                        Err((errors, _)) => {
+                            errors.into_iter().for_each(|err| self.errors.push(err));
+                            return;
+                        }
+                    };
+
+                    scope_functions = analyzer.scope.functions;
+                    scope_structures = analyzer.scope.structures;
+                    scope_enums = analyzer.scope.enums;
+
+                    symtable = analyzer_symtable;
+                }
+
+                scope_functions.into_iter().for_each(|func| {
                     if func.1.public && self.scope.get_fn(&func.0).is_none() {
                         self.scope
                             .add_fn(func.0, func.1.datatype, true)
@@ -1739,7 +1770,7 @@ impl Analyzer {
                     }
                 });
 
-                analyzer.scope.structures.into_iter().for_each(|structure| {
+                scope_structures.into_iter().for_each(|structure| {
                     if structure.1.public && self.scope.get_struct(&structure.0).is_none() {
                         self.scope
                             .add_struct(structure.0, structure.1.datatype, true)
@@ -1754,7 +1785,7 @@ impl Analyzer {
                     }
                 });
 
-                analyzer.scope.enums.into_iter().for_each(|enumeration| {
+                scope_enums.into_iter().for_each(|enumeration| {
                     if enumeration.1.public && self.scope.get_enum(&enumeration.0).is_none() {
                         self.scope
                             .add_enum(enumeration.0, enumeration.1.datatype, true)
@@ -1778,7 +1809,27 @@ impl Analyzer {
 
                 symtable.linked.into_iter().for_each(|link| {
                     let _ = self.symtable.linked.insert(link);
-                })
+                });
+
+                // reprocessing current module with new defs
+                
+                // TODO: Figure out how to reprocess new defs
+                
+                // if defs_changed {
+                //     let self_source = self.source.inner();
+                //     let self_source_name = self.source.name().to_owned();
+                //
+                //     let mut error_occured: Option<deen_preprocessor::PreProccessorError> = None;
+                //
+                //     let processed_source = self.preprocessor.process(self_source, &self_source_name).unwrap_or_else(|err| {
+                //         error_occured = Some(err);
+                //         self_source.to_owned()
+                //     });
+                //
+                //     if let Some(error_occured) = error_occured { self.error(error_occured.into()) };
+                //
+                //     self.source = NamedSource::new(self_source_name, processed_source);
+                // }
             }
 
             Statements::ExternDeclareStatement {
@@ -3402,7 +3453,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'preprocessor> Analyzer<'preprocessor> {
     pub fn verify_macrocall(
         &mut self,
         name: &String,
@@ -3467,7 +3518,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'preprocessor> Analyzer<'preprocessor> {
     /// Returns true if provided type is integer
     #[inline]
     pub fn is_integer(typ: &Type) -> bool {
@@ -3626,7 +3677,9 @@ impl Analyzer {
         if path.starts_with('@') {
             // standard library path
 
-            let deenlib_env = std::env::var(STANDARD_LIBRARY_VAR)?;
+            let deenlib_env = std::env::var(STANDARD_LIBRARY_VAR).or_else(
+                |_| Err(std::io::Error::new(std::io::ErrorKind::Other, "environment variable \"DEEN_LIB\" not found"))
+            )?;
             let expanded_stdlib_path = shellexpand::full(&deenlib_env)?;
             let mut path_buffer = PathBuf::from(expanded_stdlib_path.as_ref());
 
