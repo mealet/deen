@@ -121,6 +121,10 @@ fn main() i32 {
   let person = Person.new("Jason");
   person.greet();
 
+  // slice with subelement
+
+  println!("{}", person.name[0]);
+
   // compiler implementations
   // struct Repeater
 
