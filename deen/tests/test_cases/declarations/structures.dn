@@ -14,6 +14,10 @@ struct Person {
   fn greet(&self) {
     println!("Hello, {}", self.name);
   }
+
+  fn get_first_char(&self) char {
+    return self.name[0];
+  }
 }
 
 struct Repeater {
@@ -120,6 +124,10 @@ fn main() i32 {
   // structure methods and self-methods
   let person = Person.new("Jason");
   person.greet();
+
+  // slice with subelement
+
+  println!("{}", person.get_first_char());
 
   // compiler implementations
   // struct Repeater
