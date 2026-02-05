@@ -3653,6 +3653,8 @@ impl<'preprocessor> Analyzer<'preprocessor> {
 
     #[inline]
     fn verify_slice_expr(&mut self, object: &Expressions, object_type: &Type, index: &Expressions, span: &(usize, usize), expected: Option<Type>) -> Type {
+        let _ = self.visit_expression(index, Some(Type::USIZE));
+
         match object_type {
             Type::Tuple(types) => {
                 if let Expressions::Value(Value::Integer(ind), _) = *object {
