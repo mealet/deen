@@ -2844,6 +2844,43 @@ impl<'preprocessor> Analyzer<'preprocessor> {
                                 }
                             }
                         }
+
+                        Expressions::Slice { object, index, span } => {
+                            match prev_type.clone() {
+                                Type::Struct(fields, _) => {
+                                    if let &Expressions::Value(Value::Identifier(ref ident), _) = object.as_ref() {
+                                        if let Some(object_type) = fields.get(ident) {
+                                            prev_type = self.verify_slice_expr(object, object_type, index, span, expected.clone());
+                                            prev_type_display = prev_type.clone();
+                                        } else {
+                                            self.error(SemanticError::UnknownObject {
+                                                exception: format!("type `{prev_type_display}` has no fields named `{ident}`"),
+                                                help: None,
+                                                src: self.source.clone(),
+                                                span: error::position_to_span(*span)
+                                            });
+                                        }
+                                    } else {
+                                        self.error(SemanticError::UnsupportedExpression {
+                                            exception: "unsupported slice expression found".to_string(),
+                                            help: None,
+                                            src: self.source.clone(),
+                                            span: error::position_to_span(*span)
+                                        });
+                                    }
+                                }
+
+                                unsupported => {
+                                    self.error(SemanticError::UnsupportedType {
+                                        exception: format!("type `{unsupported}` is not sliceable"),
+                                        help: None,
+                                        src: self.source.clone(),
+                                        span: error::position_to_span(*span)
+                                    });
+                                }
+                            }
+                        }
+
                         _ => {
                             self.error(SemanticError::UnsupportedExpression {
                                 exception: "unsupported subelement expression".to_string(),
@@ -3091,109 +3128,9 @@ impl<'preprocessor> Analyzer<'preprocessor> {
                 index,
                 span,
             } => {
-                let obj = self.visit_expression(object, expected.clone());
+                let obj_type = self.visit_expression(object, expected.clone());
 
-                match obj {
-                    Type::Tuple(types) => {
-                        if let Expressions::Value(Value::Integer(ind), _) = **object {
-                            if ind < 0 {
-                                self.error(SemanticError::TypesMismatch {
-                                    exception: "tuple index must be unsigned".to_string(),
-                                    help: None,
-                                    src: self.source.clone(),
-                                    span: error::position_to_span(Parser::get_span_expression(
-                                        index,
-                                    )),
-                                });
-
-                                return expected.unwrap_or(Type::Void);
-                            }
-
-                            types[ind as usize].clone()
-                        } else {
-                            self.error(SemanticError::UnknownObject {
-                                exception: "tuple index must be a known constant".to_string(),
-                                help: Some(
-                                    "Replace provided index with unsigned integer constant"
-                                        .to_string(),
-                                ),
-                                src: self.source.clone(),
-                                span: error::position_to_span(Parser::get_span_expression(index)),
-                            });
-
-                            expected.unwrap_or(Type::Void)
-                        }
-                    }
-                    Type::Array(tty, _) => *tty,
-                    Type::Pointer(ptr_type) => *ptr_type,
-                    Type::DynamicArray(tty) => *tty,
-
-                    Type::Alias(alias) => {
-                        const IMPLEMENTATION_FORMAT: &str = "fn slice(&self, index: usize) _";
-
-                        let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
-                            self.error(SemanticError::UnsupportedType {
-                                exception: format!("type `{alias}` cannot be sliced"),
-                                help: None,
-                                src: self.source.clone(),
-                                span: error::position_to_span(*span),
-                            });
-                            Type::Void
-                        });
-
-                        if struct_type == Type::Void {
-                            return expected.unwrap_or(Type::Void);
-                        }
-
-                        if let Type::Struct(_, functions) = struct_type {
-                            if let Some(Type::Function(args, datatype, _)) = functions.get("slice")
-                            {
-                                if !(*args == vec![Type::Alias(alias.clone()), Type::USIZE]
-                                    && *datatype.clone() != Type::Void)
-                                {
-                                    self.error(SemanticError::IllegalImplementation {
-                                        exception: format!(
-                                            "type `{alias}` has wrong implementation for slice"
-                                        ),
-                                        help: Some(format!(
-                                            "Consider using right format: {IMPLEMENTATION_FORMAT}"
-                                        )),
-                                        src: self.source.clone(),
-                                        span: error::position_to_span(*span),
-                                    });
-                                }
-
-                                *datatype.clone()
-                            } else {
-                                self.error(SemanticError::IllegalImplementation {
-                                    exception: format!("type `{alias}` has no implementation for slice"),
-                                    help: Some(format!("Consider implementing necessary method: {IMPLEMENTATION_FORMAT}")),
-                                    src: self.source.clone(),
-                                    span: error::position_to_span(*span)
-                                });
-                                expected.unwrap_or(Type::Alias(alias))
-                            }
-                        } else {
-                            self.error(SemanticError::UnsupportedType {
-                                exception: format!("type `{alias}` cannot be sliced"),
-                                help: None,
-                                src: self.source.clone(),
-                                span: error::position_to_span(*span),
-                            });
-                            expected.unwrap_or(struct_type)
-                        }
-                    }
-
-                    _ => {
-                        self.error(SemanticError::UnsupportedType {
-                            exception: format!("type `{obj}` isn't supported for slice"),
-                            help: None,
-                            src: self.source.clone(),
-                            span: error::position_to_span(*span),
-                        });
-                        expected.unwrap_or(Type::Void)
-                    }
-                }
+                self.verify_slice_expr(object, &obj_type, index, span, expected)
             }
             Expressions::Struct { name, fields, span } => {
                 let structure = self.scope.get_struct(name).unwrap_or_else(|| {
@@ -3711,6 +3648,113 @@ impl<'preprocessor> Analyzer<'preprocessor> {
             }
 
             Ok(relative_dir.join(path))
+        }
+    }
+
+    #[inline]
+    fn verify_slice_expr(&mut self, object: &Expressions, object_type: &Type, index: &Expressions, span: &(usize, usize), expected: Option<Type>) -> Type {
+        let _ = self.visit_expression(index, Some(Type::USIZE));
+
+        match object_type {
+            Type::Tuple(types) => {
+                if let Expressions::Value(Value::Integer(ind), _) = *object {
+                    if ind < 0 {
+                        self.error(SemanticError::TypesMismatch {
+                            exception: "tuple index must be unsigned".to_string(),
+                            help: None,
+                            src: self.source.clone(),
+                            span: error::position_to_span(Parser::get_span_expression(
+                                index,
+                            )),
+                        });
+
+                        return expected.unwrap_or(Type::Void);
+                    }
+
+                    types[ind as usize].clone()
+                } else {
+                    self.error(SemanticError::UnknownObject {
+                        exception: "tuple index must be a known constant".to_string(),
+                        help: Some(
+                            "Replace provided index with unsigned integer constant"
+                                .to_string(),
+                        ),
+                        src: self.source.clone(),
+                        span: error::position_to_span(Parser::get_span_expression(index)),
+                    });
+
+                    expected.unwrap_or(Type::Void)
+                }
+            }
+            Type::Array(tty, _) => *tty.clone(),
+            Type::Pointer(ptr_type) => *ptr_type.clone(),
+            Type::DynamicArray(tty) => *tty.clone(),
+
+            Type::Alias(alias) => {
+                const IMPLEMENTATION_FORMAT: &str = "fn slice(&self, index: usize) _";
+
+                let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
+                    self.error(SemanticError::UnsupportedType {
+                        exception: format!("type `{alias}` cannot be sliced"),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
+                    Type::Void
+                });
+
+                if struct_type == Type::Void {
+                    return expected.unwrap_or(Type::Void);
+                }
+
+                if let Type::Struct(_, functions) = struct_type {
+                    if let Some(Type::Function(args, datatype, _)) = functions.get("slice")
+                    {
+                        if !(*args == vec![Type::Alias(alias.clone()), Type::USIZE]
+                            && *datatype.clone() != Type::Void)
+                        {
+                            self.error(SemanticError::IllegalImplementation {
+                                exception: format!(
+                                    "type `{alias}` has wrong implementation for slice"
+                                ),
+                                help: Some(format!(
+                                    "Consider using right format: {IMPLEMENTATION_FORMAT}"
+                                )),
+                                src: self.source.clone(),
+                                span: error::position_to_span(*span),
+                            });
+                        }
+
+                        *datatype.clone()
+                    } else {
+                        self.error(SemanticError::IllegalImplementation {
+                            exception: format!("type `{alias}` has no implementation for slice"),
+                            help: Some(format!("Consider implementing necessary method: {IMPLEMENTATION_FORMAT}")),
+                            src: self.source.clone(),
+                            span: error::position_to_span(*span)
+                        });
+                        expected.unwrap_or(Type::Alias(alias.clone()))
+                    }
+                } else {
+                    self.error(SemanticError::UnsupportedType {
+                        exception: format!("type `{alias}` cannot be sliced"),
+                        help: None,
+                        src: self.source.clone(),
+                        span: error::position_to_span(*span),
+                    });
+                    expected.unwrap_or(struct_type)
+                }
+            }
+
+            _ => {
+                self.error(SemanticError::UnsupportedType {
+                    exception: format!("type `{object_type}` isn't supported for slice"),
+                    help: None,
+                    src: self.source.clone(),
+                    span: error::position_to_span(*span),
+                });
+                expected.unwrap_or(Type::Void)
+            }
         }
     }
 }

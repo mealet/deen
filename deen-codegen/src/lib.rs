@@ -2619,6 +2619,87 @@ impl<'ctx> CodeGen<'ctx> {
                         }
                     }
 
+                    Expressions::Slice { object, index, span: _ } => {
+                        if let &Expressions::Value(Value::Identifier(ref ident), _) = object.as_ref()
+                        && let &Type::Alias(ref alias) = &prev_type {
+                            // we're assuming that provided object is structure
+                            // because only structure can hold sliceable field
+
+                            let structure = self.scope.get_struct(&alias).unwrap();
+                            let field = structure.fields.get(ident).unwrap();
+
+                            let field_ptr = self
+                                .builder
+                                .build_struct_gep(
+                                    structure.llvm_type,
+                                    prev_val.into_pointer_value(),
+                                    field.nth,
+                                    "",
+                                )
+                                .unwrap();
+
+                            let field_value = self.builder.build_load(field.llvm_type, field_ptr, "").unwrap().into_pointer_value();
+                            let idx = self.compile_expression(*index.clone(), Some(Type::USIZE));
+
+                            match &field.datatype {
+                                Type::Array(ret_type, _) | Type::Pointer(ret_type) => {
+                                    let basic_ret_type = self.get_basic_type(*ret_type.clone());
+                                    let ptr = unsafe {
+                                        self.builder
+                                            .build_in_bounds_gep(
+                                                basic_ret_type,
+                                                field_value,
+                                                &[idx.1.into_int_value()],
+                                                ""
+                                            ).unwrap()
+                                    };
+
+                                    let value = if let Some(Type::Pointer(ptr_type)) =
+                                        expected.clone()
+                                    {
+                                        if *ptr_type == Type::Undefined {
+                                            ptr.as_basic_value_enum()
+                                        } else {
+                                            self.builder
+                                                .build_load(basic_ret_type, ptr, "")
+                                                .unwrap()
+                                        }
+                                    } else {
+                                        self.builder.build_load(basic_ret_type, ptr, "").unwrap()
+                                    };
+
+                                    prev_type = *ret_type.clone();
+                                    prev_val = value;
+                                },
+
+                                Type::Alias(alias) => {
+                                    let ptr = field_ptr;
+                                    let struct_type = self.scope.get_struct(alias).unwrap();
+                                    let slice_fn = struct_type.functions.get("slice").unwrap();
+
+                                    // calling slice function
+
+                                    let call_result = self.builder
+                                        .build_call(
+                                            slice_fn.value,
+                                            &[ptr.into(), idx.1.into()],
+                                            "@deen_slice_call"
+                                        )
+                                        .unwrap()
+                                        .try_as_basic_value()
+                                        .unwrap_left();
+
+                                    prev_type = slice_fn.datatype.clone();
+                                    prev_val = call_result;
+                                }
+
+                                _ => unreachable!()
+                            }
+                        } else {
+                            panic!("unreachable object:\n1. `{:?}`\n2. `{:?}`", object, prev_type);
+                        }
+                    }
+
                     Expressions::Struct {
                         name,
                         fields,
