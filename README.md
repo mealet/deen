@@ -78,3 +78,4 @@ Check this repository: [Deen Playground]
 The project is licensed under the BSD-3 Clause License. <br>
 For more information see [License File] <br/>
 You can check the contribution guide by: [CONTRIBUTING.md].
+Official project repositories: [Github](https://github.com/mealet/deen), [Codeberg](https://codeberg.com/mealet/deen)
