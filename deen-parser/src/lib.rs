@@ -74,7 +74,7 @@ const BITWISE_OPERATORS: [TokenType; 5] = [
 
 const PRIORITY_BINARY_OPERATORS: [TokenType; 3] =
     [TokenType::Multiply, TokenType::Divide, TokenType::Modulus];
-const PRIORITY_BOOLEAN_OPERATORS: [TokenType; 1] = [TokenType::And];
+const PRIORITY_BOOLEAN_OPERATORS: [TokenType; 2] = [TokenType::And, TokenType::Or];
 
 const END_STATEMENT: TokenType = TokenType::Semicolon;
 
