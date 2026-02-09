@@ -261,7 +261,7 @@ fn main() {
     //
     // Analyzer takes only reference to AST (because we only provide checking)
     let mut analyzer =
-        deen_semantic::Analyzer::new(&src, fname, args.path.clone(), &mut preprocessor, !(args.object || args.llvm));
+        deen_semantic::Analyzer::new(&src, fname, args.path.clone(), &mut preprocessor, !args.object || args.llvm);
     let (symtable, warns) = match analyzer.analyze(&ast) {
         Ok(res) => res,
         Err((errors, warns)) => {
