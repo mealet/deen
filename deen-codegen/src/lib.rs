@@ -2619,13 +2619,19 @@ impl<'ctx> CodeGen<'ctx> {
                         }
                     }
 
-                    Expressions::Slice { object, index, span: _ } => {
-                        if let &Expressions::Value(Value::Identifier(ref ident), _) = object.as_ref()
-                        && let &Type::Alias(ref alias) = &prev_type {
+                    Expressions::Slice {
+                        object,
+                        index,
+                        span: _,
+                    } => {
+                        if let &Expressions::Value(Value::Identifier(ref ident), _) =
+                            object.as_ref()
+                            && let Type::Alias(alias) = &prev_type
+                        {
                             // we're assuming that provided object is structure
                             // because only structure can hold sliceable field
 
-                            let structure = self.scope.get_struct(&alias).unwrap();
+                            let structure = self.scope.get_struct(alias).unwrap();
                             let field = structure.fields.get(ident).unwrap();
 
                             let field_ptr = self
@@ -2638,7 +2644,11 @@ impl<'ctx> CodeGen<'ctx> {
                                 )
                                 .unwrap();
 
-                            let field_value = self.builder.build_load(field.llvm_type, field_ptr, "").unwrap().into_pointer_value();
+                            let field_value = self
+                                .builder
+                                .build_load(field.llvm_type, field_ptr, "")
+                                .unwrap()
+                                .into_pointer_value();
                             let idx = self.compile_expression(*index.clone(), Some(Type::USIZE));
 
                             match &field.datatype {
@@ -2650,8 +2660,9 @@ impl<'ctx> CodeGen<'ctx> {
                                                 basic_ret_type,
                                                 field_value,
                                                 &[idx.1.into_int_value()],
-                                                ""
-                                            ).unwrap()
+                                                "",
+                                            )
+                                            .unwrap()
                                     };
 
                                     let value = if let Some(Type::Pointer(ptr_type)) =
@@ -2670,7 +2681,7 @@ impl<'ctx> CodeGen<'ctx> {
 
                                     prev_type = *ret_type.clone();
                                     prev_val = value;
-                                },
+                                }
 
                                 Type::Alias(alias) => {
                                     let ptr = field_ptr;
@@ -2679,11 +2690,12 @@ impl<'ctx> CodeGen<'ctx> {
 
                                     // calling slice function
 
-                                    let call_result = self.builder
+                                    let call_result = self
+                                        .builder
                                         .build_call(
                                             slice_fn.value,
                                             &[ptr.into(), idx.1.into()],
-                                            "@deen_slice_call"
+                                            "@deen_slice_call",
                                         )
                                         .unwrap()
                                         .try_as_basic_value()
@@ -2693,10 +2705,10 @@ impl<'ctx> CodeGen<'ctx> {
                                     prev_val = call_result;
                                 }
 
-                                _ => unreachable!()
+                                _ => unreachable!(),
                             }
                         } else {
-                            panic!("unreachable object:\n1. `{:?}`\n2. `{:?}`", object, prev_type);
+                            panic!("unreachable object:\n1. `{object:?}`\n2. `{prev_type:?}`");
                         }
                     }
 

@@ -61,9 +61,7 @@ pub enum LexerError {
     #[diagnostic(
         severity(Error),
         code(deen::lexer::unclosed_string),
-        help(
-            "Please end string literal with double quote"
-        )
+        help("Please end string literal with double quote")
     )]
     UnclosedString {
         #[source_code]

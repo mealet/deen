@@ -426,7 +426,10 @@ impl Lexer {
 
                             while self.char != '"' {
                                 if self.char == '\0' {
-                                    self.error(LexerError::UnclosedString { src: self.source.clone(), span: (span_start, 0).into() });
+                                    self.error(LexerError::UnclosedString {
+                                        src: self.source.clone(),
+                                        span: (span_start, 0).into(),
+                                    });
                                     break;
                                 }
 

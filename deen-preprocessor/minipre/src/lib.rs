@@ -74,22 +74,22 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Error::Io(ref e) => e.fmt(f),
-            &Error::Syntax { msg, line } => write!(f, "{} on line {}", msg, line),
+            Error::Io(e) => e.fmt(f),
+            &Error::Syntax { msg, line } => write!(f, "{msg} on line {line}"),
         }
     }
 }
 
 impl error::Error for Error {
     fn description(&self) -> &str {
-        match self {
-            &Error::Io(_) => unimplemented!(),
-            &Error::Syntax { msg, .. } => msg,
+        match *self {
+            Error::Io(_) => unimplemented!(),
+            Error::Syntax { msg, .. } => msg,
         }
     }
     fn cause(&self) -> Option<&dyn error::Error> {
         match self {
-            &Error::Io(ref e) => Some(e),
+            Error::Io(e) => Some(e),
             &Error::Syntax { .. } => None,
         }
     }
@@ -98,6 +98,12 @@ impl error::Error for Error {
 impl From<io::Error> for Error {
     fn from(other: io::Error) -> Self {
         Error::Io(other)
+    }
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -134,7 +140,7 @@ impl Context {
                 .flat_map(|k| vec!["|", &k])
                 .skip(1)
                 .collect();
-            Regex::new(&format!("\\b(?:{})\\b", pat)).expect("Regex should be valid")
+            Regex::new(&format!("\\b(?:{pat})\\b")).expect("Regex should be valid")
         }
     }
     fn replacer<'a>(&'a self) -> impl Replacer + 'a {
@@ -160,11 +166,11 @@ impl Context {
         if term
             .chars()
             .next()
-            .ok_or_else(|| Error::Syntax {
+            .ok_or(Error::Syntax {
                 line,
                 msg: "Expected term, found nothing",
             })?
-            .is_digit(10)
+            .is_ascii_digit()
         {
             Ok(term == "1")
         } else {
@@ -291,7 +297,7 @@ pub fn process<I: BufRead, O: Write>(
 
             let substr = new_line.trim();
             if substr.starts_with("#") {
-                let mut parts = substr.splitn(2, "//").next().unwrap().splitn(2, " ");
+                let mut parts = substr.split("//").next().unwrap().splitn(2, " ");
                 let name = parts.next().unwrap();
                 let maybe_expr = parts.next().map(|s| s.trim()).and_then(|s| {
                     if s.is_empty() {
@@ -303,7 +309,7 @@ pub fn process<I: BufRead, O: Write>(
 
                 match name {
                     "#if" => {
-                        let expr = maybe_expr.ok_or_else(|| Error::Syntax {
+                        let expr = maybe_expr.ok_or(Error::Syntax {
                             line,
                             msg: "Expected expression after `#if`",
                         })?;
@@ -317,7 +323,7 @@ pub fn process<I: BufRead, O: Write>(
                         }
                     }
                     "#elif" => {
-                        let expr = maybe_expr.ok_or_else(|| Error::Syntax {
+                        let expr = maybe_expr.ok_or(Error::Syntax {
                             line,
                             msg: "Expected expression after `#elif`",
                         })?;
@@ -349,7 +355,7 @@ pub fn process<I: BufRead, O: Write>(
                                 msg: "Unexpected expression after `#else`",
                             });
                         }
-                        state = stack.pop().ok_or_else(|| Error::Syntax {
+                        state = stack.pop().ok_or(Error::Syntax {
                             line,
                             msg: "Unexpected `#endif` with no matching `#if`",
                         })?;
@@ -361,10 +367,10 @@ pub fn process<I: BufRead, O: Write>(
                                 msg: "Expected expression after #define",
                             });
                         }
-                        
+
                         let expr = maybe_expr.unwrap();
 
-                        let def_name = expr.split(" ").nth(0);
+                        let def_name = expr.split(" ").next();
                         let def_value = expr.split(" ").nth(1);
 
                         if def_name.is_none() || def_value.is_none() {

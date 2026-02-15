@@ -61,11 +61,17 @@ pub struct Analyzer<'preprocessor> {
     symtable: SymbolTable,
     compiler_macros: HashMap<String, CompilerMacros>,
 
-    preprocessor: &'preprocessor mut deen_preprocessor::PreProcessor
+    preprocessor: &'preprocessor mut deen_preprocessor::PreProcessor,
 }
 
 impl<'preprocessor> Analyzer<'preprocessor> {
-    pub fn new(src: &str, filename: &str, source_path: PathBuf, preprocessor: &'preprocessor mut deen_preprocessor::PreProcessor, is_main: bool) -> Self {
+    pub fn new(
+        src: &str,
+        filename: &str,
+        source_path: PathBuf,
+        preprocessor: &'preprocessor mut deen_preprocessor::PreProcessor,
+        is_main: bool,
+    ) -> Self {
         let compiler_macros = HashMap::from([
             (
                 String::from("print"),
@@ -105,7 +111,7 @@ impl<'preprocessor> Analyzer<'preprocessor> {
             symtable: SymbolTable::default(),
             compiler_macros,
 
-            preprocessor
+            preprocessor,
         }
     }
 
@@ -1696,13 +1702,17 @@ impl<'preprocessor> Analyzer<'preprocessor> {
                 let preprocessor_before_defs = self.preprocessor.context.defs.len();
 
                 // Preprocessing
-                src = self.preprocessor.process(src, &module_name).unwrap_or_else(|err| {
-                    dbg!(&err);
-                    self.error(err.into());
-                    String::new()
-                });
+                src = self
+                    .preprocessor
+                    .process(src, &module_name)
+                    .unwrap_or_else(|err| {
+                        dbg!(&err);
+                        self.error(err.into());
+                        String::new()
+                    });
 
-                let _defs_changed = self.preprocessor.context.defs.len() != preprocessor_before_defs;
+                let _defs_changed =
+                    self.preprocessor.context.defs.len() != preprocessor_before_defs;
 
                 // if src.is_empty() { return; }
 
@@ -1739,7 +1749,8 @@ impl<'preprocessor> Analyzer<'preprocessor> {
                 let symtable;
 
                 {
-                    let mut analyzer = Analyzer::new(&src, fname, included_path.clone(), self.preprocessor, false);
+                    let mut analyzer =
+                        Analyzer::new(&src, fname, included_path.clone(), self.preprocessor, false);
                     let (analyzer_symtable, _) = match analyzer.analyze(&ast) {
                         Ok(res) => res,
                         Err((errors, _)) => {
@@ -1812,9 +1823,9 @@ impl<'preprocessor> Analyzer<'preprocessor> {
                 });
 
                 // reprocessing current module with new defs
-                
+
                 // TODO: Figure out how to reprocess new defs
-                
+
                 // if defs_changed {
                 //     let self_source = self.source.inner();
                 //     let self_source_name = self.source.name().to_owned();
@@ -3614,9 +3625,9 @@ impl<'preprocessor> Analyzer<'preprocessor> {
         if path.starts_with('@') {
             // standard library path
 
-            let deenlib_env = std::env::var(STANDARD_LIBRARY_VAR).or_else(
-                |_| Err(std::io::Error::new(std::io::ErrorKind::Other, "environment variable \"DEEN_LIB\" not found"))
-            )?;
+            let deenlib_env = std::env::var(STANDARD_LIBRARY_VAR).map_err(|_| {
+                std::io::Error::other("environment variable \"DEEN_LIB\" not found")
+            })?;
             let expanded_stdlib_path = shellexpand::full(&deenlib_env)?;
             let mut path_buffer = PathBuf::from(expanded_stdlib_path.as_ref());
 
@@ -3652,7 +3663,14 @@ impl<'preprocessor> Analyzer<'preprocessor> {
     }
 
     #[inline]
-    fn verify_slice_expr(&mut self, object: &Expressions, object_type: &Type, index: &Expressions, span: &(usize, usize), expected: Option<Type>) -> Type {
+    fn verify_slice_expr(
+        &mut self,
+        object: &Expressions,
+        object_type: &Type,
+        index: &Expressions,
+        span: &(usize, usize),
+        expected: Option<Type>,
+    ) -> Type {
         let _ = self.visit_expression(index, Some(Type::USIZE));
 
         match object_type {
@@ -3663,9 +3681,7 @@ impl<'preprocessor> Analyzer<'preprocessor> {
                             exception: "tuple index must be unsigned".to_string(),
                             help: None,
                             src: self.source.clone(),
-                            span: error::position_to_span(Parser::get_span_expression(
-                                index,
-                            )),
+                            span: error::position_to_span(Parser::get_span_expression(index)),
                         });
 
                         return expected.unwrap_or(Type::Void);
@@ -3676,8 +3692,7 @@ impl<'preprocessor> Analyzer<'preprocessor> {
                     self.error(SemanticError::UnknownObject {
                         exception: "tuple index must be a known constant".to_string(),
                         help: Some(
-                            "Replace provided index with unsigned integer constant"
-                                .to_string(),
+                            "Replace provided index with unsigned integer constant".to_string(),
                         ),
                         src: self.source.clone(),
                         span: error::position_to_span(Parser::get_span_expression(index)),
@@ -3693,7 +3708,7 @@ impl<'preprocessor> Analyzer<'preprocessor> {
             Type::Alias(alias) => {
                 const IMPLEMENTATION_FORMAT: &str = "fn slice(&self, index: usize) _";
 
-                let struct_type = self.scope.get_struct(&alias).unwrap_or_else(|| {
+                let struct_type = self.scope.get_struct(alias).unwrap_or_else(|| {
                     self.error(SemanticError::UnsupportedType {
                         exception: format!("type `{alias}` cannot be sliced"),
                         help: None,
@@ -3708,8 +3723,7 @@ impl<'preprocessor> Analyzer<'preprocessor> {
                 }
 
                 if let Type::Struct(_, functions) = struct_type {
-                    if let Some(Type::Function(args, datatype, _)) = functions.get("slice")
-                    {
+                    if let Some(Type::Function(args, datatype, _)) = functions.get("slice") {
                         if !(*args == vec![Type::Alias(alias.clone()), Type::USIZE]
                             && *datatype.clone() != Type::Void)
                         {
@@ -3729,9 +3743,11 @@ impl<'preprocessor> Analyzer<'preprocessor> {
                     } else {
                         self.error(SemanticError::IllegalImplementation {
                             exception: format!("type `{alias}` has no implementation for slice"),
-                            help: Some(format!("Consider implementing necessary method: {IMPLEMENTATION_FORMAT}")),
+                            help: Some(format!(
+                                "Consider implementing necessary method: {IMPLEMENTATION_FORMAT}"
+                            )),
                             src: self.source.clone(),
-                            span: error::position_to_span(*span)
+                            span: error::position_to_span(*span),
                         });
                         expected.unwrap_or(Type::Alias(alias.clone()))
                     }

@@ -61,32 +61,26 @@ impl ObjectLinker {
                         ])
                         .output()
                 }
-                _ => {
-                    match std::env::consts::OS {
-                        "windows" => {
-                            std::process::Command::new(&compiler)
-                                .arg(input.clone())
-                                .args(includes_formatted)
-                                .arg("-fPIC")
-                                .arg("-lm")
-                                .arg("-lmsvcrt")
-                                .arg("-lucrt")
-                                .arg("-lgcc")
-                                .arg("-o")
-                                .arg(output_path)
-                                .output()
-                        },
-                        _ => {
-                            std::process::Command::new(&compiler)
-                                .arg(input.clone())
-                                .args(includes_formatted)
-                                .arg("-fPIC")
-                                .arg("-lm")
-                                .arg("-o")
-                                .arg(output_path)
-                                .output()
-                        }
-                    }
+                _ => match std::env::consts::OS {
+                    "windows" => std::process::Command::new(&compiler)
+                        .arg(input.clone())
+                        .args(includes_formatted)
+                        .arg("-fPIC")
+                        .arg("-lm")
+                        .arg("-lmsvcrt")
+                        .arg("-lucrt")
+                        .arg("-lgcc")
+                        .arg("-o")
+                        .arg(output_path)
+                        .output(),
+                    _ => std::process::Command::new(&compiler)
+                        .arg(input.clone())
+                        .args(includes_formatted)
+                        .arg("-fPIC")
+                        .arg("-lm")
+                        .arg("-o")
+                        .arg(output_path)
+                        .output(),
                 },
             };
 

@@ -137,20 +137,21 @@ fn main() {
         .map(|n| n.to_string())
         .unwrap_or(fname.replace(".dn", ""));
 
-    let handler = miette::GraphicalReportHandler::new()
-        .with_cause_chain();
+    let handler = miette::GraphicalReportHandler::new().with_cause_chain();
 
     // Preprocessor unit
     let mut preprocessor = deen_preprocessor::PreProcessor::new();
 
-    src = preprocessor.process(src, &module_name).unwrap_or_else(|err| {
-        let mut buf = String::new();
-        handler.render_report(&mut buf, &err).unwrap();
+    src = preprocessor
+        .process(src, &module_name)
+        .unwrap_or_else(|err| {
+            let mut buf = String::new();
+            handler.render_report(&mut buf, &err).unwrap();
 
-        eprintln!("{buf}");
+            eprintln!("{buf}");
 
-        std::process::exit(1);
-    });
+            std::process::exit(1);
+        });
 
     // Lexical Analyzer Initialization
     let mut lexer = deen_lexer::Lexer::new(&src, fname);
@@ -260,8 +261,13 @@ fn main() {
     // Imports aren't working currently | 20/06/2025 v0.0.4
     //
     // Analyzer takes only reference to AST (because we only provide checking)
-    let mut analyzer =
-        deen_semantic::Analyzer::new(&src, fname, args.path.clone(), &mut preprocessor, !args.object || args.llvm);
+    let mut analyzer = deen_semantic::Analyzer::new(
+        &src,
+        fname,
+        args.path.clone(),
+        &mut preprocessor,
+        !args.object || args.llvm,
+    );
     let (symtable, warns) = match analyzer.analyze(&ast) {
         Ok(res) => res,
         Err((errors, warns)) => {
@@ -339,7 +345,11 @@ fn main() {
     } else {
         deen_linker::compiler::ObjectCompiler::compile_module(
             module_ref,
-            if args.object { args.output.to_str().unwrap_or(&module_name) } else { &module_name }
+            if args.object {
+                args.output.to_str().unwrap_or(&module_name)
+            } else {
+                &module_name
+            },
         );
 
         if args.object {
