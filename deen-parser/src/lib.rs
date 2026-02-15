@@ -371,7 +371,12 @@ impl Parser {
                     };
                 }
 
+                let prev_bool_state = self.active_boolean_state;
+                self.active_boolean_state = false;
+
                 let expr = self.expression();
+
+                self.active_boolean_state = prev_bool_state;
 
                 if self.expect(TokenType::Comma) {
                     let mut values = vec![expr];

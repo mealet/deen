@@ -27,6 +27,14 @@ fn main() i32 {
     println!("if true false true")
   }
 
+  // non-priority OR test (required after 6a19883)
+
+  let ptr = &0;
+
+  if ptr != NULL || 1 > 0 {
+    println!("non-priority OR works")
+  }
+
   // complex if statement
 
   if (true && (false || 1 != 0) && (!false)) || false {
