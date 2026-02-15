@@ -337,7 +337,10 @@ fn main() {
             &format!("compiled to LLVM IR: `{}.ll`", args.output.display()),
         )
     } else {
-        deen_linker::compiler::ObjectCompiler::compile_module(module_ref, &module_name);
+        deen_linker::compiler::ObjectCompiler::compile_module(
+            module_ref,
+            if args.object { args.output.to_str().unwrap_or(&module_name) } else { &module_name }
+        );
 
         if args.object {
             cli::info(
