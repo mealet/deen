@@ -5,6 +5,11 @@
 [CONTRIBUTING.md]: CONTRIBUTING.md
 
 <div align="center">
+  <sup>This repository is the mirror of <a href="https://codeberg.org/mealet/deen">Codeberg Repo</a></sup>
+  <br/><br/>
+</div>
+
+<div align="center">
   <picture>
     <img src="assets/Deen%20Logo.png" width="35%" />
   </picture>
